@@ -1,15 +1,15 @@
-
-# UI for KAPLAN-MEIER app
+# UI for the Kaplan-Meier plot module
 kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
   
   ns <- NS(id)
   
   tagList( 
     
+    # Throwing a fluidPage() inside of the taglist so I can use a Bootstrap theme... it does work, not sure how kosher it is though?
     fluidPage(theme = shinytheme("lumen"),
               tags$head(tags$style(HTML('.shiny-output-error-validation {
-color: #93C54B;
-}'))), # Custom CSS to modify the app error messages
+                                                                         color: #93C54B;
+                                                                         }'))), # Custom CSS to modify the app error messages
     
               ###############################################################
               #----------------------- SIDEBAR -----------------------------#
@@ -56,7 +56,6 @@ color: #93C54B;
                              for each quartile of patients (quartile), 
                              or for patients that fall either above or below a percentile cutoff point specified by the user (percentile).")
                 ),
-                
                 
                 ###############################################################
                 #----------------------- MAIN PLOT PANEL ---------------------#
@@ -111,19 +110,17 @@ color: #93C54B;
   )
 }
 
+# Server function for the Kaplan-Meier plot module
 kmPlot <- function(input, output, session, clinData, countsData, gene){
   
   library(survminer)
   library(survival)
   library(tidyverse)
-  require(eply)
-  require(GGally)
-  library(gridExtra)
-  library(grid)
+  library(cowplot)
   library(gtools)
   library(data.table)
-  library(openxlsx)
   library(DT)
+  library(openxlsx)
   `%then%` <- shiny:::`%OR%` # See https://shiny.rstudio.com/articles/validation.html for details on the %then% operator
   
   #-------------------- Data preparation -----------------------#
@@ -261,7 +258,6 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
       rename(`Expression category` = !!type) ### PERCENTILE TABLE DOESN'T WORK, FIX!!!!!!!!
   })
   
-  
   # https://stackoverflow.com/questions/51302112/create-plots-based-on-check-box-selection-in-r-shiny
   finalPlot <- reactive({
     
@@ -271,7 +267,7 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
     if(length(input$test_type) == 1){
       
       survp <- KMplot(input$test_type)
-      cowplot::plot_grid(survp$plot, nrow = 2)
+      plot_grid(survp$plot, nrow = 2)
       
     # Generating multiple plots if the input$test_type object contains both EFS & OS
     }else if(length(input$test_type) > 1){

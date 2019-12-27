@@ -1,19 +1,12 @@
-# SHINY DAHSBOARD SERVER
-
-############  TO PUSH UPDATES TO THE SHINYAPPS.IO SERVER ######################
-# library(rsconnect)
-# rsconnect::deployApp('/Volumes/homes/Shiny/kaplanMeierPlot_app')
-
 library(shiny)
-library(ggplot2)
 library(tidyverse)
-library(data.table)
-library(DT)
 source("waterfallPlot_module.R")
 source("kaplanMeierPlot_module.R")
 
-# Function to read in counts % clinical data, if they haven't been used yet
-# NOTE: GitHub has a max allowed filesize of 100 MB, so the counts data had to be broken into 3 files to be uploaded
+################ Loading external data ########################################
+# Creating a progress bar to let the user know when the expression data is done loading.
+# Code adapted from http://www.mazsoft.com/blog/post/2018/01/01/show-progress-bar-when-pre-loading-data-in-shiny-app
+# NOTE: GitHub has a max allowed filesize of 100 MB, so the counts data had to be broken into 3 files in order to be uploadable
 readData <- function(clinData, countsData){
   progress <- Progress$new()
   progress$set(value = 0.0, message = 'Loading expression data part 1...')
@@ -30,27 +23,26 @@ readData <- function(clinData, countsData){
   progress$set(value = 1, message = 'Done loading!')
   progress$close()
 }
+##############################################################################
 
-################ Loading external data ########################################
-# Creating a progress bar to let the user know when the expression data is done loading.
-# Code adapted from http://www.mazsoft.com/blog/post/2018/01/01/show-progress-bar-when-pre-loading-data-in-shiny-app
 countsData <- NULL
 clinData <- NULL
 
-
-##############################################################################
-
 server <- function(input, output, session) { 
   
+  # Reading in the counts & clinical data one time, immediately when the app starts up
   if(is.null(countsData)){
     readData(clinData, countsData)
   }
   
-  # See https://tbradley1013.github.io/2018/07/20/r-shiny-modules--using-global-inputs/ for more info 
-  # on passing global Shiny variables into a module
+  # Creating a variable that will be used to reactively pass the gene of interest into each module
+  # See https://tbradley1013.github.io/2018/07/20/r-shiny-modules--using-global-inputs/ for more  
+  # info on passing global Shiny variables into a module
   target <- reactive(input$geneInput)
-  
+
+  # Calling the waterfall plot module
   callModule(wfPlot, id = "waterfall", clinData = clinData, countsData = countsData, gene = target)
   
+  # Calling the Kaplan-Meier curve generator module
   callModule(kmPlot, id = "kaplanmeier", clinData = clinData, countsData = countsData, gene = target)
 }

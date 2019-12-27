@@ -1,4 +1,3 @@
-# SHINY DASHBOARD UI
 library(shiny)
 library(shinydashboard)
 library(shinythemes)
@@ -8,8 +7,6 @@ source("kaplanMeierPlot_module.R")
 ui <- dashboardPage(  
   
   dashboardHeader(title = "TARGET AAML1031"),
-  
-  
   
   ###################### DASHBOARD SIDEBAR ######################
   
@@ -27,11 +24,10 @@ ui <- dashboardPage(
     )
   ),  
   
-  
-  
   ###################### DASHBOARD PAGES ######################
   dashboardBody(
     
+    # Using some custom CSS to change the background color of the module to white
     tags$head(tags$style(HTML(
       '/* body */
       .content-wrapper, .right-side {
