@@ -1,0 +1,9 @@
+version: '2'
+services:
+  target-data-viz:
+    image: dockerimages.fhcrc.org/target-data-viz:latest
+
+    labels:
+      io.rancher.container.pull_image: always
+
+    restart: always
