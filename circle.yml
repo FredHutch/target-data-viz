@@ -1,0 +1,27 @@
+machine:
+  services:
+    - docker
+  environment:
+    BUILD_HOST: circle-build01.fhcrc.org
+
+dependencies:
+  override:
+    - curl -LO https://releases.rancher.com/cli/v0.6.2/rancher-linux-amd64-v0.6.2.tar.gz
+    - tar zxf rancher-linux-amd64-v0.6.2.tar.gz
+    - ls -lh
+    - docker build -t dockerimages.fhcrc.org/target-data-viz:latest .
+
+test:
+  override:
+    - docker run -d --name target-data-viz -p 8888:8888 dockerimages.fhcrc.org/target-data-viz:latest
+    - sleep 15 && curl -u "${TEST_USER}:${TEST_PASSWORD}" --retry 10 --retry-delay 5 -v http://${BUILD_HOST}:8888
+    - docker stop target-data-viz && docker rm --force target-data-viz
+
+deployment:
+  prod:
+    branch: master
+    commands:
+      - docker login --email fredhutch@fhcrc.org --username $DOCKERIMAGES_USER --password $DOCKERIMAGES_PASS https://dockerimages.fhcrc.org
+      - docker push dockerimages.fhcrc.org/target-data-viz:latest
+      - sleep 15
+      - rancher-v0.6.2/rancher --url https://ponderosa.fhcrc.org --access-key $RANCHERAPI_KEY --secret-key $RANCHERAPI_SECRET up -d --pull --force-upgrade --confirm-upgrade --stack target-data-viz --file docker-compose.yml --rancher-file rancher-compose.yml
