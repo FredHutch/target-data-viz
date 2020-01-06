@@ -1,7 +1,7 @@
-
 # UI function for the waterfall plot module
 wfPlotUI <- function(id, label = "Gene expression plot parameters"){
   
+  library(DT)
   ns <- NS(id) # Setting a unique namespace for this module
   
   tagList(
@@ -77,7 +77,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                            br(),
                            fluidRow(
                              column(10, offset = 0, align = "left", 
-                                    dataTableOutput(ns("table")) # Table of summary stats for plot
+                                    DT::dataTableOutput(ns("table")) # Table of summary stats for plot
                              ),
                              column(1, offset = 0, align = "right", 
                                     downloadButton(ns("table_download"), 
@@ -96,7 +96,10 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
 # Server dunction for the waterfall plot module
 wfPlot <- function(input, output, session, clinData, countsData, gene){
   
+  library(tidyverse)
+  library(DT)
   `%then%` <- shiny:::`%OR%` # See https://shiny.rstudio.com/articles/validation.html for details on the %then% operator
+  
   
   #-------------------- Data preparation -----------------------#
   
@@ -128,21 +131,21 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
       tibble::add_row(USI = c("K562.01", "K562.02", "ME1", "MO7E", "NOMO1", "Kasumi.D1", "MV4.11.D1"), Group = NA) %>%
       tibble::add_row(USI = grep("^RO|^BM", colnames(countsData), value = T), Group = "NBM") %>%
       tibble::add_row(USI = grep("34POS", colnames(countsData), value = T), Group = "CD34+ NBM")
-  
+    
   # Filtering the counts data to only retain the gene of interest & throwing
   # errors if a non-existent gene is provided
-  geneData <- reactive({
+  expData <- reactive({
     validate(
       need(gene(), "Please enter a gene symbol in the text box.") %then%
-        need(toupper(gene()) %in% rownames(countsData), "That gene symbol does not exist in the counts data! \nDouble-check the symbol, or try an alias."))
+        need(gene() %in% rownames(countsData), "That gene symbol does not exist in the counts data! \nDouble-check the symbol, or try an alias."))
     
-    countsData[toupper(gene()), intersect(colnames(countsData), clinData$USI)]
+    countsData[gene(), intersect(colnames(countsData), clinData$USI)]
   })
   
   # Transforming the counts into a long-format dataframe to use with ggplot
   plotData <- reactive({
     
-    plotData <- geneData() %>%
+    plotData <- expData() %>%
       gather(USI, Expression) %>%
       mutate_at(vars(Expression), ~as.numeric(.)) %>%
       left_join(., clinData, by = "USI") %>%
@@ -173,7 +176,7 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
               plot.title = element_text(size = 15, hjust = 0.5),
               axis.ticks = element_blank(),
               legend.position = "bottom") +
-        ggtitle(paste0("Expression of ", toupper(gene()))) +
+        ggtitle(paste0("Expression of ", gene())) +
         geom_boxplot()
       
     }else{
@@ -186,7 +189,7 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
               plot.title = element_text(size = 15, hjust = 0.5),
               axis.ticks = element_blank(),
               legend.position = "bottom") +
-        ggtitle(paste0("Expression of ", toupper(gene()))) +
+        ggtitle(paste0("Expression of ", gene())) +
         geom_bar(stat = "identity", width = 1, position = position_dodge(width = 0.4))
     }
   })
@@ -213,7 +216,7 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
   # Adding a download button widget for the plot
   output$plot_download <- downloadHandler(
     filename = function(){
-      paste0("TARGET_AAML1031_", toupper(gene()), "_Waterfall_Plot_generated_", format(Sys.time(), "%m.%d.%Y"), ".png")
+      paste0("TARGET_AAML1031_", gene(), "_Waterfall_Plot_generated_", format(Sys.time(), "%m.%d.%Y"), ".png")
     }, 
     content = function(file){
       ggsave(filename = file, plot = plotFun(), width = 6, height = 4, device = "png")
@@ -222,14 +225,14 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
   
   #-------------------- Summary table tab -----------------------#
   
-  output$table <- renderDataTable({
-    datatable(tableFun(), options = list(dom = "t"), autoHideNavigation = T, rownames = F)
+  output$table <- DT::renderDataTable({
+    DT::datatable(tableFun(), options = list(dom = "t"), autoHideNavigation = T, rownames = F)
   })
   
   # Adding a download button widget for the table
   output$table_download <- downloadHandler(
     filename = function(){
-      paste0("TARGET_AAML1031_", toupper(gene()), "_Summary_Table_generated_", format(Sys.time(), "%m.%d.%Y"), ".xlsx")
+      paste0("TARGET_AAML1031_", gene(), "_Summary_Table_generated_", format(Sys.time(), "%m.%d.%Y"), ".xlsx")
     }, 
     content = function(file){
       write.xlsx(file = file, x = tableFun())

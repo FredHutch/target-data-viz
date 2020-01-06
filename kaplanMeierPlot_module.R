@@ -1,6 +1,7 @@
 # UI for the Kaplan-Meier plot module
 kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
   
+  library(DT)
   ns <- NS(id)
   
   tagList( 
@@ -95,7 +96,7 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                              fluidRow(
                                column(10, offset = 0, align = "left", 
                                       # Table of summary stats for plot + outcome data
-                                      dataTableOutput(ns("table"))
+                                     DT:: dataTableOutput(ns("table"))
                                ), 
                                column(1, offset = 0, align = "right", 
                                       downloadButton(ns("table_download"), 
@@ -139,10 +140,10 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
     # Outputting error messages if the gene symbol doesn't exist in our data
     validate(
       need(gene(), "Please enter a gene symbol in the text box to the left.") %then%
-        need(toupper(gene()) %in% rownames(countsData), "That gene symbol does not exist in the counts data! \nDouble-check the symbol, or try an alias.")
+        need(gene() %in% rownames(countsData), "That gene symbol does not exist in the counts data! \nDouble-check the symbol, or try an alias.")
     )
     
-    countsData <- countsData[toupper(gene()),] # Subsetting exp data to only retain gene of interest
+    countsData <- countsData[gene(),] # Subsetting exp data to only retain gene of interest
     
     # Adding counts data onto the CDEs to use for the survival analysis
     countsData <- countsData %>%
@@ -262,7 +263,9 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
   finalPlot <- reactive({
     
     # Error message that appears if the user hasn't checked either test type box yet
-    validate(need(input$test_type, "Please select at least one survival metric to analyze."))
+    validate(
+      need(input$test_type, "Please select at least one survival metric to analyze.")
+      )
     
     if(length(input$test_type) == 1){
       
@@ -296,7 +299,7 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
   output$plot_download <- downloadHandler(
     
     filename = function(){
-      paste0("TARGET_AAML1031_", toupper(gene()), "_KaplanMeier_Curves_generated_", format(Sys.time(), "%m.%d.%Y"), ".png")
+      paste0("TARGET_AAML1031_", gene(), "_KaplanMeier_Curves_generated_", format(Sys.time(), "%m.%d.%Y"), ".png")
     },
     content = function(file){
       ggsave(filename = file, plot = finalPlot(), width = plotDim(), device = "png")
@@ -305,15 +308,15 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
   
   #-------------------- Patient data tab -----------------------#
   
-  output$table <- renderDataTable({
-    datatable(tableFun(), options = list(paging = FALSE, scrollY = "500px"), rownames = F)
+  output$table <- DT::renderDataTable({
+    DT::datatable(tableFun(), options = list(paging = FALSE, scrollY = "500px"), rownames = F)
   })
   
   # Adding a download button widget for the table
   output$table_download <- downloadHandler(
     
     filename = function(){
-      paste0("TARGET_AAML1031_", toupper(gene()), "_Summary_Table_generated_", format(Sys.time(), "%m.%d.%Y"), ".xlsx")
+      paste0("TARGET_AAML1031_", gene(), "_Summary_Table_generated_", format(Sys.time(), "%m.%d.%Y"), ".xlsx")
     }, 
     content = function(file){
       write.xlsx(file = file, x = tableFun())
