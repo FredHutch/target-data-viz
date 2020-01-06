@@ -39,7 +39,6 @@ server <- function(input, output, session) {
   # Creating a variable that will be used to reactively pass the gene of interest into each module
   # See https://tbradley1013.github.io/2018/07/20/r-shiny-modules--using-global-inputs/ for more  
   # info on passing global Shiny variables into a module
-  # target <- reactive(input$geneInput)
   target <- reactive({
     if(startsWith(input$geneInput, "hsa-mir")){
       newGene <- input$geneInput
