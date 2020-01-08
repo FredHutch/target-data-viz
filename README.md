@@ -1,6 +1,6 @@
 # TARGET Data Visualization Tools
 
-This directory contains the necessary files to visualize and perform basic analysis on the TARGET AAML1031 data via a Shiny app. 
+This directory contains the necessary files to visualize the TARGET AAML1031 data via a [Shiny app](https://meshinchi-data-viz.fredhutch.org/).
 
 The cohort used in this app contains:
 
