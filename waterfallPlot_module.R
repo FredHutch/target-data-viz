@@ -37,6 +37,12 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                               choices = list("Waterfall plot" = "wf", 
                                              "Box plots" = "bx")),
                 
+                conditionalPanel(
+                  condition = paste0("input['", ns("plot_type"), "'] == 'bx'"),
+                  checkboxInput(ns("log"),                                                  
+                            label = "Log2 transform the data",
+                            value = FALSE)),
+                
                 helpText("The grouping variable will be used to arrange patients along the x axis (for waterfall plots) 
                           or to group patients together (for box plots) based on a common clinical characteristic 
                           to help highlight expression patterns within the groups." ),
@@ -59,15 +65,13 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                   #-------------------- Waterfall plot -----------------------#
                   tabPanel("Waterfall plot", # This is the title of the tab panel, NOT the name of the plot object!
                            br(),   
-                           br(),   # Linebreaks to help center the plot on the page
+                           br(),             # Linebreaks to help center the plot on the page
                            fluidRow(
                              column(10, offset = 0, align = "left",                   # This will be a reactive object that is linked to an item in the output list,
-                                    plotOutput(ns("plot"), width = "100%")               # created in the "server" script
-                             ), 
+                                    plotOutput(ns("plot"), width = "100%")),          # created in the "server" script
                              column(1, offset = 0, align = "right", # One column that takes up the entire width of the panel (all 12 columns)
                                     downloadButton(ns("plot_download"), 
-                                                   label = "Download plot", class = NULL)
-                             )
+                                                   label = "Download plot", class = NULL))
                            )
                   ),
                   
@@ -77,12 +81,10 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                            br(),
                            fluidRow(
                              column(10, offset = 0, align = "left", 
-                                    DT::dataTableOutput(ns("table")) # Table of summary stats for plot
-                             ),
+                                    DT::dataTableOutput(ns("table"))), # Table of summary stats for plot
                              column(1, offset = 0, align = "right", 
                                     downloadButton(ns("table_download"), 
-                                                   label = "Download table", class = NULL)
-                             )
+                                                   label = "Download table", class = NULL))
                            )
                   )
                 )
@@ -149,11 +151,12 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
       gather(USI, Expression) %>%
       mutate_at(vars(Expression), ~as.numeric(.)) %>%
       left_join(., clinData, by = "USI") %>%
-      mutate(Cell.Lines = ifelse(USI %in% c("K562.01", "K562.02", "ME1", "MO7E", "NOMO1", "Kasumi.D1", "MV4.11.D1"), USI, "AML and NBM samples")) %>%
-      mutate_at(vars(Cell.Lines), ~forcats::fct_relevel(., "AML and NBM samples", after = Inf)) %>% # Moving the "AML and NBM" samples to 
-      group_by_(input$grouping_var) %>%                                                             # the end of the factor order, so it appears greyed out
-      arrange_(input$grouping_var, "Expression") # Reordering patients so that the specified groups are 
-    # grouped together and ordered by increasing expression
+      mutate(Log2 = log2(Expression + 1),
+             Cell.Lines = ifelse(USI %in% c("K562.01", "K562.02", "ME1", "MO7E", "NOMO1", "Kasumi.D1", "MV4.11.D1"), USI, "AML and NBM samples")) %>%
+      mutate_at(vars(Cell.Lines), ~forcats::fct_relevel(., "AML and NBM samples", after = Inf)) %>%  # Moving the "AML and NBM" samples to 
+      group_by_(input$grouping_var) %>%                                                              # the end of the factor order, so it appears greyed out
+      arrange_(input$grouping_var, "Expression")  # Reordering patients so that the specified groups are 
+                                                  # grouped together and ordered by increasing expression
     
     # Setting the patient order using factor levels, so they won't be rearranged 
     # alphabetically by ggplot (this step is required for ggplot waterfall plots)
@@ -166,12 +169,19 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
   # can be called from multiple places in the script
   plotFun <- reactive({ 
     
-    if(input$plot_type == "bx"){
+    if (input$plot_type == "bx") {   # Modifying the axis labels and columns used 
+      if (input$log == TRUE) {       # if the selected plot type is a boxplot 
+        expCol <- "Log2"
+        yaxlab <- "Expression (log2 TPM + 1)\n"
+      } else {
+        expCol <- "Expression"
+        yaxlab <- "Expression (TPM)\n"
+      }
       
       plotData() %>% drop_na(input$grouping_var) %>%
-        ggplot(aes_string(x = input$grouping_var, y = "Expression", fill = input$grouping_var)) +
+        ggplot(aes_string(x = input$grouping_var, y = expCol, fill = input$grouping_var)) +
         theme_classic() +
-        labs(x = "Patients", y = "Expression (TPM) \n", fill = gsub("\\.", " ", input$grouping_var)) +
+        labs(x = "Patients", y = yaxlab, fill = gsub("\\.", " ", input$grouping_var)) +
         theme(axis.text.x = element_blank(),
               plot.title = element_text(size = 15, hjust = 0.5),
               axis.ticks = element_blank(),
@@ -179,12 +189,12 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
         ggtitle(paste0("Expression of ", gene())) +
         geom_boxplot()
       
-    }else{
+    } else { # Generating a waterfall plot if boxplot is not selected
       
       plotData() %>% drop_na(input$grouping_var) %>%
         ggplot(aes_string(x = "USI", y = "Expression", fill = input$grouping_var)) +
         theme_classic() +
-        labs(x = "Patients", y = "Expression (TPM) \n", fill = gsub("\\.", " ", input$grouping_var)) +
+        labs(x = "Categories", y = "Expression (TPM) \n", fill = gsub("\\.", " ", input$grouping_var)) +
         theme(axis.text.x = element_blank(),
               plot.title = element_text(size = 15, hjust = 0.5),
               axis.ticks = element_blank(),
@@ -194,7 +204,7 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
     }
   })
   
-  # Making a function to generate an expression summary table from the plot data
+  # Function to generate an expression summary table from the plot data
   tableFun <- reactive({
     plotData() %>%
       drop_na(input$grouping_var) %>%
@@ -238,5 +248,4 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
       write.xlsx(file = file, x = tableFun())
     }
     )
-  
 }

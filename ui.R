@@ -9,7 +9,6 @@ ui <- dashboardPage(
   dashboardHeader(title = "TARGET AAML1031"),
   
   ###################### DASHBOARD SIDEBAR ######################
-  
   dashboardSidebar(
     sidebarMenu(
       
@@ -52,5 +51,4 @@ ui <- dashboardPage(
       )
     )
   )
-  
 )

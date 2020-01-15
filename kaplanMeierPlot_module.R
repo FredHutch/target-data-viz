@@ -5,8 +5,7 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
   ns <- NS(id)
   
   tagList( 
-    
-    # Throwing a fluidPage() inside of the taglist so I can use a Bootstrap theme... it does work, not sure how kosher it is though?
+    # Throwing a fluidPage() inside of the taglist so I can use a Bootstrap theme... it does work, not sure how kosher this is though?
     fluidPage(theme = shinytheme("lumen"),
               tags$head(tags$style(HTML('.shiny-output-error-validation {
                                                                          color: #93C54B;
@@ -17,9 +16,7 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
               ###############################################################
               
               sidebarLayout(
-                
                 position = "left", 
-                
                 sidebarPanel(
                   
                   # Checkboxes to select the type of test & formate of time data
@@ -28,7 +25,7 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                                      choices = list("Event-Free Survival (EFS)" = "EFS",
                                                     "Overall Survival (OS)" = "OS", 
                                                     "Disease-Free Survival (DFS)" = "DFS", 
-                                                    "Relapse-Free Survival (RFS)")),
+                                                    "Relapse Risk (RR)" = "RR")),
                   radioButtons(ns("time_type"), 
                                label = "Select a time interval to display", 
                                choices = list("Years" = "years", 
@@ -39,7 +36,8 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                               label = "Select a method of grouping the patients", 
                               choices = list("By median" = "median", 
                                              "By quartile" = "quartile", 
-                                             "By percentile" = "percentile")),
+                                             "By percentile" = "percentile", 
+                                             "By mutation status" = "mutation")),
                   
                   # Adding 2 text boxes that will only appear if "Percentile" is selected for the strata
                   # but this doesn't seem to work with Shiny Dashboard? 
@@ -48,24 +46,33 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                     condition = paste0("input['", ns("strata_var"), "'] == 'percentile'"),
                     textInput(ns("cutoff"),                                                  
                               label = "Cutoff percentile",
-                              placeholder = "Example: 75")
-                  ),
+                              placeholder = "Example: 75")),
                   
-                  # Additional help text
+                  conditionalPanel(
+                    condition = paste0("input['", ns("strata_var"), "'] == 'mutation'"),
+                    selectInput(ns("mutCol"),                                                  
+                              label = "Which mutation?",
+                              choices = list("NPM1" = "NPM.mutation.", 
+                                             "CEBPA" = "CEBPA.mutation.", 
+                                             "WT1" = "WT1.mutation.", 
+                                             "cKit (exon 8)" = "c.Kit.Mutation.Exon.8", 
+                                             "cKit (exon 17)" = "c.Kit.Mutation.Exon.17", 
+                                             "RAS mutation" = "RAS.Mutation", 
+                                             "RAS gene" = "RAS.Gene", 
+                                             "CBL" = "CBL.Mutation", 
+                                             "FLT3-ITD" = "FLT3.ITD.positive."))),
+                  
                   helpText("The patients are sorted by expression of the gene of interest.
                              Kaplan-Meier curves will be generated for each half of patients (median), 
                              for each quartile of patients (quartile), 
-                             or for patients that fall either above or below a percentile cutoff point specified by the user (percentile).")
-                ),
+                             or for patients that fall either above or below a percentile cutoff point specified by the user (percentile).")),
                 
                 ###############################################################
                 #----------------------- MAIN PLOT PANEL ---------------------#
                 ###############################################################
                 
                 mainPanel(
-                  
                   position = "right", 
-                  
                   tabsetPanel(
                     
                     #-------------------- KM plot tab -----------------------#
@@ -75,16 +82,13 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                              br(),
                              fluidRow(
                                style = 'height:40vh',
-                               
                                column(10, offset = 0, align = "left", 
                                       div(style = 'max-height: 700px; overflow-y: scroll; position: relative',
-                                          plotOutput(ns("plot"), height = "900px") 
-                                      )
+                                          plotOutput(ns("plot"), height = "900px"))
                                ),
                                column(1, offset = 0, align = "right", 
                                       downloadButton(ns("plot_download"), 
-                                                     label = "Download plot", class = NULL)
-                               )
+                                                     label = "Download plot", class = NULL))
                              )
                     ), 
                     
@@ -95,13 +99,10 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                              br(),
                              fluidRow(
                                column(10, offset = 0, align = "left", 
-                                      # Table of summary stats for plot + outcome data
-                                     DT:: dataTableOutput(ns("table"))
-                               ), 
+                                      DT:: dataTableOutput(ns("table"))),  # Table of summary stats for plot + outcome data
                                column(1, offset = 0, align = "right", 
                                       downloadButton(ns("table_download"), 
-                                                     label = "Download table", class = NULL)
-                               )
+                                                     label = "Download table", class = NULL))
                              )
                     )
                   )
@@ -143,7 +144,7 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
         need(gene() %in% rownames(countsData), "That gene symbol does not exist in the counts data! \nDouble-check the symbol, or try an alias.")
     )
     
-    countsData <- countsData[gene(),] # Subsetting exp data to only retain gene of interest
+    countsData <- countsData[gene(), ] # Subsetting exp data to only retain gene of interest
     
     # Adding counts data onto the CDEs to use for the survival analysis
     countsData <- countsData %>%
@@ -153,16 +154,16 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
       mutate_at(vars(Group), ~ifelse(grepl("^RO|^BM", USI), "NBM", "AML"))
     
     # Adding column onto the merged dataset with grouping info based on the user selected strata_var
-    if(input$strata_var == "median"){
+    if (input$strata_var == "median") {
       countsData <- countsData %>%
         mutate(median = ifelse(Expression > median(Expression, na.rm = T), "Above median", "Below median"))
       
-    }else if(input$strata_var == "quartile"){
+    } else if (input$strata_var == "quartile") {
       countsData <- countsData %>%
         mutate(quartile = gtools::quantcut(Expression, q = 4, labels = c("Q1 - lowest quartile", 
                                                                  "Q2", "Q3", 
                                                                  "Q4 - highest quartile")))
-    }else if(input$strata_var == "percentile"){
+    } else if (input$strata_var == "percentile") {
       validate(
         need(input$cutoff, "Please enter a percentile to use as a cutoff.")
       )
@@ -171,6 +172,11 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
         mutate(ranks = percent_rank(Expression)) %>%
         mutate(percentile = case_when(ranks*100 < as.numeric(input$cutoff) ~ paste0("Below ", input$cutoff, "%"), 
                                       ranks*100 >= as.numeric(input$cutoff) ~ paste0("Above ", input$cutoff, "%")))
+      
+    } else if (input$strata_var == "mutation") {
+      validate(
+        need(input$mutCol, "Please select a mutation of interest.")
+      )
     }
     
     countsData
@@ -182,22 +188,36 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
   
   
   
-  KMplot <- function(testType){
+  KMplot <- function(testType) {
     
-    # Identifying which columns are needed, depending on whether or not the test type is EFS or OS
-    event <- clinData2()[,paste0("Recoded ", testType, " ID")]
-    
-    if(input$time_type == "days"){
+    # Identifying which event column is needed, 
+    # depending on whether or not the test type is EFS, OS, DFS, or RR
+    if (testType == "DFS") {
+      # Recoding an "event" as 1 (censored data is 0)
+      event <- ifelse(grepl("[Ee]vent", clinData2()[,"DFS from end of induction 1 for patients who are CR at EOI1 indicator"]), 1, 0) 
+      time <- clinData2()[,"Days to DFS from end of induction 1 for patients who are CR at EOI1"]
+    } else if (testType == "RR") {
+      event <- ifelse(grepl("[Ee]vent", clinData2()[,"RR from CR (end of course 1) indicator"]), 1, 0)
+      time <- clinData2()[,"Days to RR from CR (end of course 1)"]
+    } else if (testType %in% c("EFS", "OS")) {
+      event <- clinData2()[,paste0("Recoded ", testType, " ID")]
       time <- clinData2()[,paste0(testType, " time (days)")]
-    }else{
-      time <- clinData2()[,paste0(testType, " time (days)")]/365
+    }
+    
+    # Converting the time from days -> years, if requested by the user
+    if (input$time_type == "years") {
+      time <- time/365
     }
     
     # Creating the survival objects
     surv.obj <- Surv(time = as.numeric(time),
                      event = as.numeric(event))
     
-    formula <- as.formula(paste0("surv.obj ~ ", input$strata_var))
+    formula <- if (input$strata_var == "mutation") {
+      as.formula(paste0("surv.obj ~ ", input$mutCol))
+    } else {
+      as.formula(paste0("surv.obj ~ ", input$strata_var))
+    }
     
     # Fitting the Kaplan-Meier curves using the recoded survival data
     fit <- survminer::surv_fit(formula = formula, data = clinData2())
@@ -206,12 +226,18 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
     names(fit$strata) <- gsub(".+=", "", names(fit$strata))
     
     # Adding patient count (n) to the strata name
-    for(x in seq(length(names(fit$strata)))){
+    for (x in seq(length(names(fit$strata)))) {
       names(fit$strata)[x] <- paste0(names(fit$strata[x]), " (n = ", fit$n[[x]], ")")
     }
     
     # Creating the plot title using the group & test type information
     title <- paste0("Kaplan-Meier curves for ", testType)
+    
+    strataCol <- if (input$strata_var == "mutation") { 
+      length(levels(as.factor(clinData2()[[input$mutCol]])))
+    } else {
+      length(levels(as.factor(clinData2()[[input$strata_var]])))
+    }
     
     # Creating the Kaplan-Meier plot
     plot <- ggsurvplot(fit, data = clinData2(),
@@ -222,9 +248,9 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
                        title = title) +
       guides(
         fill = guide_legend(title = NULL, 
-                            nrow = length(levels(as.factor(clinData2()[[input$strata_var]])))),
+                            nrow = strataCol), # This is problematic for the mutation strata type, need to figure out a workaround
         color = guide_legend(title = NULL, 
-                             nrow = length(levels(as.factor(clinData2()[[input$strata_var]]))))) +
+                             nrow = strataCol)) +
       labs(x = paste0("Time (in ", input$time_type, ")"))
     
     return(plot)
@@ -232,17 +258,18 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
   
   blankPlot <- ggplot() + theme_void()
   
-  
   # Making a function to generate a summary table with outcome data
   tableFun <- reactive({
     
-    type <- grep(input$strata_var, colnames(clinData2()), value = T)
+    type <- ifelse(input$strata_var == "mutation", input$mutCol, 
+                   grep(input$strata_var, colnames(clinData2()), value = T))
     
-    if(length(input$test_type) == 1){
+    if (length(input$test_type) == 1) {
+      
       time <- grep(paste0("^", input$test_type, " time"), colnames(clinData2()), value = T)
       event <- grep(paste0("^", input$test_type, ".*ID"), colnames(clinData2()), value = T)
       
-    }else if(length(input$test_type) > 1){
+    } else if (length(input$test_type) > 1) {
       
       time <- unlist(lapply(input$test_type, function(x) {
         grep(paste0("^", x, " time"), colnames(clinData2()), value = T)
@@ -254,7 +281,7 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
     }
     
     clinData2() %>%
-      dplyr::select(Reg., USI, !!time, !!event, !!type) %>% # Using !! before the variables to evaluate them in the select() call
+      dplyr::select(Reg., USI, !!time, !!event, !!type) %>% # Using !! before the variables to evaluate them to colnames in the select() call
       dplyr::select(Reg., USI, contains("EFS"), contains("OS"), !!type) %>%
       rename(`Expression category` = !!type) ### PERCENTILE TABLE DOESN'T WORK, FIX!!!!!!!!
   })
@@ -267,25 +294,23 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
       need(input$test_type, "Please select at least one survival metric to analyze.")
       )
     
-    if(length(input$test_type) == 1){
-      
+    if (length(input$test_type) == 1) {
       survp <- KMplot(input$test_type)
       plot_grid(survp$plot, nrow = 2)
       
     # Generating multiple plots if the input$test_type object contains both EFS & OS
-    }else if(length(input$test_type) > 1){
-      
+    } else if (length(input$test_type) > 1) {
       plots <- lapply(input$test_type, function(x) KMplot(x)) 
-      arrange_ggsurvplots(plots, ncol = 1, nrow = 2)
+      arrange_ggsurvplots(plots, ncol = 1, nrow = length(input$test_type))
     }
   })
   
   # Setting the dimensions of the final, downloaded plot (this does NOT apply to the plot displayed on the page)
   plotDim <- reactive({
-    if(length(input$test_type) == 1){
+    if (length(input$test_type) == 1) {
       6
-    }else{
-      14
+    } else {
+      6 * length(input$test_type) + 2
     }
   })
   
