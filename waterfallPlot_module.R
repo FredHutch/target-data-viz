@@ -67,11 +67,16 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                            br(),   
                            br(),             # Linebreaks to help center the plot on the page
                            fluidRow(
-                             column(10, offset = 0, align = "left",                   # This will be a reactive object that is linked to an item in the output list,
-                                    plotOutput(ns("plot"), width = "100%")),          # created in the "server" script
-                             column(1, offset = 0, align = "right", # One column that takes up the entire width of the panel (all 12 columns)
+                             column(10, offset = 0, align = "left",                   # This will be a reactive object that is linked to an item in the 
+                                    plotOutput(ns("plot"), width = "100%")),          # output list, created in the "server" script
+                             column(2, offset = 0, align = "right",                   
                                     downloadButton(ns("plot_download"), 
-                                                   label = "Download plot", class = NULL))
+                                                   label = "Download plot")),
+                             column(2, offset = 0, align = "right", 
+                                    downloadButton(ns("ggplot_download"), 
+                                                   label = "ggplot2 object", 
+                                                   style = 'padding:5px; font-size:70%; margin-top:10px',
+                                                   class = "btn-info"))
                            )
                   ),
                   
@@ -84,7 +89,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                                     DT::dataTableOutput(ns("table"))), # Table of summary stats for plot
                              column(1, offset = 0, align = "right", 
                                     downloadButton(ns("table_download"), 
-                                                   label = "Download table", class = NULL))
+                                                   label = "Download table"))
                            )
                   )
                 )
@@ -225,11 +230,28 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
   
   # Adding a download button widget for the plot
   output$plot_download <- downloadHandler(
-    filename = function(){
-      paste0("TARGET_AAML1031_", gene(), "_Waterfall_Plot_generated_", format(Sys.time(), "%m.%d.%Y"), ".png")
+    filename = function() {
+      paste0("TARGET_AAML1031_", gene(), "_", input$grouping_var, "_", input$plot_type, "_generated_", format(Sys.time(), "%m.%d.%Y"), ".png")
     }, 
-    content = function(file){
-      ggsave(filename = file, plot = plotFun(), width = 6, height = 4, device = "png")
+    content = function(file) {
+      ggsave(filename = file, plot = plotFun(), width = 6, height = 4, device = "png", dpi = 150)
+    }
+  )
+  
+  output$ggplot_download <- downloadHandler(
+    filename = function() {
+      paste0("TARGET_AAML1031_", gene(), "_", input$grouping_var, "_ggplotObject_generated_", format(Sys.time(), "%m.%d.%Y"), ".RDS")
+    },
+    content = function(file) {
+      
+      withProgress(message = "Saving RDS file", detail = "This may take a while...", value = 0, {
+        for (i in 1:70) {
+          incProgress(1/70)
+          Sys.sleep(0.25)
+        }
+      })
+      
+      saveRDS(object = plotFun(), file = file, compress = F)
     }
   )
   

@@ -19,7 +19,7 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                 position = "left", 
                 sidebarPanel(
                   
-                  # Checkboxes to select the type of test & formate of time data
+                  # Checkboxes to select the type of test & format of time data
                   checkboxGroupInput(ns("test_type"), 
                                      label = "Select a survival type to model", 
                                      choices = list("Event-Free Survival (EFS)" = "EFS",
@@ -60,7 +60,8 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                                              "RAS mutation" = "RAS.Mutation", 
                                              "RAS gene" = "RAS.Gene", 
                                              "CBL" = "CBL.Mutation", 
-                                             "FLT3-ITD" = "FLT3.ITD.positive."))),
+                                             "FLT3-ITD" = "FLT3.ITD.positive.", 
+                                             "FLT3 point mutation" = "FLT3.PM.category"))),
                   
                   helpText("The patients are sorted by expression of the gene of interest.
                              Kaplan-Meier curves will be generated for each half of patients (median), 
@@ -82,13 +83,17 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                              br(),
                              fluidRow(
                                style = 'height:40vh',
-                               column(10, offset = 0, align = "left", 
-                                      div(style = 'max-height: 700px; overflow-y: scroll; position: relative',
-                                          plotOutput(ns("plot"), height = "900px"))
-                               ),
-                               column(1, offset = 0, align = "right", 
+                               column(9, offset = 0, align = "left", 
+                                      div(style = 'max-height: 500px; overflow-y: scroll; position: relative',
+                                          plotOutput(ns("plot"), height = "1500px"))),
+                               column(2, offset = 0, align = "right", 
                                       downloadButton(ns("plot_download"), 
-                                                     label = "Download plot", class = NULL))
+                                                     label = "Download plot", class = NULL)),
+                               column(2, offset = 0, align = "right", 
+                                      downloadButton(ns("ggsurvplot_download"), 
+                                                     label = "ggsurvplot object", 
+                                                     style = 'padding:5px; font-size:70%; margin-top:10px',
+                                                     class = "btn-info"))
                              )
                     ), 
                     
@@ -135,6 +140,8 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
     mutate_at(vars(SNVs), ~gsub("\\.", " ", .)) %>%
     mutate_at(vars(Cytogenetic.Category.2, Rare.Fusions, SNVs), ~gsub("OtherAML", "Other AML", .))
   
+  clinData$RAS.Gene <- factor(clinData$RAS.Gene, levels = c("KRAS", "NRAS", "Unknown", "None"))
+  
   # Interactively filtering the exp data to only retain the gene of interest
   clinData2 <- reactive({
     
@@ -159,6 +166,13 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
         mutate(median = ifelse(Expression > median(Expression, na.rm = T), "Above median", "Below median"))
       
     } else if (input$strata_var == "quartile") {
+      
+      # Throws an error message if the expression data can't be evenly divided into 4 quartiles, 
+      # check with quantile(countsData$Expression, probs = seq(0, 1, by = 0.25)) to see if Q1-Q3 have a TPM of 0
+      validate(
+        need(length(levels(gtools::quantcut(countsData$Expression, q = 4))) == 4, "The expression data for this gene cannot be evenly divided into quartiles, \nlikely because expression of the gene is very low in the majority of patients. \n\nPlease select 'By median' instead.")
+        )
+      
       countsData <- countsData %>%
         mutate(quartile = gtools::quantcut(Expression, q = 4, labels = c("Q1 - lowest quartile", 
                                                                  "Q2", "Q3", 
@@ -185,8 +199,6 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
   
   
   #------------------- Functions --------------------------#
-  
-  
   
   KMplot <- function(testType) {
     
@@ -253,10 +265,12 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
                              nrow = strataCol)) +
       labs(x = paste0("Time (in ", input$time_type, ")"))
     
-    return(plot)
+    # Adding gene name as a text annotation layer, to be displayed in the top right corner of the plot
+    plot$plot <- plot$plot +
+      ggplot2::annotate("text", y = 1, x = max(time, na.rm = T), label = gene(), hjust = 0.5, vjust = 1, size = 8, fontface = "bold")
+    
+    return(plot$plot) # Final returned object from this function is the "plot" component of the ggsurvplot object
   }
-  
-  blankPlot <- ggplot() + theme_void()
   
   # Making a function to generate a summary table with outcome data
   tableFun <- reactive({
@@ -265,16 +279,12 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
                    grep(input$strata_var, colnames(clinData2()), value = T))
     
     if (length(input$test_type) == 1) {
-      
       time <- grep(paste0("^", input$test_type, " time"), colnames(clinData2()), value = T)
       event <- grep(paste0("^", input$test_type, ".*ID"), colnames(clinData2()), value = T)
-      
     } else if (length(input$test_type) > 1) {
-      
       time <- unlist(lapply(input$test_type, function(x) {
         grep(paste0("^", x, " time"), colnames(clinData2()), value = T)
       }))
-      
       event <- unlist(lapply(input$test_type, function(x) {
         grep(paste0("^", x, ".*ID"), colnames(clinData2()), value = T)
       }))
@@ -288,46 +298,57 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
   
   # https://stackoverflow.com/questions/51302112/create-plots-based-on-check-box-selection-in-r-shiny
   finalPlot <- reactive({
-    
     # Error message that appears if the user hasn't checked either test type box yet
     validate(
       need(input$test_type, "Please select at least one survival metric to analyze.")
       )
-    
     if (length(input$test_type) == 1) {
-      survp <- KMplot(input$test_type)
-      plot_grid(survp$plot, nrow = 2)
-      
-    # Generating multiple plots if the input$test_type object contains both EFS & OS
-    } else if (length(input$test_type) > 1) {
-      plots <- lapply(input$test_type, function(x) KMplot(x)) 
-      arrange_ggsurvplots(plots, ncol = 1, nrow = length(input$test_type))
+      list(KMplot(input$test_type))                   # This creates a gg & ggplot object
+    } else if (length(input$test_type) > 1) {         # Generating multiple plots if the user selects more than 1 type
+      lapply(input$test_type, function(x) KMplot(x)) 
     }
   })
   
   # Setting the dimensions of the final, downloaded plot (this does NOT apply to the plot displayed on the page)
-  plotDim <- reactive({
-    if (length(input$test_type) == 1) {
-      6
+  plotHeight <- reactive({
+    4 * length(input$test_type)
+  })
+  
+  plotWidth <- reactive({
+    if (any(nchar(unique(clinData[[input$mutCol]]) > 27))) {
+      6.5
     } else {
-      6 * length(input$test_type) + 2
+      5.5
     }
   })
   
   #-------------------- KM plot tab -----------------------------#
   
   output$plot <- renderPlot({
-    finalPlot()
+    cowplot::plot_grid(plotlist = finalPlot(), ncol = 1, nrow = 4)
   })
   
   # Adding a download button widget for the plot
   output$plot_download <- downloadHandler(
-    
     filename = function(){
-      paste0("TARGET_AAML1031_", gene(), "_KaplanMeier_Curves_generated_", format(Sys.time(), "%m.%d.%Y"), ".png")
+      paste0("TARGET_AAML1031_", gene(), "_KaplanMeier_Curves_", paste(input$test_type, collapse = "_"), "_generated_", format(Sys.time(), "%m.%d.%Y"), ".png")
     },
     content = function(file){
-      ggsave(filename = file, plot = finalPlot(), width = plotDim(), device = "png")
+      plots <- cowplot::plot_grid(plotlist = finalPlot(), ncol = 1, nrow = length(input$test_type))
+      ggsave(filename = file, plot = plots, width = plotWidth(), height = plotHeight(), device = "png", dpi = 150)
+    }
+  )
+  
+  # Adding a download button widget for the ggsurvplot object - THIS STILL NEEDS WORK
+  output$ggsurvplot_download <- downloadHandler(
+    # This really needs a progress bar of some kind!!!!!
+    filename = function() {
+      paste0("TARGET_AAML1031_", gene(), "_KaplanMeier_Curves_", paste(input$test_type, collapse = "_"), "_ggsurvplotObject_generated_", format(Sys.time(), "%m.%d.%Y"), ".RDS")
+    },
+    content = function(file) {
+      plots <- lapply(input$test_type, function(x) KMplot(x)) %>%
+        set_names(input$test_type)
+      saveRDS(plots, file = file)
     }
   )
   
@@ -339,7 +360,6 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
   
   # Adding a download button widget for the table
   output$table_download <- downloadHandler(
-    
     filename = function(){
       paste0("TARGET_AAML1031_", gene(), "_Summary_Table_generated_", format(Sys.time(), "%m.%d.%Y"), ".xlsx")
     }, 

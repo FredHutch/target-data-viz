@@ -50,8 +50,12 @@ server <- function(input, output, session) {
     return(newGene)
   })
   
+  # IMPORTANT NOTE: the "target" variable is actually a reactive function, and would usually be called by target(), 
+  # but when passing it into a module, you *must* pull off the parentheses and pass the naked variable name as an argument.
+  # Within the modules themselves, this variable is called gene() and is a reactive function!
+  
   # Calling the waterfall plot module
-  callModule(wfPlot, id = "waterfall", clinData = clinData, countsData = countsData, gene = target)
+  callModule(wfPlot, id = "waterfall", clinData = clinData, countsData = countsData, gene = target)  
   
   # Calling the Kaplan-Meier curve module
   callModule(kmPlot, id = "kaplanmeier", clinData = clinData, countsData = countsData, gene = target)
