@@ -14,12 +14,15 @@ ui <- dashboardPage(
       
       #---------- Gene of interest input text box -------------#
       textInput("geneInput",                                   
-                label = "Enter a gene symbol to plot", 
+                label = "Enter a gene symbol", 
                 placeholder = "Example: MSLN"),
       
       # --------- Plot generation tabs ------------------------#
       menuItem("Waterfall plot", tabName = "wfPlot", icon = icon("chart-bar")),
       menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical"))
+      # menuItem("SNV oncoprint", tabName = "oncPrint", icon = icon("dna")),
+      # menuItem("External databases", tabName = "extData", icon = icon("atlas"))
+      # prescription-bottle for ADC/CAR T = prescription-bottle
     )
   ),  
   
@@ -48,7 +51,21 @@ ui <- dashboardPage(
               
               # Calling the user interface module of the Waterfall Plot app
               kmPlotUI(id = "kaplanmeier", label = "Kaplan-Meier plot generation")
-      )
+      ) 
+      
+      # tabItem(tabName = "extData",
+      #         
+      #         mainPanel(
+      #           position = "center", 
+      #           fluidRow(
+      #             column(4, 
+      #                    align = "left", 
+      #                    uiOutput("ui_open_tab"),
+      #                    tags$a(href = paste0("https://www.proteinatlas.org/search/", toupper(input$geneInput)),
+      #                           "The Human Protein Atlas - Blood Atlas")
+      #                    )
+      #           )
+      #         ))
     )
   )
 )

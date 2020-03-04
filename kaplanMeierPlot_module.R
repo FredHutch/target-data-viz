@@ -88,7 +88,7 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                                           plotOutput(ns("plot"), height = "1500px"))),
                                column(2, offset = 0, align = "right", 
                                       downloadButton(ns("plot_download"), 
-                                                     label = "Download plot", class = NULL)),
+                                                     label = "Download plot")),
                                column(2, offset = 0, align = "right", 
                                       downloadButton(ns("ggsurvplot_download"), 
                                                      label = "ggsurvplot object", 
@@ -103,7 +103,7 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                              br(),
                              br(),
                              fluidRow(
-                               column(10, offset = 0, align = "left", 
+                               column(11, offset = 0, align = "left", 
                                       DT:: dataTableOutput(ns("table"))),  # Table of summary stats for plot + outcome data
                                column(1, offset = 0, align = "right", 
                                       downloadButton(ns("table_download"), 
@@ -119,6 +119,10 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
 
 # Server function for the Kaplan-Meier plot module
 kmPlot <- function(input, output, session, clinData, countsData, gene){
+  
+  # https://www.mailman.columbia.edu/research/population-health-methods/competing-risk-analysis <- Info on how to handle RR outcome data
+  # http://www.math.ucsd.edu/~rxu/math284/CompRisk.pdf
+  # https://www.google.com/search?q=competing+events+survival+analysis&oq=competing+events+&aqs=chrome.1.69i57j0l7.4635j1j7&sourceid=chrome&ie=UTF-8
   
   library(survminer)
   library(survival)
@@ -341,14 +345,19 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
   
   # Adding a download button widget for the ggsurvplot object - THIS STILL NEEDS WORK
   output$ggsurvplot_download <- downloadHandler(
-    # This really needs a progress bar of some kind!!!!!
     filename = function() {
       paste0("TARGET_AAML1031_", gene(), "_KaplanMeier_Curves_", paste(input$test_type, collapse = "_"), "_ggsurvplotObject_generated_", format(Sys.time(), "%m.%d.%Y"), ".RDS")
     },
     content = function(file) {
+      withProgress(message = "Saving RDS file", detail = "This may take a while...", value = 0, {
+        for (i in 1:70) {
+          incProgress(1/70)
+          Sys.sleep(0.25)
+        }
+      })
       plots <- lapply(input$test_type, function(x) KMplot(x)) %>%
         set_names(input$test_type)
-      saveRDS(plots, file = file)
+      saveRDS(plots, file = file, compress = F)
     }
   )
   

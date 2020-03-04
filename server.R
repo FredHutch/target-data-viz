@@ -59,4 +59,14 @@ server <- function(input, output, session) {
   
   # Calling the Kaplan-Meier curve module
   callModule(kmPlot, id = "kaplanmeier", clinData = clinData, countsData = countsData, gene = target)
+  
+  output$ui_open_tab <- renderUI({
+    
+    # validate(
+    #   need(target(), "Please enter a gene symbol in the text box.")
+    #   )
+    
+    link <- paste0("https://www.proteinatlas.org/search/", target())
+    tags$script(paste0("window.open('", link, "', '_blank')"))
+  })
 }

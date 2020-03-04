@@ -1,0 +1,10 @@
+# Files to be ignored:
+
+# History files
+.Rhistory
+.Rapp.history
+
+# Misc files
+.DS_Store
+._DS_Store
+*._*

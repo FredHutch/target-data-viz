@@ -100,7 +100,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
 
 
 
-# Server dunction for the waterfall plot module
+# Server function for the waterfall plot module
 wfPlot <- function(input, output, session, clinData, countsData, gene){
   
   library(tidyverse)
@@ -137,7 +137,7 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
       # Adding rows for the cell lines, which are not typically included in the clinical data
       tibble::add_row(USI = c("K562.01", "K562.02", "ME1", "MO7E", "NOMO1", "Kasumi.D1", "MV4.11.D1"), Group = NA) %>%
       tibble::add_row(USI = grep("^RO|^BM", colnames(countsData), value = T), Group = "NBM") %>%
-      tibble::add_row(USI = grep("34POS", colnames(countsData), value = T), Group = "CD34+ NBM")
+      tibble::add_row(USI = grep("34POS", colnames(countsData), value = T), Group = "CD34+ PB")
     
   # Filtering the counts data to only retain the gene of interest & throwing
   # errors if a non-existent gene is provided
@@ -186,7 +186,7 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
       plotData() %>% drop_na(input$grouping_var) %>%
         ggplot(aes_string(x = input$grouping_var, y = expCol, fill = input$grouping_var)) +
         theme_classic() +
-        labs(x = "Patients", y = yaxlab, fill = gsub("\\.", " ", input$grouping_var)) +
+        labs(x = "Categories", y = yaxlab, fill = gsub("\\.", " ", input$grouping_var)) +
         theme(axis.text.x = element_blank(),
               plot.title = element_text(size = 15, hjust = 0.5),
               axis.ticks = element_blank(),
@@ -199,7 +199,7 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
       plotData() %>% drop_na(input$grouping_var) %>%
         ggplot(aes_string(x = "USI", y = "Expression", fill = input$grouping_var)) +
         theme_classic() +
-        labs(x = "Categories", y = "Expression (TPM) \n", fill = gsub("\\.", " ", input$grouping_var)) +
+        labs(x = "Patients", y = "Expression (TPM) \n", fill = gsub("\\.", " ", input$grouping_var)) +
         theme(axis.text.x = element_blank(),
               plot.title = element_text(size = 15, hjust = 0.5),
               axis.ticks = element_blank(),
@@ -243,14 +243,12 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
       paste0("TARGET_AAML1031_", gene(), "_", input$grouping_var, "_ggplotObject_generated_", format(Sys.time(), "%m.%d.%Y"), ".RDS")
     },
     content = function(file) {
-      
       withProgress(message = "Saving RDS file", detail = "This may take a while...", value = 0, {
-        for (i in 1:70) {
+        for (i in 1:50) {
           incProgress(1/70)
           Sys.sleep(0.25)
         }
       })
-      
       saveRDS(object = plotFun(), file = file, compress = F)
     }
   )
