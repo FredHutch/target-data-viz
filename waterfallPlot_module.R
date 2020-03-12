@@ -108,6 +108,8 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
   `%then%` <- shiny:::`%OR%` # See https://shiny.rstudio.com/articles/validation.html for details on the %then% operator
   
   
+  ###### Don't remove the NBM or CD34+ samples from other groupings! #######
+  
   #-------------------- Data preparation -----------------------#
   
     # Cleaning up the clinical data grouping columns so they're displayed nicely in the plots
@@ -119,6 +121,8 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
       mutate_at(vars(Cytogenetic.Category.2), ~gsub("\\.|\\_", " ", .)) %>%
       mutate_at(vars(Rare.Fusions), ~gsub("\\.", "\\-", .)) %>%
       mutate_at(vars(SNVs), ~gsub("\\.", " ", .)) %>%
+      mutate_at(vars(SNVs), ~gsub("mutation", "mut", .)) %>%
+      mutate_at(vars(SNVs), ~gsub("with", "w\\/", .)) %>%
       mutate_at(vars(Cytogenetic.Category.2, Rare.Fusions, SNVs), ~gsub("OtherAML", "Other AML", .)) %>%
       
       # Adding columns to use for re-categorizing MLL and other fusions if they occur in less than 10 patients 
@@ -128,7 +132,6 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
       mutate(Fusion.Count = n()) %>%
       ungroup() %>%
       mutate_at(vars(MLL.Fusion), ~ifelse(Fusion.Count < 10, "Other MLL", .)) %>%
-      mutate_at(vars(MLL.Fusion), ~forcats::fct_relevel(., "Other AML", after = Inf)) %>%
       group_by(Primary.Fusion) %>%
       mutate(Fusion.Count = n()) %>%
       ungroup() %>%
@@ -144,7 +147,7 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
   expData <- reactive({
     validate(
       need(gene(), "Please enter a gene symbol in the text box.") %then%
-        need(gene() %in% rownames(countsData), "That gene symbol does not exist in the counts data! \nDouble-check the symbol, or try an alias."))
+        need(gene() %in% rownames(countsData), "That gene symbol does not exist in the counts data! \nDouble-check the symbol, or try an alias/synonym."))
     
     countsData[gene(), intersect(colnames(countsData), clinData$USI)]
   })
@@ -157,9 +160,18 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
       mutate_at(vars(Expression), ~as.numeric(.)) %>%
       left_join(., clinData, by = "USI") %>%
       mutate(Log2 = log2(Expression + 1),
-             Cell.Lines = ifelse(USI %in% c("K562.01", "K562.02", "ME1", "MO7E", "NOMO1", "Kasumi.D1", "MV4.11.D1"), USI, "AML and NBM samples")) %>%
-      mutate_at(vars(Cell.Lines), ~forcats::fct_relevel(., "AML and NBM samples", after = Inf)) %>%  # Moving the "AML and NBM" samples to 
-      group_by_(input$grouping_var) %>%                                                              # the end of the factor order, so it appears greyed out
+             Cell.Lines = ifelse(USI %in% c("K562.01", "K562.02", "ME1", "MO7E", "NOMO1", "Kasumi.D1", "MV4.11.D1"), USI, "AML samples")) %>%
+      
+      # Modifying the chosen grouping variable to keep the NBMs and PBs from being categorized as NA
+      mutate_at(vars(!!input$grouping_var), ~case_when(Group == "NBM" ~ "NBM", 
+                                                       Group == "CD34+ PB" ~ "CD34+ PB",
+                                                       TRUE ~ .)) %>%
+      
+      mutate_at(vars(MLL.Fusion, Rare.Fusions, Primary.Fusion, SNVs), ~forcats::fct_relevel(., "Other AML", after = Inf)) %>%
+      mutate_at(vars(Cell.Lines), ~forcats::fct_relevel(., "AML samples", after = Inf)) %>%
+      mutate_at(vars(!!input$grouping_var), ~forcats::fct_relevel(., "CD34+ PB", after = Inf)) %>%
+      mutate_at(vars(!!input$grouping_var), ~forcats::fct_relevel(., "NBM", after = Inf)) %>%
+      group_by(!!input$grouping_var) %>%                                                              
       arrange_(input$grouping_var, "Expression")  # Reordering patients so that the specified groups are 
                                                   # grouped together and ordered by increasing expression
     
@@ -177,16 +189,17 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
     if (input$plot_type == "bx") {   # Modifying the axis labels and columns used 
       if (input$log == TRUE) {       # if the selected plot type is a boxplot 
         expCol <- "Log2"
-        yaxlab <- "Expression (log2 TPM + 1)\n"
+        yaxlab <- paste0(gene(), " Expression (log2 TPM + 1)\n")
       } else {
         expCol <- "Expression"
-        yaxlab <- "Expression (TPM)\n"
+        yaxlab <- paste0(gene(), " Expression (TPM)\n")
       }
       
-      plotData() %>% drop_na(input$grouping_var) %>%
+      plotData() %>% 
+        drop_na(input$grouping_var) %>%
         ggplot(aes_string(x = input$grouping_var, y = expCol, fill = input$grouping_var)) +
         theme_classic() +
-        labs(x = "Categories", y = yaxlab, fill = gsub("\\.", " ", input$grouping_var)) +
+        labs(x = "\nCategories", y = yaxlab, fill = gsub("\\.", " ", input$grouping_var)) +
         theme(axis.text.x = element_blank(),
               plot.title = element_text(size = 15, hjust = 0.5),
               axis.ticks = element_blank(),
@@ -196,10 +209,11 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
       
     } else { # Generating a waterfall plot if boxplot is not selected
       
-      plotData() %>% drop_na(input$grouping_var) %>%
+      plotData() %>% 
+        drop_na(input$grouping_var) %>%
         ggplot(aes_string(x = "USI", y = "Expression", fill = input$grouping_var)) +
         theme_classic() +
-        labs(x = "Patients", y = "Expression (TPM) \n", fill = gsub("\\.", " ", input$grouping_var)) +
+        labs(x = "\nPatients", y = paste0(gene(), " Expression (TPM)\n"), fill = gsub("\\.", " ", input$grouping_var)) +
         theme(axis.text.x = element_blank(),
               plot.title = element_text(size = 15, hjust = 0.5),
               axis.ticks = element_blank(),
@@ -234,7 +248,7 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
       paste0("TARGET_AAML1031_", gene(), "_", input$grouping_var, "_", input$plot_type, "_generated_", format(Sys.time(), "%m.%d.%Y"), ".png")
     }, 
     content = function(file) {
-      ggsave(filename = file, plot = plotFun(), width = 6, height = 4, device = "png", dpi = 150)
+      ggsave(filename = file, plot = plotFun(), width = 7, height = 5, device = "png", dpi = 150)
     }
   )
   
@@ -256,7 +270,12 @@ wfPlot <- function(input, output, session, clinData, countsData, gene){
   #-------------------- Summary table tab -----------------------#
   
   output$table <- DT::renderDataTable({
-    DT::datatable(tableFun(), options = list(dom = "t"), autoHideNavigation = T, rownames = F)
+    # DT::datatable(tableFun(), options = list(dom = "t", paging = FALSE, scrollY = "500px"), autoHideNavigation = T, rownames = F)
+    DT::datatable(tableFun(), 
+                  callback = JS("$('table.dataTable.no-footer').css('border-bottom', 'none');"),
+                  options = list(dom = "t", paging = FALSE, scrollY = "600px"), 
+                  autoHideNavigation = T, 
+                  rownames = F)
   })
   
   # Adding a download button widget for the table
