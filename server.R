@@ -1,7 +1,9 @@
 library(shiny)
 library(tidyverse)
+library(DT)
 source("waterfallPlot_module.R")
 source("kaplanMeierPlot_module.R")
+`%then%` <- shiny:::`%OR%` # See https://shiny.rstudio.com/articles/validation.html for details on the %then% operator
 
 ################ Loading external data ########################################
 # Creating a progress bar to let the user know when the expression data is done loading.
@@ -23,6 +25,7 @@ readData <- function(clinData, countsData) {
   clinData <<- readRDS("data/AAML1031_TARGET_CDEs_with_HiAR_PrimaryCyto_and_FusionCalls_9.3.19.RDS") %>% mutate_at(vars(Reg.), ~as.character(.))
   mutData <<- readxl::read_excel("data/TARGET_AML_1031_merged_CDEs_mutationsOnly_01.08.20.xlsx")
   clinData <<- left_join(clinData, mutData, by = c("USI", "Reg."))
+  adc_cart_targetData <<- readxl::read_excel("data/ADC_and_CARTcell_Targets_Database_ADCReview_clinicaltrialsGov.xlsx")
   progress$set(value = 1, message = 'Done loading!')
   progress$close()
 }
@@ -37,6 +40,13 @@ server <- function(input, output, session) {
   if (is.null(countsData)) {
     readData(clinData, countsData)
   }
+  
+  # Turning clinical trial identifier into a URL to use for hyperlinking: https://clinicaltrials.gov/ct2/about-site/link-to
+  adc_cart_targetData <- adc_cart_targetData %>%
+    dplyr::select(`Treatment type`, `Gene symbol of target (Final)`, `Associated cancer(s)`, 
+                  `If currently in clinical trials, drug/trial ID number`, `Development sponsor`, `Development status`) %>%
+    mutate_at(vars(`If currently in clinical trials, drug/trial ID number`), ~ifelse(is.na(.), ., paste0("<a href='", "https://clinicaltrials.gov/show/", ., "'>", ., "</a>"))) %>%
+    rename(`Gene target` = `Gene symbol of target (Final)`)
   
   # Creating a variable that will be used to reactively pass the gene of interest into each module,
   # see https://tbradley1013.github.io/2018/07/20/r-shiny-modules--using-global-inputs/ for more  
@@ -55,18 +65,55 @@ server <- function(input, output, session) {
   # Within the modules themselves, this variable is called gene() and is a reactive function!
   
   # Calling the waterfall plot module
-  callModule(wfPlot, id = "waterfall", clinData = clinData, countsData = countsData, gene = target)  
+  callModule(wfPlot, id = "waterfall", 
+             clinData = clinData, 
+             countsData = countsData, 
+             adc_cart_targetData = adc_cart_targetData,
+             gene = target, 
+             parent = session) # See https://stackoverflow.com/questions/51708815/accessing-parent-namespace-inside-a-shiny-module
+                               # for an explanation of the 'parent' parameter
   
   # Calling the Kaplan-Meier curve module
   callModule(kmPlot, id = "kaplanmeier", clinData = clinData, countsData = countsData, gene = target)
   
-  output$ui_open_tab <- renderUI({
+  #--------------------- External databases tab --------------------- #
+
+  output$protAtlas <- renderInfoBox({
     
-    # validate(
-    #   need(target(), "Please enter a gene symbol in the text box.")
-    #   )
+    validate(
+      need(target(), "Please enter a gene symbol in the text box."))
     
-    link <- paste0("https://www.proteinatlas.org/search/", target())
-    tags$script(paste0("window.open('", link, "', '_blank')"))
+        infoBox(value = "Human Protein Atlas", 
+                 title = "Protein expression",
+                 color = "red", 
+                 icon = icon("prescription-bottle"), href = paste0("https://www.proteinatlas.org/search/", target()))
   })
+  
+  output$gtex <- renderInfoBox({
+    
+    validate(
+      need(target(), "Please enter a gene symbol in the text box."))
+    
+    infoBox(value = "GTEX Gene \nExpression", 
+            title = "Normal tissue expression",
+            color = "orange", fill = F,
+            icon = icon("prescription-bottle"), href = paste0("https://gtexportal.org/home/gene/", target(), "#geneExpression"))
+  })
+  
+  output$therapyTable <- DT::renderDataTable({
+    
+    validate(
+      need(target(), "Please enter a gene symbol in the text box.") %then%
+        need(target() %in% adc_cart_targetData$`Gene target`, "We do not have record of that gene being targeted\n for ADC development or CAR T-cell therapies."))
+    
+    table <- adc_cart_targetData %>%
+      filter(`Gene target` == target()) 
+    
+    DT::datatable(table, 
+                  options = list(scrollY = "50vh"), 
+                  escape = F)
+  })
+
+  
+  
 }
