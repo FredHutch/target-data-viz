@@ -342,7 +342,7 @@ wfPlot <- function(input, output, session, clinData, countsData, adc_cart_target
   # This will hide the ADC/CAR T action buttons if the gene isn't the target of any clinical trials
   observeEvent(gene(), {
     if (gene() %in% therapyData()$`Gene target`) {
-      shinyjs::show("adc_flag", asis = F)
+      shinyjs::show("adc_flag")
     }
   })
   
