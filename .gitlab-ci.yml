@@ -1,0 +1,27 @@
+
+before_script:
+  - curl -LO https://releases.rancher.com/cli/v0.6.2/rancher-linux-amd64-v0.6.2.tar.gz
+  - tar zxf rancher-linux-amd64-v0.6.2.tar.gz
+
+build_test:
+  script:
+    - docker build -t dockerimages.fhcrc.org/target-data-viz:latest .
+    - |
+        if docker ps -a|tr -s ' '|rev|cut -d ' ' -f 1|rev|grep -q target-data-viz
+        then
+          docker stop target-data-viz && docker rm --force target-data-viz
+        fi
+    - docker run -d --name target-data-viz -p 8888:8888 dockerimages.fhcrc.org/target-data-viz:latest
+    - sleep 15 && curl -u "${TEST_USER}:${TEST_PASSWORD}" -sI  http://localhost:8888  |head -1|grep -q "200 OK"
+    - docker stop target-data-viz && docker rm --force target-data-viz
+
+
+deploy:
+  only:
+    refs:
+        - master
+  script:
+    - docker login --username $DOCKERIMAGES_USER --password $DOCKERIMAGES_PASS https://dockerimages.fhcrc.org
+    - docker push dockerimages.fhcrc.org/target-data-viz:latest
+    - sleep 15
+    - rancher-v0.6.2/rancher --url https://ponderosa.fhcrc.org --access-key $RANCHERAPI_KEY --secret-key $RANCHERAPI_SECRET up -d --pull --force-upgrade --confirm-upgrade --stack target-data-viz --file docker-compose.yml --rancher-file rancher-compose.yml
