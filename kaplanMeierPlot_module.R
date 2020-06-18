@@ -118,7 +118,7 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
 }
 
 # Server function for the Kaplan-Meier plot module
-kmPlot <- function(input, output, session, clinData, countsData, gene){
+kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
   
   # https://www.mailman.columbia.edu/research/population-health-methods/competing-risk-analysis <- Info on how to handle RR outcome data
   # http://www.math.ucsd.edu/~rxu/math284/CompRisk.pdf
@@ -136,48 +136,70 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
   
   #-------------------- Data preparation -----------------------#
   
-  # Cleaning up the clinical data grouping columns
-  clinData <- clinData %>%
-    rename(Primary.Cytogenetic.Code = `Primary Cytogenetic Code`) %>%
-    mutate_at(vars(Cytogenetic.Category.2), ~gsub("\\.|\\_", " ", .)) %>%
-    mutate_at(vars(Rare.Fusions), ~gsub("\\.", "\\-", .)) %>%
-    mutate_at(vars(SNVs), ~gsub("\\.", " ", .)) %>%
-    mutate_at(vars(Cytogenetic.Category.2, Rare.Fusions, SNVs), ~gsub("OtherAML", "Other AML", .))
-  
-  clinData$RAS.Gene <- factor(clinData$RAS.Gene, levels = c("KRAS", "NRAS", "Unknown", "None"))
+  observeEvent(dataset(), {
+    if(dataset() == "BeatAML") {
+      updateCheckboxGroupInput(
+        session = session, 
+        inputId = "test_type",
+        label = "Select a survival type to model",
+        choices = c("Overall Survival (OS)" = "OS"))
+      
+      updateSelectInput(session = session,
+                        inputId = "mutCol",
+                        label = "Which mutation?",
+                        choices = list("NPM1", "CEBPA", "WT1", "KIT", "JAK2", "NRAS", "FLT3-ITD" = "FLT3.ITD", "TP53"))
+      
+    } else if (dataset() == "TARGET") {
+      updateCheckboxGroupInput(
+        session = session, 
+        inputId = "test_type",
+        label = "Select a survival type to model",
+        choices = c("Event-Free Survival (EFS)" = "EFS",
+                       "Overall Survival (OS)" = "OS", 
+                       "Disease-Free Survival (DFS)" = "DFS", 
+                       "Relapse Risk (RR)" = "RR"))
+      
+      updateSelectInput("mutCol",   
+                        session = session,
+                  label = "Which mutation?",
+                  choices = list("NPM1" = "NPM.mutation.", "CEBPA" = "CEBPA.mutation.", "WT1" = "WT1.mutation.", "cKit (exon 8)" = "c.Kit.Mutation.Exon.8", 
+                                 "cKit (exon 17)" = "c.Kit.Mutation.Exon.17", "RAS mutation" = "RAS.Mutation", "RAS gene" = "RAS.Gene", "CBL" = "CBL.Mutation", 
+                                 "FLT3-ITD" = "FLT3.ITD.positive.", "FLT3 point mutation" = "FLT3.PM.category"))
+    }
+  }, ignoreInit = T)
   
   # Interactively filtering the exp data to only retain the gene of interest
-  clinData2 <- reactive({
+  plotData <- reactive({
     
     # Outputting error messages if the gene symbol doesn't exist in our data
     validate(
       need(gene(), "Please enter a gene symbol in the text box to the left.") %then%
-        need(gene() %in% rownames(countsData), "That gene symbol does not exist in the counts data! \nDouble-check the symbol, or try an alias.")
+        need(gene() %in% rownames(expData()), "That gene symbol does not exist in the counts data! \nDouble-check the symbol, or try an alias.")
     )
     
-    countsData <- countsData[gene(), ] # Subsetting exp data to only retain gene of interest
-    
-    # Adding counts data onto the CDEs to use for the survival analysis
-    countsData <- countsData %>%
+    # Subsetting exp data to only retain gene of interest & adding counts data onto the CDEs to use for the survival analysis
+    mergedDF <- expData() %>%
+      rownames_to_column("Gene") %>%
+      filter(Gene == gene()) %>%
+      dplyr::select(Gene, any_of(intersect(clinData()$USI, colnames(expData())))) %>%
+      column_to_rownames("Gene") %>%
       gather(USI, Expression) %>%
       mutate_at(vars(Expression), ~as.numeric(.)) %>%
-      left_join(., clinData, by = "USI") %>%
+      left_join(., clinData(), by = "USI") %>%
       mutate_at(vars(Group), ~ifelse(grepl("^RO|^BM", USI), "NBM", "AML"))
     
     # Adding column onto the merged dataset with grouping info based on the user selected strata_var
     if (input$strata_var == "median") {
-      countsData <- countsData %>%
+      mergedDF <- mergedDF %>%
         mutate(median = ifelse(Expression > median(Expression, na.rm = T), "Above median", "Below median"))
       
     } else if (input$strata_var == "quartile") {
-      
       # Throws an error message if the expression data can't be evenly divided into 4 quartiles, 
-      # check with quantile(countsData$Expression, probs = seq(0, 1, by = 0.25)) to see if Q1-Q3 have a TPM of 0
+      # check with quantile(expData$Expression, probs = seq(0, 1, by = 0.25)) to see if Q1-Q3 have a TPM of 0
       validate(
-        need(length(levels(gtools::quantcut(countsData$Expression, q = 4))) == 4, "The expression data for this gene cannot be evenly divided into quartiles, \nlikely because expression of the gene is very low in the majority of patients. \n\nPlease select 'By median' instead.")
+        need(length(levels(gtools::quantcut(mergedDF$Expression, q = 4))) == 4, "The expression data for this gene cannot be evenly divided into quartiles, \nlikely because expression of the gene is very low in the majority of patients. \n\nPlease select 'By median' instead.")
         )
-      
-      countsData <- countsData %>%
+      mergedDF <- mergedDF %>%
         mutate(quartile = gtools::quantcut(Expression, q = 4, labels = c("Q1 - lowest quartile", 
                                                                  "Q2", "Q3", 
                                                                  "Q4 - highest quartile")))
@@ -186,7 +208,7 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
         need(input$cutoff, "Please enter a percentile to use as a cutoff.")
       )
       
-      countsData <- countsData %>%
+      mergedDF <- mergedDF %>%
         mutate(ranks = percent_rank(Expression)) %>%
         mutate(percentile = case_when(ranks*100 < as.numeric(input$cutoff) ~ paste0("Below ", input$cutoff, "%"), 
                                       ranks*100 >= as.numeric(input$cutoff) ~ paste0("Above ", input$cutoff, "%")))
@@ -197,7 +219,7 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
       )
     }
     
-    countsData
+    return(mergedDF)
   })
   
   
@@ -210,14 +232,14 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
     # depending on whether or not the test type is EFS, OS, DFS, or RR
     if (testType == "DFS") {
       # Recoding an "event" as 1 (censored data is 0)
-      event <- ifelse(grepl("[Ee]vent", clinData2()[,"DFS from end of induction 1 for patients who are CR at EOI1 indicator"]), 1, 0) 
-      time <- clinData2()[,"Days to DFS from end of induction 1 for patients who are CR at EOI1"]
+      event <- ifelse(grepl("[Ee]vent", plotData()[,"DFS from end of induction 1 for patients who are CR at EOI1 indicator"]), 1, 0) 
+      time <- plotData()[,"Days to DFS from end of induction 1 for patients who are CR at EOI1"]
     } else if (testType == "RR") {
-      event <- ifelse(grepl("[Ee]vent", clinData2()[,"RR from CR (end of course 1) indicator"]), 1, 0)
-      time <- clinData2()[,"Days to RR from CR (end of course 1)"]
+      event <- ifelse(grepl("[Ee]vent", plotData()[,"RR from CR (end of course 1) indicator"]), 1, 0)
+      time <- plotData()[,"Days to RR from CR (end of course 1)"]
     } else if (testType %in% c("EFS", "OS")) {
-      event <- clinData2()[,paste0("Recoded ", testType, " ID")]
-      time <- clinData2()[,paste0(testType, " time (days)")]
+      event <- plotData()[,paste0("Recoded ", testType, " ID")]
+      time <- plotData()[,paste0(testType, " time (days)")]
     }
     
     # Converting the time from days -> years, if requested by the user
@@ -236,7 +258,7 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
     }
     
     # Fitting the Kaplan-Meier curves using the recoded survival data
-    fit <- survminer::surv_fit(formula = formula, data = clinData2())
+    fit <- survminer::surv_fit(formula = formula, data = plotData())
     
     # Fixing the names of the strata to make them more concise & descriptive
     names(fit$strata) <- gsub(".+=", "", names(fit$strata))
@@ -250,13 +272,13 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
     title <- paste0("Kaplan-Meier curves for ", testType)
     
     strataCol <- if (input$strata_var == "mutation") { 
-      length(levels(as.factor(clinData2()[[input$mutCol]])))
+      length(levels(as.factor(plotData()[[input$mutCol]])))
     } else {
-      length(levels(as.factor(clinData2()[[input$strata_var]])))
+      length(levels(as.factor(plotData()[[input$strata_var]])))
     }
     
     # Creating the Kaplan-Meier plot
-    plot <- ggsurvplot(fit, data = clinData2(),
+    plot <- ggsurvplot(fit, data = plotData(),
                        pval = TRUE,
                        ggtheme = theme_bw() + theme(plot.title = element_text(hjust = 0.5, 
                                                                               size = 12)),
@@ -270,6 +292,7 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
       labs(x = paste0("Time (in ", input$time_type, ")"))
     
     # Adding gene name as a text annotation layer, to be displayed in the top right corner of the plot
+    # https://stackoverflow.com/questions/10747307/legend-placement-ggplot-relative-to-plotting-region
     plot$plot <- plot$plot +
       ggplot2::annotate("text", y = 1, x = max(time, na.rm = T), label = gene(), hjust = 0.5, vjust = 1, size = 8, fontface = "bold")
     
@@ -280,23 +303,23 @@ kmPlot <- function(input, output, session, clinData, countsData, gene){
   tableFun <- reactive({
     
     type <- ifelse(input$strata_var == "mutation", input$mutCol, 
-                   grep(input$strata_var, colnames(clinData2()), value = T))
+                   grep(input$strata_var, colnames(plotData()), value = T))
     
     if (length(input$test_type) == 1) {
-      time <- grep(paste0("^", input$test_type, " time"), colnames(clinData2()), value = T)
-      event <- grep(paste0("^", input$test_type, ".*ID"), colnames(clinData2()), value = T)
+      time <- grep(paste0("^", input$test_type, " time"), colnames(plotData()), value = T)
+      event <- grep(paste0("^", input$test_type, ".*ID"), colnames(plotData()), value = T)
     } else if (length(input$test_type) > 1) {
       time <- unlist(lapply(input$test_type, function(x) {
-        grep(paste0("^", x, " time"), colnames(clinData2()), value = T)
+        grep(paste0("^", x, " time"), colnames(plotData()), value = T)
       }))
       event <- unlist(lapply(input$test_type, function(x) {
-        grep(paste0("^", x, ".*ID"), colnames(clinData2()), value = T)
+        grep(paste0("^", x, ".*ID"), colnames(plotData()), value = T)
       }))
     }
     
-    clinData2() %>%
-      dplyr::select(Reg., USI, !!time, !!event, !!type) %>% # Using !! before the variables to evaluate them to colnames in the select() call
-      dplyr::select(Reg., USI, contains("EFS"), contains("OS"), !!type) %>%
+    plotData() %>%
+      dplyr::select(any_of(c("Reg.", "USI", !!time, !!event, !!type))) %>% # Using !! before the variables to evaluate them to colnames in the select() call
+      dplyr::select(any_of(c("Reg.", "USI")), contains("EFS"), contains("OS"), !!type) %>%
       rename(`Expression category` = !!type) ### PERCENTILE TABLE DOESN'T WORK, FIX!!!!!!!!
   })
   

@@ -4,6 +4,9 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
   library(DT)
   library(shinyjs)
   ns <- NS(id) # Setting a unique namespace for this module
+  # https://github.com/dreamRs/shinyWidgets <- Give this a shot for some of the new checkbox options
+  # https://www.htmlwidgets.org/showcase_d3heatmap.html <- Interactive heatmaps
+  # https://cran.r-project.org/web/packages/shinyjqui/vignettes/introduction.html <- Make items resizable!!
   
   tagList(
     useShinyjs(),
@@ -20,11 +23,11 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
               sidebarPanel(
                 
                 # Dropdown menu to select variable to use for arranging/grouping patients in waterfall plot
-                selectInput(ns("grouping_var"), 
+                pickerInput(ns("grouping_var"), 
                             label = "Select a grouping variable",             # The name of each list item is what is shown in the box;
                             choices = list("AML vs. normal" = "Group",        # the value corresponds to a column of the CDEs
                                            "Cell lines" = "Cell.Lines", 
-                                           "Primary cytogenetics" = "Primary.Cytogenetic.Code", 
+                                           "Primary cytogenetics" = "Primary.Cyto", 
                                            "Primary fusions" = "Primary.Fusion",
                                            "Rare fusions" = "Rare.Fusions", 
                                            "KMT2A/MLL fusions" = "MLL.Fusion",
@@ -60,13 +63,15 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                 
                 helpText("The grouping variable will be used to arrange patients along the x axis (for waterfall plots) 
                           or to group patients together (for box and violin plots) based on a common clinical characteristic 
-                          to help highlight expression patterns within the groups." ),
+                          to help highlight expression patterns within the groups."),
                 
                 helpText("NOTE: If cell lines is selected, please reference the 'Summary Stats' tab for expression data, 
                          as only one sample is available for most cell lines."),
                 
                 br(),
                 
+                # http://timelyportfolio.github.io/buildingwidgets/week25/sweetalert_examples.html <- Alert to notify
+                # user that they're switching tabs
                 hidden(
                   actionButton(ns("adc_flag"), "See ADC or CAR T-cell therapies")
                 )
@@ -125,67 +130,62 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
 
 
 # Server function for the waterfall plot module
-wfPlot <- function(input, output, session, clinData, countsData, adc_cart_targetData, gene, parent){
+wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetData, gene, dataset, parent){
   
   library(tidyverse)
   library(DT)
   `%then%` <- shiny:::`%OR%` # See https://shiny.rstudio.com/articles/validation.html for details on the %then% operator
   
   #-------------------- Data preparation -----------------------#
+
+  # Setting up a list of grouping variables that are available for each dataset
+  dropdown_choices <- c("AML vs. normal" = "Group",
+                        "Cell lines" = "Cell.Lines", 
+                        "Primary cytogenetics" = "Primary.Cyto", 
+                        "Primary fusions" = "Primary.Fusion",
+                        "Rare fusions" = "Rare.Fusions", 
+                        "KMT2A/MLL fusions" = "MLL.Fusion",
+                        "SNVs" = "SNVs", 
+                        "Age category" = "Age.Category", 
+                        "Cyto/molecular risk" = "Cyto.Risk", 
+                        "Event type" = "Event.Type",
+                        "CNS disease" = "CNS.Disease.Category")
+  
+  disabled_choices <- c("Primary cytogenetics" = "Primary.Cyto", 
+                        "Cell lines" = "Cell.Lines",
+                        "Rare fusions" = "Rare.Fusions", 
+                        "SNVs" = "SNVs", 
+                        "CNS disease" = "CNS.Disease.Category")
   
   # Selecting the ADC & CAR T-cell therapy data for only the gene of interest
   therapyData <- reactive({
     filter(adc_cart_targetData, `Gene target` == gene())
   })
   
-  # Cleaning up the clinical data grouping columns so they're displayed nicely in the plots
-  clinData <- clinData %>%
-    rename(Primary.Cytogenetic.Code = `Primary Cytogenetic Code`) %>%
-    rename(Cyto.Risk = `Cyto/Fusion/Molecular Risk`) %>%
-    rename(CNS.Disease.Category = `CNS disease at on-study`) %>%
-    rename(Event.Type = `EFS event type ID`) %>%
-    mutate_at(vars(Cytogenetic.Category.2), ~gsub("\\.|\\_", " ", .)) %>%
-    mutate_at(vars(Rare.Fusions), ~gsub("\\.", "\\-", .)) %>%
-    mutate_at(vars(SNVs), ~gsub("\\.", " ", .)) %>%
-    mutate_at(vars(SNVs), ~gsub("mutation", "mut", .)) %>%
-    mutate_at(vars(SNVs), ~gsub("with", "w\\/", .)) %>%
-    mutate_at(vars(Cytogenetic.Category.2, Rare.Fusions, SNVs), ~gsub("OtherAML", "Other AML", .)) %>%
-    
-    # Adding columns to use for re-categorizing MLL and other fusions if they occur in less than 10 patients 
-    mutate(Primary.Fusion = ifelse(str_detect(pattern = "KMT2A-", string = `Primary Fusion/CNV`), "KMT2A-X", `Primary Fusion/CNV`)) %>%
-    mutate(MLL.Fusion = ifelse(str_detect(pattern = "KMT2A", string = `Primary Fusion/CNV`), `Primary Fusion/CNV`, "Other AML")) %>%
-    group_by(MLL.Fusion) %>%
-    mutate(Fusion.Count = n()) %>%
-    ungroup() %>%
-    mutate_at(vars(MLL.Fusion), ~ifelse(Fusion.Count < 10, "Other MLL", .)) %>%
-    group_by(Primary.Fusion) %>%
-    mutate(Fusion.Count = n()) %>%
-    ungroup() %>%
-    mutate_at(vars(Primary.Fusion), ~ifelse(Fusion.Count < 10, "Other AML", .)) %>%
-    
-    # Adding rows for the cell lines, which are not typically included in the clinical data
-    tibble::add_row(USI = c("K562.01", "K562.02", "ME1", "MO7E", "NOMO1", "Kasumi.D1", "MV4.11.D1"), Group = NA) %>%
-    tibble::add_row(USI = grep("^RO|^BM", colnames(countsData), value = T), Group = "NBM") %>%
-    tibble::add_row(USI = grep("34POS", colnames(countsData), value = T), Group = "CD34+ PB")
-  
-  # Filtering the counts data to only retain the gene of interest & throwing
-  # errors if a non-existent gene is provided
-  expData <- reactive({
+  # Filtering the counts data to only retain the gene of interest & throwing errors if a non-existent gene is provided.
+  geneData <- reactive({
     validate(
       need(gene(), "Please enter a gene symbol in the text box.") %then%
-        need(gene() %in% rownames(countsData), "That gene symbol does not exist in the counts data! \nDouble-check the symbol, or try an alias/synonym."))
+        need(gene() %in% rownames(expData()), "That gene symbol does not exist in the counts data!\nDouble-check the symbol, or try an alias/synonym."))
     
-    countsData[gene(), intersect(colnames(countsData), clinData$USI)]
+    expData() %>%
+      rownames_to_column("Gene") %>%
+      filter(Gene == gene()) %>%
+      dplyr::select(Gene, any_of(intersect(clinData()$USI, colnames(expData())))) %>%
+      column_to_rownames("Gene")
   })
   
   
   # Transforming the counts into a long-format dataframe to use with ggplot
   plotData <- reactive({
     
-    plotData <- expData() %>%
+    validate(
+      need(!((dataset() == "BeatAML") && (input$grouping_var %in% disabled_choices)), "That grouping option is not available for this dataset.\nPlease select another option."))
+    
+    plotDF <- geneData() %>%
       gather(USI, Expression) %>%
       mutate_at(vars(Expression), ~as.numeric(.)) %>%
-      left_join(., clinData, by = "USI") %>%
+      left_join(., clinData(), by = "USI") %>%
       mutate(Log2 = log2(Expression + 1),
              Cell.Lines = ifelse(USI %in% c("K562.01", "K562.02", "ME1", "MO7E", "NOMO1", "Kasumi.D1", "MV4.11.D1"), USI, "AML samples")) %>%
       
@@ -193,20 +193,26 @@ wfPlot <- function(input, output, session, clinData, countsData, adc_cart_target
       mutate_at(vars(!!input$grouping_var), ~case_when(Group == "NBM" ~ "NBM", 
                                                        Group == "CD34+ PB" ~ "CD34+ PB",
                                                        TRUE ~ .)) %>%
-      
-      mutate_at(vars(MLL.Fusion, Rare.Fusions, Primary.Fusion, SNVs), ~forcats::fct_relevel(., "Other AML", after = Inf)) %>%
+      mutate_at(vars(any_of(c("MLL.Fusion", "Rare.Fusions"," Primary.Fusion", "SNVs"))), ~forcats::fct_relevel(., "Other AML", after = Inf))
+    
+    if (dataset() == "TARGET") {
+      plotDF <- plotDF %>% 
+        mutate_at(vars(any_of(!!input$grouping_var)), ~forcats::fct_relevel(., "CD34+ PB", after = Inf)) %>%
+        mutate_at(vars(any_of(!!input$grouping_var)), ~forcats::fct_relevel(., "NBM", after = Inf))
+    }
+    
+    plotDF <- plotDF %>%
       mutate_at(vars(Cell.Lines), ~forcats::fct_relevel(., "AML samples", after = Inf)) %>%
-      mutate_at(vars(!!input$grouping_var), ~forcats::fct_relevel(., "CD34+ PB", after = Inf)) %>%
-      mutate_at(vars(!!input$grouping_var), ~forcats::fct_relevel(., "NBM", after = Inf)) %>%
       group_by(!!input$grouping_var) %>%                                                              
       arrange_(input$grouping_var, "Expression")  # Reordering patients so that the specified groups are 
                                                   # grouped together and ordered by increasing expression
+
     
     # Setting the patient order using factor levels, so they won't be rearranged 
     # alphabetically by ggplot (this step is required for ggplot waterfall plots)
-    plotData$USI <- factor(plotData$USI, levels = plotData$USI)
+    plotDF$USI <- factor(plotDF$USI, levels = plotDF$USI)
     
-    plotData
+    plotDF
   })
   
   # Updating the options for significance testing to reflect the
@@ -214,12 +220,25 @@ wfPlot <- function(input, output, session, clinData, countsData, adc_cart_target
   observe({
     x <- unique(plotData()[[input$grouping_var]])
     x <- x[!is.na(x)]
-    
     updateCheckboxGroupInput(session, 
                              inputId = "comparisons", 
                              label = "Select 2 of the following to compare",
                              choices = x)
   })
+  
+  observeEvent(dataset(), {
+    if(dataset() == "BeatAML") {
+      updatePickerInput(
+        session = session, 
+        inputId = "grouping_var",
+        choices = dropdown_choices[!dropdown_choices %in% disabled_choices])
+    } else if (dataset() == "TARGET") {
+      updatePickerInput(
+        session = session, 
+        inputId = "grouping_var",
+        choices = dropdown_choices)
+    }
+  }, ignoreInit = T)
   
   # Making a function that will generate the waterfall plot and 
   # can be called from multiple places in the script
@@ -263,10 +282,8 @@ wfPlot <- function(input, output, session, clinData, countsData, adc_cart_target
     }
     
     if (length(input$comparisons) > 1) {
-      
       validate(
         need(length(input$comparisons > 1), "Please select 2 groups to compare."))
-      
       c <- p + ggpubr::stat_compare_means(method = "wilcox.test", comparisons = list(input$comparisons))
       c
     } else {
@@ -279,7 +296,6 @@ wfPlot <- function(input, output, session, clinData, countsData, adc_cart_target
     plotData() %>%
       drop_na(input$grouping_var) %>%
       group_by_(input$grouping_var) %>%
-      # group_by(!!input$grouping_var) %>%
       summarize(N = n(), 
                 `Mean (TPM)` = round(mean(Expression, na.rm = T), 2), 
                 `Median (TPM)` = round(median(Expression, na.rm = T), 2), 

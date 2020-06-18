@@ -1,6 +1,7 @@
 library(shiny)
 library(shinydashboard)
 library(shinythemes)
+library(shinyWidgets)
 source("waterfallPlot_module.R")
 source("kaplanMeierPlot_module.R")
 
@@ -17,12 +18,18 @@ ui <- dashboardPage(
                 label = "Enter a gene symbol", 
                 placeholder = "Example: MSLN"),
       
+      #--------- Data type selecter ---------------------------#
+      # radioGroupButtons("seqDataType", choices = c("mRNA", "miRNA"), status = "primary", label = "Select data type"),
+      radioGroupButtons("seqDataCohort", choices = c("TARGET", "BeatAML"), 
+                        status = "primary", label = "Select AML cohort", 
+                        selected = "TARGET"),
+      
       # --------- Plot generation tabs ------------------------#
       menuItem("Waterfall plot", tabName = "wfPlot", icon = icon("chart-bar")),
       menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical")),
       # menuItem("SNV oncoprint", tabName = "oncPrint", icon = icon("dna")),
-      menuItem("External databases", tabName = "extData", icon = icon("atlas"))
-      # prescription-bottle for ADC/CAR T = prescription-bottle
+      menuItem("External databases", tabName = "extData", icon = icon("atlas")),
+      menuItem("Reference info", tabName = "refs", icon = icon("microscope"))
     )
   ),  
   
@@ -55,24 +62,32 @@ ui <- dashboardPage(
       
       # Building the external datasets tab that will contain links to other gene expression or protein databases
       tabItem(tabName = "extData",
-              
               mainPanel(
                 position = "center",
-                
                 fluidRow(
                   infoBoxOutput("protAtlas"),
                   infoBoxOutput("gtex")
                 ),
-                br(),
+                br(), # Centering on the page
                 br(),
                 br(),
                 fluidRow(
+                  # https://renkun-ken.github.io/formattable/ <- Really interesting package for making tables prettier
+                  # https://www.displayr.com/formattable/ <- Diff vignette, same package
                   box(title = "ADC and CAR T-cell therapies", status = "info", collapsible = T, solidHeader = T, width = 12,
-                      DT::dataTableOutput("therapyTable")
+                      DT::dataTableOutput("therapyTable") # Scrollable table of ADC/CAR T-cell study info from clinicaltrials.gov
                   )
                 )
               )
-      )
+      ),
+      
+      tabItem(tabName = "refs", 
+              mainPanel(
+                position = "center", 
+                fluidRow(
+                  
+                )
+              ))
     )
   )
   
