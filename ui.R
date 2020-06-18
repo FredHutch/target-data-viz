@@ -1,7 +1,7 @@
 library(shiny)
 library(shinydashboard)
 library(shinythemes)
-# library(shinyWidgets)
+library(shinyWidgets)
 source("waterfallPlot_module.R")
 source("kaplanMeierPlot_module.R")
 
