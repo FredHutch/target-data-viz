@@ -3,6 +3,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
   
   library(DT)
   library(shinyjs)
+  library(shinyWidgets)
   ns <- NS(id) # Setting a unique namespace for this module
   # https://github.com/dreamRs/shinyWidgets <- Give this a shot for some of the new checkbox options
   # https://www.htmlwidgets.org/showcase_d3heatmap.html <- Interactive heatmaps
@@ -134,6 +135,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   
   library(tidyverse)
   library(DT)
+  library(shinyWidgets)
   `%then%` <- shiny:::`%OR%` # See https://shiny.rstudio.com/articles/validation.html for details on the %then% operator
   
   #-------------------- Data preparation -----------------------#
