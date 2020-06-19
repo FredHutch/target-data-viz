@@ -4,8 +4,9 @@ RUN apt-get update -y && apt-get install -y pandoc libpq-dev supervisor nginx
 RUN R -q -e 'install.packages(c("shinydashboard", "shinyjs", "shinyWidgets", "shinythemes", "survminer", "gtools"))'
 
 RUN rm -rf /srv/shiny-server/
-ADD *.R /srv/shiny-server/01_hello/
-ADD data /srv/shiny-server/01_hello/data/
+ADD *.R /srv/shiny-server/
+
+ADD data /srv/shiny-server/data/
 
 
 ADD system/. /home/shiny/system/
