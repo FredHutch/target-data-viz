@@ -2,6 +2,7 @@
 FROM fredhutch/r-shiny-server-base:latest
 RUN apt-get update -y && apt-get install -y pandoc libpq-dev supervisor nginx
 RUN R -q -e 'install.packages(c("shinydashboard", "shinyjs", "shinyWidgets", "shinythemes", "survminer", "gtools"))'
+RUN R -q -e 'install.packages(c("dplyr"), repos="https://cran.r-project.org")'
 
 RUN rm -rf /srv/shiny-server/
 ADD *.R /srv/shiny-server/

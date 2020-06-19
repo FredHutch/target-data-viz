@@ -1,6 +1,7 @@
 library(shiny)
 library(tidyverse)
 library(DT)
+library(dplyr)
 source("waterfallPlot_module.R")
 source("kaplanMeierPlot_module.R")
 `%then%` <- shiny:::`%OR%` # See https://shiny.rstudio.com/articles/validation.html for details on the %then% operator
