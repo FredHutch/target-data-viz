@@ -1,7 +1,7 @@
 # build me as dockerimages.fhcrc.org/monitords:latest
 FROM fredhutch/r-shiny-server-base:latest
 RUN apt-get update -y && apt-get install -y pandoc libpq-dev supervisor nginx
-RUN R -q -e 'install.packages(c("shinydashboard", "shinyWidgets",  "survminer", "gtools"))'
+RUN R -q -e 'install.packages(c("shinydashboard", "shinyWidgets", "shinythemes", "survminer", "gtools"))'
 
 RUN rm -rf /srv/shiny-server/
 ADD *.R /srv/shiny-server/01_hello/

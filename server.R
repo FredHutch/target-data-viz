@@ -24,14 +24,14 @@ readData <- function(session, target_cde, target_expData) {
   progress$set(value = 0.65, message = 'Loading expression data part 4...')
   p4 <- readRDS("data/mRNA/TARGET_AAML1031_0531_RBD_Dx_Relapse_TPMs_filt4dupGenes_with_cellLines_CD34posNBM_forShinyApp_PART4_12.27.2019.RDS")
   target_expData <<- rbind(p1, p2, p3, p4)
-  beatAML_expData <<- readxl::read_excel("data/Beat_AML_Supplementary_ClinicalData_GeneCounts_TPM.xlsx", sheet = 2) %>%
+  beatAML_expData <<- readRDS("data/mRNA/BeatAML_Supplementary_Tables_TPM_Linear_Scale.RDS") %>%
     column_to_rownames("geneSymbol")
   # progress$set(value = 0.85, message = 'Loading mature miRNA data...')
   # miRdata <<- read.csv("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019.csv", stringsAsFactors = F) %>%
   #   rename_at(vars(-mir), ~gsub("\\..*", "", .)) %>% # Cutting off the aliquot ID and sample timepoint info (they're all Dx)
   #   column_to_rownames("mir")
   progress$set(value = 0.95, message = 'Loading clinical data...')
-  beatAML_cde <<- readxl::read_excel("data/Beat_AML_Supplementary_ClinicalData_GeneCounts_TPM.xlsx", sheet = 1) %>%
+  beatAML_cde <<- readxl::read_excel("data/Clinical/Beat_AML_Supplementary_ClinicalData.xlsx") %>%
     filter(isDenovo == TRUE) %>%
     rename(Primary.Fusion = finalFusion) %>%
     rename(USI = LabId) %>%
