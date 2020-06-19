@@ -85,10 +85,9 @@ ui <- dashboardPage(
               mainPanel(
                 position = "center", 
                 fluidRow(
-                  
+                  box(title = "RNA-seq reference information - coming soon")
                 )
               ))
     )
   )
-  
 )

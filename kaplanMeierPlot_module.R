@@ -238,6 +238,11 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
       event <- ifelse(grepl("[Ee]vent", plotData()[,"RR from CR (end of course 1) indicator"]), 1, 0)
       time <- plotData()[,"Days to RR from CR (end of course 1)"]
     } else if (testType %in% c("EFS", "OS")) {
+      
+      validate(
+        need(paste0("Recoded ", testType, " ID") %in% colnames(plotData()), "This type of survival data is not available in this dataset.")
+      )
+      
       event <- plotData()[,paste0("Recoded ", testType, " ID")]
       time <- plotData()[,paste0(testType, " time (days)")]
     }

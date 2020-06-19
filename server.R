@@ -9,11 +9,10 @@ source("kaplanMeierPlot_module.R")
 # Creating a progress bar to let the user know when the expression data is done loading.
 # Code adapted from http://www.mazsoft.com/blog/post/2018/01/01/show-progress-bar-when-pre-loading-data-in-shiny-app
 # NOTE: GitHub has a max allowed filesize of 100 MB, so the expression data had to be broken into multiple smaller files in order to be uploadable
-readData <- function(session, target_cde, target_expData) {
+readData <- function(target_cde, target_expData) {
   
   # NOTE: Could potentially use the switch() function to load different datasets, depending on which dataset is selected in the dashboard
-  
-  progress <- Progress$new(session)
+  progress <- Progress$new()
   progress$set(value = 0.0, message = 'Loading mRNA expression data...')
   progress$set(value = 0.10, message = 'Loading expression data part 1...')
   p1 <- readRDS("data/mRNA/TARGET_AAML1031_0531_RBD_Dx_Relapse_TPMs_filt4dupGenes_with_cellLines_CD34posNBM_forShinyApp_PART1_12.27.2019.RDS")
@@ -96,16 +95,11 @@ readData <- function(session, target_cde, target_expData) {
 
 target_expData <- NULL
 
-######### TO DO ####################
-# How to flag an error and prevent app from closing when the variable doesn't exist? 
-# Or mybe pop up a warning saying that information isn't available in the Beat AML dataset
-# ##################################
-
 server <- function(input, output, session) { 
   
   # Reading in the expression & clinical data one time, immediately after the app starts up
   if (is.null(target_expData)) {
-    readData(session, target_cde, target_expData)
+    readData(target_cde, target_expData)
   }
   
   # Creating a variable that will be used to reactively pass the gene of interest into each module,
