@@ -15,15 +15,7 @@ readData <- function(target_cde, target_expData) {
   # NOTE: Could potentially use the switch() function to load different datasets, depending on which dataset is selected in the dashboard
   progress <- Progress$new()
   progress$set(value = 0.0, message = 'Loading mRNA expression data...')
-  progress$set(value = 0.10, message = 'Loading expression data part 1...')
-  p1 <- readRDS("data/mRNA/TARGET_AAML1031_0531_RBD_Dx_Relapse_TPMs_filt4dupGenes_with_cellLines_CD34posNBM_forShinyApp_PART1_12.27.2019.RDS")
-  progress$set(value = 0.25, message = 'Loading expression data part 2...')
-  p2 <- readRDS("data/mRNA/TARGET_AAML1031_0531_RBD_Dx_Relapse_TPMs_filt4dupGenes_with_cellLines_CD34posNBM_forShinyApp_PART2_12.27.2019.RDS")
-  progress$set(value = 0.45, message = 'Loading expression data part 3...')
-  p3 <- readRDS("data/mRNA/TARGET_AAML1031_0531_RBD_Dx_Relapse_TPMs_filt4dupGenes_with_cellLines_CD34posNBM_forShinyApp_PART3_12.27.2019.RDS")
-  progress$set(value = 0.65, message = 'Loading expression data part 4...')
-  p4 <- readRDS("data/mRNA/TARGET_AAML1031_0531_RBD_Dx_Relapse_TPMs_filt4dupGenes_with_cellLines_CD34posNBM_forShinyApp_PART4_12.27.2019.RDS")
-  target_expData <<- rbind(p1, p2, p3, p4)
+  target_expData <<- readRDS("data/mRNA/TARGET_AAML1031_0531_RBD_Dx_Relapse_TPMs_filt4dupGenes_with_cellLines_CD34posNBM_forShinyApp_11.20.2019.RDS")
   beatAML_expData <<- readRDS("data/mRNA/BeatAML_Supplementary_Tables_TPM_Linear_Scale.RDS") %>%
     column_to_rownames("geneSymbol")
   # progress$set(value = 0.85, message = 'Loading mature miRNA data...')
