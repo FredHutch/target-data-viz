@@ -18,10 +18,17 @@ readData <- function(target_cde, target_expData) {
   target_expData <<- readRDS("data/mRNA/TARGET_AAML1031_0531_RBD_Dx_Relapse_TPMs_filt4dupGenes_with_cellLines_CD34posNBM_forShinyApp_11.20.2019.RDS")
   beatAML_expData <<- readRDS("data/mRNA/BeatAML_Supplementary_Tables_TPM_Linear_Scale.RDS") %>%
     column_to_rownames("geneSymbol")
-  # progress$set(value = 0.85, message = 'Loading mature miRNA data...')
-  # miRdata <<- read.csv("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019.csv", stringsAsFactors = F) %>%
-  #   rename_at(vars(-mir), ~gsub("\\..*", "", .)) %>% # Cutting off the aliquot ID and sample timepoint info (they're all Dx)
-  #   column_to_rownames("mir")
+  progress$set(value = 0.85, message = 'Loading mature miRNA data...')
+  miRdata <- read.csv("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019.csv", stringsAsFactors = F) %>%
+    rename_at(vars(-mir), ~gsub("\\..*", "", .)) %>% # Cutting off the aliquot ID and sample timepoint info (they're all Dx)
+    separate(mir, into = c("hsa ID", "Accession Number"), sep = "\\.") 
+  
+  miRmapping <<- miRdata[,c("hsa ID", "Accession Number")]
+  
+  miRdata <<- miRdata %>% 
+    dplyr::select(-"hsa ID") %>%
+    column_to_rownames("Accession Number")
+  
   progress$set(value = 0.95, message = 'Loading clinical data...')
   beatAML_cde <<- readxl::read_excel("data/Clinical/Beat_AML_Supplementary_ClinicalData.xlsx") %>%
     filter(isDenovo == TRUE) %>%
@@ -81,6 +88,7 @@ readData <- function(target_cde, target_expData) {
                   `If currently in clinical trials, drug/trial ID number`, `Development sponsor`, `Development status`) %>%
     mutate_at(vars(`If currently in clinical trials, drug/trial ID number`), ~ifelse(is.na(.), ., paste0("<a href='", "https://clinicaltrials.gov/show/", ., "'>", ., "</a>"))) %>%
     rename(`Gene target` = `Gene symbol of target (Final)`)
+  
   progress$set(value = 1, message = 'Done loading!')
   progress$close()
 }
@@ -99,12 +107,12 @@ server <- function(input, output, session) {
   # see https://tbradley1013.github.io/2018/07/20/r-shiny-modules--using-global-inputs/ for more  
   # info on passing global Shiny variables into a module
   target <- reactive({
-    if (startsWith(input$geneInput, "hsa-mir")) {
-      newGene <- input$geneInput
+    if (grepl(x = input$geneInput, "$hsa\\-mir*|mir\\-*", ignore.case = T)) {
+      symbol <- miRmapping$`Accession Number`[match(tolower(input$geneInput), miRmapping$`hsa ID`)] 
     } else {
-      newGene <- toupper(input$geneInput)
+      symbol <- toupper(input$geneInput)
     }
-    return(newGene)
+    return(symbol)
   })
   
   cohort <- reactive({
@@ -112,9 +120,9 @@ server <- function(input, output, session) {
   })
   
   seqData <- reactive({
-    switch(input$seqDataCohort,
-           "BeatAML" = beatAML_expData,
-           "TARGET" = target_expData)
+    if (input$seqDataCohort == "BeatAML") beatAML_expData else
+      if (input$seqDataCohort == "TARGET" && input$seqDataType == "mRNA") target_expData else
+        if (input$seqDataCohort == "TARGET" && input$seqDataType == "miRNA") miRdata
   })
   
   studyData <- reactive({

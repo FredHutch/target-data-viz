@@ -19,14 +19,18 @@ ui <- dashboardPage(
                 placeholder = "Example: MSLN"),
       
       #--------- Data type selecter ---------------------------#
-      # radioGroupButtons("seqDataType", choices = c("mRNA", "miRNA"), status = "primary", label = "Select data type"),
-      radioGroupButtons("seqDataCohort", choices = c("TARGET", "BeatAML"), 
+      radioGroupButtons("seqDataCohort", choices = c("TARGET", "Beat AML" = "BeatAML"), 
                         status = "primary", label = "Select AML cohort", 
-                        selected = "TARGET"),
+                        selected = "TARGET", size = "sm"),
+      
+      radioGroupButtons("seqDataType", choices = c("mRNA", "Micro RNA" = "miRNA"), 
+                        status = "primary", label = "Select data type", 
+                        size = "sm", selected = "mRNA"),
       
       # --------- Plot generation tabs ------------------------#
       menuItem("Waterfall plot", tabName = "wfPlot", icon = icon("chart-bar")),
       menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical")),
+      menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
       # menuItem("SNV oncoprint", tabName = "oncPrint", icon = icon("dna")),
       menuItem("External databases", tabName = "extData", icon = icon("atlas")),
       menuItem("Reference info", tabName = "refs", icon = icon("microscope"))
