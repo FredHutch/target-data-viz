@@ -1,4 +1,5 @@
 # Files to be ignored:
+data/
 
 # History files
 .Rhistory
