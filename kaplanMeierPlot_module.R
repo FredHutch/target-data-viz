@@ -173,7 +173,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     
     # Outputting error messages if the gene symbol doesn't exist in our data
     validate(
-      need(gene(), "Please enter a gene symbol in the text box to the left.") %then%
+      need(gene(), "Please enter a gene symbol or miRNA in the text box to the left.") %then%
         need(gene() %in% rownames(expData()), "That gene symbol does not exist in the counts data! \nDouble-check the symbol, or try an alias.")
     )
     
@@ -197,7 +197,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
       # Throws an error message if the expression data can't be evenly divided into 4 quartiles, 
       # check with quantile(expData$Expression, probs = seq(0, 1, by = 0.25)) to see if Q1-Q3 have a TPM of 0
       validate(
-        need(length(levels(gtools::quantcut(mergedDF$Expression, q = 4))) == 4, "The expression data for this gene cannot be evenly divided into quartiles, \nlikely because expression of the gene is very low in the majority of patients. \n\nPlease select 'By median' instead.")
+        need(length(levels(gtools::quantcut(mergedDF$Expression, q = 4))) == 4, "The expression data cannot be evenly divided into quartiles, \nlikely because expression of the gene is very low in the majority of patients. \n\nPlease select 'By median' instead.")
         )
       mergedDF <- mergedDF %>%
         mutate(quartile = gtools::quantcut(Expression, q = 4, labels = c("Q1 - lowest quartile", 
@@ -205,8 +205,8 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
                                                                  "Q4 - highest quartile")))
     } else if (input$strata_var == "percentile") {
       validate(
-        need(input$cutoff, "Please enter a percentile to use as a cutoff.")
-      )
+        need(input$cutoff, "Please enter a percentile to use as a cutoff."))
+          # need(input$cutoff > 0 && input$cutoff < 100, "The percentile must be between 0 and 100.")) # This doesn't work for some reason??
       
       mergedDF <- mergedDF %>%
         mutate(ranks = percent_rank(Expression)) %>%

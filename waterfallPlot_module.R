@@ -167,8 +167,8 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   # Filtering the counts data to only retain the gene of interest & throwing errors if a non-existent gene is provided.
   geneData <- reactive({
     validate(
-      need(gene(), "Please enter a gene symbol in the text box.") %then%
-        need(gene() %in% rownames(expData()), "That gene symbol does not exist in the counts data!\nDouble-check the symbol, or try an alias/synonym."))
+      need(gene(), "Please enter a gene symbol or miRNA in the text box.") %then%
+        need(gene() %in% rownames(expData()), "That does not exist in the counts data!\nDouble-check the symbol or ID, or try an alias/synonym."))
     
     expData() %>%
       rownames_to_column("Gene") %>%
@@ -205,6 +205,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
     
     plotDF <- plotDF %>%
       mutate_at(vars(Cell.Lines), ~forcats::fct_relevel(., "AML samples", after = Inf)) %>%
+      drop_na(Expression) %>% # Removing samples without expression data from the plot
       group_by(!!input$grouping_var) %>%                                                              
       arrange_(input$grouping_var, "Expression")  # Reordering patients so that the specified groups are 
                                                   # grouped together and ordered by increasing expression
@@ -297,11 +298,12 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   tableFun <- reactive({
     plotData() %>%
       drop_na(input$grouping_var) %>%
-      group_by_(input$grouping_var) %>%
-      summarize(N = n(), 
+      group_by(!!as.name(input$grouping_var)) %>%
+      dplyr::summarize(N = n(), 
                 `Mean (TPM)` = round(mean(Expression, na.rm = T), 2), 
                 `Median (TPM)` = round(median(Expression, na.rm = T), 2), 
-                `Range (TPM)` = paste0(round(min(Expression), 2), " - ", round(max(Expression), 2)))
+                `Range (TPM)` = paste0(round(min(Expression), 2), " - ", round(max(Expression), 2)), 
+                .groups = "keep")
   })
   
   #-------------------- Waterfall plot tab -----------------------#

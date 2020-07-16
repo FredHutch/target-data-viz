@@ -15,7 +15,7 @@ ui <- dashboardPage(
       
       #---------- Gene of interest input text box -------------#
       textInput("geneInput",                                   
-                label = "Enter a gene symbol", 
+                label = "Enter a gene symbol or miRNA", 
                 placeholder = "Example: MSLN"),
       
       #--------- Data type selecter ---------------------------#
@@ -23,15 +23,10 @@ ui <- dashboardPage(
                         status = "primary", label = "Select AML cohort", 
                         selected = "TARGET", size = "sm"),
       
-      radioGroupButtons("seqDataType", choices = c("mRNA", "Micro RNA" = "miRNA"), 
-                        status = "primary", label = "Select data type", 
-                        size = "sm", selected = "mRNA"),
-      
       # --------- Plot generation tabs ------------------------#
       menuItem("Waterfall plot", tabName = "wfPlot", icon = icon("chart-bar")),
       menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical")),
-      menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
-      # menuItem("SNV oncoprint", tabName = "oncPrint", icon = icon("dna")),
+      # menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
       menuItem("External databases", tabName = "extData", icon = icon("atlas")),
       menuItem("Reference info", tabName = "refs", icon = icon("microscope"))
     )
@@ -84,6 +79,13 @@ ui <- dashboardPage(
                 )
               )
       ),
+      
+      # tabItem(tabName = "umap", 
+      #         mainPanel(
+      #           # a("click on me",target="_blank",href="www/UMAP/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html")
+      #           uiOutput("test")
+      #         )
+      # ),
       
       tabItem(tabName = "refs", 
               mainPanel(

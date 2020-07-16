@@ -11,25 +11,31 @@ source("kaplanMeierPlot_module.R")
 # Code adapted from http://www.mazsoft.com/blog/post/2018/01/01/show-progress-bar-when-pre-loading-data-in-shiny-app
 # NOTE: GitHub has a max allowed filesize of 100 MB, so the expression data had to be broken into multiple smaller files in order to be uploadable
 readData <- function(target_cde, target_expData) {
-  
-  # NOTE: Could potentially use the switch() function to load different datasets, depending on which dataset is selected in the dashboard
+
   progress <- Progress$new()
   progress$set(value = 0.0, message = 'Loading mRNA expression data...')
-  target_expData <<- readRDS("data/mRNA/TARGET_AAML1031_0531_RBD_Dx_Relapse_TPMs_filt4dupGenes_with_cellLines_CD34posNBM_forShinyApp_11.20.2019.RDS")
+  progress$set(value = 0.25, message = 'Loading mRNA expression data...')
+  target_expData <- readRDS("data/mRNA/TARGET_AAML1031_0531_RBD_Dx_Relapse_TPMs_filt4dupGenes_with_cellLines_CD34posNBM_forShinyApp_11.20.2019.RDS") %>%
+    rownames_to_column("Symbol")
   beatAML_expData <<- readRDS("data/mRNA/BeatAML_Supplementary_Tables_TPM_Linear_Scale.RDS") %>%
     column_to_rownames("geneSymbol")
-  progress$set(value = 0.85, message = 'Loading mature miRNA data...')
+  
+  progress$set(value = 0.50, message = 'Loading mature miRNA data...')
+  miRmapping <<- read.csv("data/miRNA/hsa_gff3_IDMap.csv") %>%  # Will need this mapping file to translate from "hsa-mir-###" notation to the
+    rename(`hsa ID (miRbase21)` = miR)                                      # accession numbers in the dataset 
+
   miRdata <- read.csv("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019.csv", stringsAsFactors = F) %>%
     rename_at(vars(-mir), ~gsub("\\..*", "", .)) %>% # Cutting off the aliquot ID and sample timepoint info (they're all Dx)
-    separate(mir, into = c("hsa ID", "Accession Number"), sep = "\\.") 
+    separate(mir, into = c("hsa ID (original)", "MIMAT.ID"), sep = "\\.") %>%
+    left_join(., miRmapping, by = "MIMAT.ID") %>%
+    mutate_at(vars(`hsa ID (miRbase21)`), ~ifelse(is.na(.), MIMAT.ID, .)) %>%
+    rename(Symbol = `hsa ID (miRbase21)`) %>% 
+    dplyr::select(-c(`hsa ID (original)`, MIMAT.ID, Alias)) # Removing extra identifier cols now that they're in the mapping df
   
-  miRmapping <<- miRdata[,c("hsa ID", "Accession Number")]
+  target_expData <<- bind_rows(target_expData, miRdata) %>%   # Combining the mRNA and miRNA data for
+    column_to_rownames("Symbol")                              # all of the TARGET samples into 1 dataframe
   
-  miRdata <<- miRdata %>% 
-    dplyr::select(-"hsa ID") %>%
-    column_to_rownames("Accession Number")
-  
-  progress$set(value = 0.95, message = 'Loading clinical data...')
+  progress$set(value = 0.75, message = 'Loading clinical data...')
   beatAML_cde <<- readxl::read_excel("data/Clinical/Beat_AML_Supplementary_ClinicalData.xlsx") %>%
     filter(isDenovo == TRUE) %>%
     rename(Primary.Fusion = finalFusion) %>%
@@ -107,8 +113,10 @@ server <- function(input, output, session) {
   # see https://tbradley1013.github.io/2018/07/20/r-shiny-modules--using-global-inputs/ for more  
   # info on passing global Shiny variables into a module
   target <- reactive({
-    if (grepl(x = input$geneInput, "$hsa\\-mir*|mir\\-*", ignore.case = T)) {
-      symbol <- miRmapping$`Accession Number`[match(tolower(input$geneInput), miRmapping$`hsa ID`)] 
+    if (grepl("^hsa\\-mir*|mir\\-*", input$geneInput, ignore.case = T)) {
+      symbol <- gsub("hsa-mi[Rr]", "hsa-miR", input$geneInput) # Casting the R to uppercase since this is all mature miR data
+    } else if (grepl("^MIMAT", input$geneInput, ignore.case = T)) { # Mapping MIMAT ID back to hsa ID, the user can enter either one
+      symbol <- miRmapping$`hsa ID (miRbase21)`[match(input$geneInput, miRmapping$MIMAT.ID)]
     } else {
       symbol <- toupper(input$geneInput)
     }
@@ -120,9 +128,9 @@ server <- function(input, output, session) {
   })
   
   seqData <- reactive({
-    if (input$seqDataCohort == "BeatAML") beatAML_expData else
-      if (input$seqDataCohort == "TARGET" && input$seqDataType == "mRNA") target_expData else
-        if (input$seqDataCohort == "TARGET" && input$seqDataType == "miRNA") miRdata
+    switch(input$seqDataCohort,
+           "BeatAML" = beatAML_expData,
+           "TARGET" = target_expData)
   })
   
   studyData <- reactive({
@@ -190,7 +198,13 @@ server <- function(input, output, session) {
                   options = list(scrollY = "50vh"), 
                   escape = F)
   })
-
   
+  # Following this post, but it doesn't work: https://stackoverflow.com/questions/24875943/display-html-file-in-shiny-app
+  output$test <- renderUI({
+    # includeHTML("data/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html")
+    # addResourcePath("library", "~/lib64/R/library")
+      tags$iframe(
+        src="data/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html", height = 600, width = 800)
+    })
   
 }
