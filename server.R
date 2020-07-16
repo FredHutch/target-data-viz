@@ -114,9 +114,9 @@ server <- function(input, output, session) {
   # info on passing global Shiny variables into a module
   target <- reactive({
     if (grepl("^hsa\\-mir*|mir\\-*", input$geneInput, ignore.case = T)) {
-      symbol <- gsub("hsa-mi[Rr]", "hsa-miR", input$geneInput) # Casting the R to uppercase since this is all mature miR data
+      symbol <- gsub("[Hh][Ss][Aa]-[Mm][Ii][Rr]", "hsa-miR", input$geneInput) # Casting the R to uppercase since this is all mature miR data
     } else if (grepl("^MIMAT", input$geneInput, ignore.case = T)) { # Mapping MIMAT ID back to hsa ID, the user can enter either one
-      symbol <- miRmapping$`hsa ID (miRbase21)`[match(input$geneInput, miRmapping$MIMAT.ID)]
+      symbol <- miRmapping$`hsa ID (miRbase21)`[match(toupper(input$geneInput), miRmapping$MIMAT.ID)]
     } else {
       symbol <- toupper(input$geneInput)
     }
