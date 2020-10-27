@@ -81,11 +81,14 @@ ui <- dashboardPage(
               )
       ),
       
-      # tabItem(tabName = "umap", 
-      #         mainPanel(
-      #           # a("click on me",target="_blank",href="www/UMAP/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html")
-      #           uiOutput("test")
-      #         )
+      # tabItem(tabName = "umap",
+              # mainPanel(
+                  # This works, but messes up the entire dashboard! Prob isn't designed to work with Shiny Dashboard
+                  # includeHTML("www/UMAP/TARGET_AMLdx_rlps_NBM_PCAselect_selfcontained.html")
+                  
+                  # Part of method 1, does not work, no clue why
+                  # htmlOutput("test") # I think it's able to access the file, but not display it
+              # )
       # ),
       
       tabItem(tabName = "refs", 

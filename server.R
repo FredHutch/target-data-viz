@@ -26,6 +26,7 @@ readData <- function(target_cde, target_expData, beatAML_cde, beatAML_expData, a
     column_to_rownames("geneSymbol")
   progress$set(value = 0.50, message = 'Loading mature miRNA data...')
   load("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019_FinalforShiny.RData", .GlobalEnv)
+  miRmapping <<- read.csv("data/miRNA/hsa_gff3_IDMap.csv")
   progress$set(value = 0.75, message = 'Loading clinical data...')
   load("data/Clinical/Beat_AML_Supplementary_ClinicalData_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/TARGET_AML_0531_1031_merged_CDEs_Shareable_9.18.20_FinalforShiny.RData", .GlobalEnv)
@@ -52,7 +53,7 @@ server <- function(input, output, session) {
     if (grepl("^hsa\\-mir*|mir\\-*", input$geneInput, ignore.case = T)) {
       symbol <- gsub("[Hh][Ss][Aa]-[Mm][Ii][Rr]", "hsa-miR", input$geneInput) # Casting the R to uppercase since this is all mature miR data
     } else if (grepl("^MIMAT", input$geneInput, ignore.case = T)) { # Mapping MIMAT ID back to hsa ID, the user can enter either one
-      symbol <- miRmapping$`hsa ID (miRbase21)`[match(toupper(input$geneInput), miRmapping$MIMAT.ID)]
+      symbol <- miRmapping$hsa.ID.miRbase21[match(toupper(input$geneInput), miRmapping$MIMAT.ID)]
     } else {
       symbol <- toupper(input$geneInput)
     }
@@ -134,13 +135,23 @@ server <- function(input, output, session) {
                   options = list(scrollY = "50vh"), 
                   escape = F)
   })
+
   
   # Following this post, but it doesn't work: https://stackoverflow.com/questions/24875943/display-html-file-in-shiny-app
-  output$test <- renderUI({
-    # includeHTML("data/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html")
-    # addResourcePath("library", "~/lib64/R/library")
-      tags$iframe(
-        src="data/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html", height = 600, width = 800)
-    })
+  # This person is having the same issue I am:
+  # https://stackoverflow.com/questions/56064805/displaying-html-file-using-includehtml-in-shiny-is-not-working-with-renderui
+  
+  # output$test <- renderUI({
+
+    # Method 1
+    # includeHTML() is designed to work with HTML fragments, so a "self contained" HTML file is needed
+    # includeHTML("www/UMAP/TARGET_AMLdx_rlps_NBM_PCAselect_selfcontained.html") # Doesn't work, produces a blank page
+    # HTML(knitr::knit2html("About.Rmd", fragment.only = TRUE))
+
+    # Method 2, see iframe details at https://plotly-r.com/saving.html
+    # tags$iframe(seamless="seamless",
+                # src="www/UMAP/plotly/TARGET_AMLdx_rlps_NBM_PCAselect_not_selfcontained_bodyOnly.html",
+                # height=600, width=800, scrolling="yes")
+    # })
   
 }

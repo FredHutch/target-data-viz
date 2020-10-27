@@ -244,8 +244,8 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
         need(grepl("Event\\.ID|OS\\.ID|Event ID|OS ID|", colnames(plotData())), "This type of survival data is not available in this dataset.")
       )
       
-      time <- grep(paste0(input$test_type, "\\.time\\.\\.days"), colnames(plotData()), value = T)
-      event <- grep(paste0(input$test_type, "\\.ID"), colnames(plotData()), value = T)
+      time <- grep(paste0(testType, "\\.time\\.\\.days"), colnames(plotData()), value = T)
+      event <- grep(paste0("Recoded\\.", testType, "\\.ID"), colnames(plotData()), value = T)
       
       time <- plotData()[,time]
       event <- plotData()[,event]
@@ -317,13 +317,13 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     
     if (length(input$test_type) == 1) {
       time <- grep(paste0(input$test_type, "\\.time\\.\\.days"), colnames(plotData()), value = T)
-      event <- grep(paste0(input$test_type, "\\.*ID"), colnames(plotData()), value = T)
+      event <- grep(paste0(input$test_type, "\\.ID"), colnames(plotData()), value = T)
     } else if (length(input$test_type) > 1) {
       time <- unlist(lapply(input$test_type, function(x) {
         grep(paste0("^", x, "\\.time\\.\\.days"), colnames(plotData()), value = T)
       }))
       event <- unlist(lapply(input$test_type, function(x) {
-        grep(paste0("^", x, ".*\\.ID"), colnames(plotData()), value = T)
+        grep(paste0("^", x, "\\.ID"), colnames(plotData()), value = T)
       }))
     }
     
