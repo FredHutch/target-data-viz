@@ -7,7 +7,7 @@ source("kaplanMeierPlot_module.R")
 
 ui <- dashboardPage(  
   
-  dashboardHeader(title = "TARGET AAML1031"),
+  dashboardHeader(title = "Meshinchi Lab Data Viz Tools"),
   
   ###################### DASHBOARD SIDEBAR ######################
   dashboardSidebar(
@@ -15,18 +15,19 @@ ui <- dashboardPage(
       
       #---------- Gene of interest input text box -------------#
       textInput("geneInput",                                   
-                label = "Enter a gene symbol or miRNA", 
+                label = "Enter a gene or miRNA", 
                 placeholder = "Example: MSLN"),
       
-      #--------- Data type selecter ---------------------------#
+      #--------- Cohort selection ---------------------------#
       radioGroupButtons("seqDataCohort", choices = c("TARGET", "Beat AML" = "BeatAML"), 
                         status = "primary", label = "Select AML cohort", 
                         selected = "TARGET", size = "sm"),
       
       # --------- Plot generation tabs ------------------------#
-      menuItem("Waterfall plot", tabName = "wfPlot", icon = icon("chart-bar")),
+      menuItem("Gene expression plots", tabName = "wfPlot", icon = icon("chart-bar")),
       menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical")),
       # menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
+      # menuItem("DE Genes", tabName = "deg", icon = icon("spinner")),
       menuItem("External databases", tabName = "extData", icon = icon("atlas")),
       menuItem("Reference info", tabName = "refs", icon = icon("microscope"))
     )

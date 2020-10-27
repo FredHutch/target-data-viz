@@ -1,4 +1,5 @@
 library(shiny)
+library(shinycssloaders)
 library(tidyverse)
 library(DT)
 library(dplyr)
@@ -6,111 +7,47 @@ source("waterfallPlot_module.R")
 source("kaplanMeierPlot_module.R")
 `%then%` <- shiny:::`%OR%` # See https://shiny.rstudio.com/articles/validation.html for details on the %then% operator
 
-################ Loading external data ########################################
-# Creating a progress bar to let the user know when the expression data is done loading.
-# Code adapted from http://www.mazsoft.com/blog/post/2018/01/01/show-progress-bar-when-pre-loading-data-in-shiny-app
-# NOTE: GitHub has a max allowed filesize of 100 MB, so the expression data had to be broken into multiple smaller files in order to be uploadable
-readData <- function(target_cde, target_expData) {
+#################### Loading external data ########################################
+# PLEASE NOTE: Large expression datasets required for this app to function are *not* stored in the Github repo,
+# as the filesizes are >1 GB. To access the expression data & run this app on your local machine, 
+# the appropriate "data" directory will need to be copied down from our AWS S3 bucket to replace the "data" folder in the local repo.
+# When pushing/pulling back to Github, the "data" folder in this repo will be ignored! 
+# To modify the data used by this app, the Shiny app "data" object in S3 must be modified. Changes to the
+# local "data" folder accessed by the Shiny scripts will NOT affect the web version of the app.
 
+readData <- function(target_cde, target_expData, beatAML_cde, beatAML_expData, adc_cart_targetData) {
+  # Creating a progress bar to let the user know when the expression data is done loading.
+  # Code adapted from http://www.mazsoft.com/blog/post/2018/01/01/show-progress-bar-when-pre-loading-data-in-shiny-app
   progress <- Progress$new()
-  progress$set(value = 0.0, message = 'Loading mRNA expression data...')
+  progress$set(value = 0.0, message = 'Please wait, loading data...')
+  progress$set(value = 0.10, message = 'Loading mRNA expression data...')
+  target_expData <<- readRDS("data/mRNA/TARGET_RBD_Dx_AML_ExpressionData_TPM_filt4dupGenes_with_cellLines_CD34posNBM_DSAML_MPN_10.16.2020_FinalforShiny.RDS")
   progress$set(value = 0.25, message = 'Loading mRNA expression data...')
-  target_expData <- readRDS("data/mRNA/TARGET_AAML1031_0531_RBD_Dx_Relapse_TPMs_filt4dupGenes_with_cellLines_CD34posNBM_forShinyApp_11.20.2019.RDS") %>%
-    rownames_to_column("Symbol")
   beatAML_expData <<- readRDS("data/mRNA/BeatAML_Supplementary_Tables_TPM_Linear_Scale.RDS") %>%
     column_to_rownames("geneSymbol")
-  
   progress$set(value = 0.50, message = 'Loading mature miRNA data...')
-  miRmapping <<- read.csv("data/miRNA/hsa_gff3_IDMap.csv") %>%  # Will need this mapping file to translate from "hsa-mir-###" notation to the
-    rename(`hsa ID (miRbase21)` = miR)                                      # accession numbers in the dataset 
-
-  miRdata <- read.csv("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019.csv", stringsAsFactors = F) %>%
-    rename_at(vars(-mir), ~gsub("\\..*", "", .)) %>% # Cutting off the aliquot ID and sample timepoint info (they're all Dx)
-    separate(mir, into = c("hsa ID (original)", "MIMAT.ID"), sep = "\\.") %>%
-    left_join(., miRmapping, by = "MIMAT.ID") %>%
-    mutate_at(vars(`hsa ID (miRbase21)`), ~ifelse(is.na(.), MIMAT.ID, .)) %>%
-    rename(Symbol = `hsa ID (miRbase21)`) %>% 
-    dplyr::select(-c(`hsa ID (original)`, MIMAT.ID, Alias)) # Removing extra identifier cols now that they're in the mapping df
-  
-  target_expData <<- bind_rows(target_expData, miRdata) %>%   # Combining the mRNA and miRNA data for
-    column_to_rownames("Symbol")                              # all of the TARGET samples into 1 dataframe
-  
+  load("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019_FinalforShiny.RData", .GlobalEnv)
   progress$set(value = 0.75, message = 'Loading clinical data...')
-  beatAML_cde <<- readxl::read_excel("data/Clinical/Beat_AML_Supplementary_ClinicalData.xlsx") %>%
-    filter(isDenovo == TRUE) %>%
-    rename(Primary.Fusion = finalFusion) %>%
-    rename(USI = LabId) %>%
-    rename(Event.Type = causeOfDeath) %>%
-    rename(Cyto.Risk = ELN2017) %>%
-    rename(FLT3.ITD = `FLT3-ITD`) %>%
-    mutate(Group = "AML",
-           MLL.Fusion = ifelse(str_detect(pattern = "KMT2A", string = Primary.Fusion), Primary.Fusion, "Other AML"), 
-           Age.Category = case_when(ageAtDiagnosis < 10 ~ "Less than 10 years", 
-                                    ageAtDiagnosis >= 10 & ageAtDiagnosis < 18 ~ "Between 10 and 18 years", 
-                                    ageAtDiagnosis >= 18 & ageAtDiagnosis < 40 ~ "Between 18 and 40 years", 
-                                    ageAtDiagnosis >= 40 & ageAtDiagnosis < 60 ~ "Between 40 and 60 years", 
-                                    ageAtDiagnosis >= 60 ~ "Greater than 60 years"), 
-           `Recoded OS ID` = ifelse(vitalStatus == "Dead", 1, 0), 
-           `OS time (days)` = overallSurvival) %>%
-    mutate_at(vars(Cyto.Risk), ~case_when(. == "FavorableOrIntermediate" ~ "Favorable Or Intermediate",
-                                           . == "IntermediateOrAdverse" ~ "Intermediate Or Adverse",
-                                           TRUE ~ .))
-  
-  target_cde <- readRDS("data/Clinical/AAML1031_TARGET_CDEs_with_HiAR_PrimaryCyto_and_FusionCalls_9.3.19.RDS") %>%
-    mutate_at(vars(Reg.), ~as.character(.)) %>%
-    dplyr::rename(Primary.Cyto = `Primary Cytogenetic Code`) %>%
-    dplyr::rename(Cyto.Risk = `Cyto/Fusion/Molecular Risk`) %>%
-    dplyr::rename(CNS.Disease.Category = `CNS disease at on-study`) %>%
-    dplyr::rename(Event.Type = `EFS event type ID`) %>%
-    mutate_at(vars(Cytogenetic.Category.2), ~gsub("\\.|\\_", " ", .)) %>%
-    mutate_at(vars(Rare.Fusions), ~gsub("\\.", "\\-", .)) %>%
-    mutate_at(vars(SNVs), ~gsub("\\.", " ", .)) %>%
-    mutate_at(vars(SNVs), ~gsub("mutation", "mut", .)) %>%
-    mutate_at(vars(SNVs), ~gsub("with", "w\\/", .)) %>%
-    mutate_at(vars(Cytogenetic.Category.2, Rare.Fusions, SNVs), ~gsub("OtherAML", "Other AML", .)) %>%
-
-    # Adding columns to use for re-categorizing MLL and other fusions (if they occur in less than 10 patients)
-    mutate(Primary.Fusion = ifelse(str_detect(pattern = "KMT2A-", string = `Primary Fusion/CNV`), "KMT2A-X", `Primary Fusion/CNV`)) %>%
-    mutate(MLL.Fusion = ifelse(str_detect(pattern = "KMT2A", string = `Primary Fusion/CNV`), `Primary Fusion/CNV`, "Other AML")) %>%
-    group_by(MLL.Fusion) %>%
-    mutate(Fusion.Count = n()) %>%
-    ungroup() %>%
-    mutate_at(vars(MLL.Fusion), ~ifelse(Fusion.Count < 10, "Other MLL", .)) %>%
-    group_by(Primary.Fusion) %>%
-    mutate(Fusion.Count = n()) %>%
-    ungroup() %>%
-    mutate_at(vars(Primary.Fusion), ~ifelse(Fusion.Count < 10, "Other AML", .)) %>%
-    
-    # Adding rows for the cell lines & other controls, which are not typically included in the clinical data
-    tibble::add_row(USI = c("K562.01", "K562.02", "ME1", "MO7E", "NOMO1", "Kasumi.D1", "MV4.11.D1"), Group = NA) %>%
-    tibble::add_row(USI = grep("^RO|^BM", colnames(target_expData), value = T), Group = "NBM") %>%
-    tibble::add_row(USI = grep("34POS", colnames(target_expData), value = T), Group = "CD34+ PB")
-  
-  mutData <- readxl::read_excel("data/Clinical/TARGET_AML_1031_merged_CDEs_mutationsOnly_01.08.20.xlsx")
-  target_cde <<- left_join(target_cde, mutData, by = c("USI", "Reg.")) %>%
-    mutate_at(vars(RAS.Gene), ~factor(., levels = c("KRAS", "NRAS", "Unknown", "None")))
-  adc_cart_targetData <<- readxl::read_excel("data/ADC_and_CARTcell_Targets_Database_ADCReview_clinicaltrialsGov.xlsx") %>%
-    dplyr::select(`Treatment type`, `Gene symbol of target (Final)`, `Associated cancer(s)`, 
-                  `If currently in clinical trials, drug/trial ID number`, `Development sponsor`, `Development status`) %>%
-    mutate_at(vars(`If currently in clinical trials, drug/trial ID number`), ~ifelse(is.na(.), ., paste0("<a href='", "https://clinicaltrials.gov/show/", ., "'>", ., "</a>"))) %>%
-    rename(`Gene target` = `Gene symbol of target (Final)`)
-  
+  load("data/Clinical/Beat_AML_Supplementary_ClinicalData_FinalforShiny.RData", .GlobalEnv)
+  load("data/Clinical/TARGET_AML_0531_1031_merged_CDEs_Shareable_9.18.20_FinalforShiny.RData", .GlobalEnv)
+  load("data/ADC_and_CARTcell_Targets_Database_ADCReview_clinicaltrialsGov_FinalforShiny.RData", .GlobalEnv)
   progress$set(value = 1, message = 'Done loading!')
   progress$close()
 }
+
 ##############################################################################
 
-target_expData <- NULL
+target_expData <- NULL # Setting this to null so it will only be read one time
 
 server <- function(input, output, session) { 
   
   # Reading in the expression & clinical data one time, immediately after the app starts up
   if (is.null(target_expData)) {
-    readData(target_cde, target_expData)
+    readData(target_cde, target_expData, beatAML_cde, beatAML_expData, adc_cart_targetData)
   }
   
   # Creating a variable that will be used to reactively pass the gene of interest into each module,
-  # see https://tbradley1013.github.io/2018/07/20/r-shiny-modules--using-global-inputs/ for more  
+  # See https://tbradley1013.github.io/2018/07/20/r-shiny-modules--using-global-inputs/ for more  
   # info on passing global Shiny variables into a module
   target <- reactive({
     if (grepl("^hsa\\-mir*|mir\\-*", input$geneInput, ignore.case = T)) {
@@ -141,7 +78,7 @@ server <- function(input, output, session) {
   
   #--------------------- WF plot & KM plot tabs --------------------- #
   
-  # Calling the waterfall plot module - this is broken, doesn't recognize the gene/target
+  # Calling the waterfall plot module
   # IMPORTANT NOTE: the "target" & "cohort" variables are actually a reactive function, and would usually be called by target() & cohort(), 
   # but when passing a reactive value into a module, you *must* pull off the parentheses and pass the naked variable name as an argument.
   # Within the modules themselves, these variables are a reactive function!
@@ -166,7 +103,7 @@ server <- function(input, output, session) {
   output$protAtlas <- renderInfoBox({
     
     validate(
-      need(target(), "Please enter a gene symbol in the text box."))
+      need(target(), "Please enter a gene symbol or miRNA in the text box."))
     
         infoBox(value = "Human Protein Atlas", 
                  title = "Protein expression",
@@ -177,7 +114,7 @@ server <- function(input, output, session) {
   output$gtex <- renderInfoBox({
     
     validate(
-      need(target(), "Please enter a gene symbol in the text box."))
+      need(target(), "Please enter a gene symbol or miRNA in the text box."))
     
     infoBox(value = "GTEX Gene \nExpression", 
             title = "Normal tissue expression",
@@ -189,7 +126,7 @@ server <- function(input, output, session) {
     
     validate(
       need(target(), "Please enter a gene symbol in the text box.") %then%
-        need(target() %in% adc_cart_targetData$`Gene target`, "We do not have record of that gene being targeted\n for ADC or CAR T-cell therapies."))
+        need(target() %in% adc_cart_targetData$`Gene target`, paste0("We do not have record of ", target(), "being targeted\n for ADC or CAR T-cell therapies.")))
     
     table <- adc_cart_targetData %>%
       filter(`Gene target` == target()) 

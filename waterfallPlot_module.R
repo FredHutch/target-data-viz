@@ -26,10 +26,11 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                 # Dropdown menu to select variable to use for arranging/grouping patients in waterfall plot
                 pickerInput(ns("grouping_var"), 
                             label = "Select a grouping variable",             # The name of each list item is what is shown in the box;
-                            choices = list("AML vs. normal" = "Group",        # the value corresponds to a column of the CDEs
+                            choices = list("AML vs. normal" = "AML.Sample",      # the value corresponds to a column of the CDEs
+                                           "All sample types" = "Group", 
                                            "Cell lines" = "Cell.Lines", 
                                            "Primary cytogenetics" = "Primary.Cyto", 
-                                           "Primary fusions" = "Primary.Fusion",
+                                           "Primary fusions" = "Primary.Fusion.Cleaned",
                                            "Rare fusions" = "Rare.Fusions", 
                                            "KMT2A/MLL fusions" = "MLL.Fusion",
                                            "SNVs" = "SNVs", 
@@ -93,7 +94,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                 tabsetPanel(
                   
                   #-------------------- Waterfall plot -----------------------#
-                  tabPanel("Waterfall plot", # This is the title of the tab panel, NOT the name of the plot object!
+                  tabPanel("Plot", # This is the title of the tab panel, NOT the name of the plot object!
                            br(),   
                            br(),             # Linebreaks to help center the plot on the page
                            fluidRow(
@@ -144,7 +145,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   dropdown_choices <- c("AML vs. normal" = "Group",
                         "Cell lines" = "Cell.Lines", 
                         "Primary cytogenetics" = "Primary.Cyto", 
-                        "Primary fusions" = "Primary.Fusion",
+                        "Primary fusions" = "Primary.Fusion.Cleaned",
                         "Rare fusions" = "Rare.Fusions", 
                         "KMT2A/MLL fusions" = "MLL.Fusion",
                         "SNVs" = "SNVs", 
@@ -154,6 +155,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
                         "CNS disease" = "CNS.Disease.Category")
   
   disabled_choices <- c("Primary cytogenetics" = "Primary.Cyto", 
+                        "All sample types" = "AML.Sample", 
                         "Cell lines" = "Cell.Lines",
                         "Rare fusions" = "Rare.Fusions", 
                         "SNVs" = "SNVs", 
@@ -167,8 +169,9 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   # Filtering the counts data to only retain the gene of interest & throwing errors if a non-existent gene is provided.
   geneData <- reactive({
     validate(
-      need(gene(), "Please enter a gene symbol or miRNA in the text box.") %then%
-        need(gene() %in% rownames(expData()), "That does not exist in the counts data!\nDouble-check the symbol or ID, or try an alias/synonym."))
+      need(gene(), "Please enter a gene symbol or miRNA in the text box to the left.") %then%
+        need(gene() %in% rownames(expData()), paste0(gene(), " does not exist in the counts data!\nDouble-check the symbol or ID, or try an alias/synonym."))
+      )
     
     expData() %>%
       rownames_to_column("Gene") %>%
@@ -188,23 +191,25 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       gather(USI, Expression) %>%
       mutate_at(vars(Expression), ~as.numeric(.)) %>%
       left_join(., clinData(), by = "USI") %>%
-      mutate(Log2 = log2(Expression + 1),
-             Cell.Lines = ifelse(USI %in% c("K562.01", "K562.02", "ME1", "MO7E", "NOMO1", "Kasumi.D1", "MV4.11.D1"), USI, "AML samples")) %>%
+      mutate(Log2 = log2(Expression + 1)) %>%
       
       # Modifying the chosen grouping variable to keep the NBMs and PBs from being categorized as NA
-      mutate_at(vars(!!input$grouping_var), ~case_when(Group == "NBM" ~ "NBM", 
-                                                       Group == "CD34+ PB" ~ "CD34+ PB",
-                                                       TRUE ~ .)) %>%
+      mutate_at(vars(any_of(!!input$grouping_var), -one_of("Age.Category")), ~case_when(Group == "NBM" ~ "NBM", 
+                                                                                        Group == "CD34+ PB" ~ "CD34+ PB",
+                                                                                        TRUE ~ .)) %>%
+      mutate_at(vars(any_of(!!input$grouping_var), -one_of("Age.Category")), ~case_when(Group == "NBM" ~ "NBM", 
+                                                                                        Group == "CD34+ PB" ~ "CD34+ PB",
+                                                                                        TRUE ~ .)) %>%
       mutate_at(vars(any_of(c("MLL.Fusion", "Rare.Fusions"," Primary.Fusion", "SNVs"))), ~forcats::fct_relevel(., "Other AML", after = Inf))
     
     if (dataset() == "TARGET") {
       plotDF <- plotDF %>% 
-        mutate_at(vars(any_of(!!input$grouping_var)), ~forcats::fct_relevel(., "CD34+ PB", after = Inf)) %>%
-        mutate_at(vars(any_of(!!input$grouping_var)), ~forcats::fct_relevel(., "NBM", after = Inf))
+        mutate_at(vars(Cell.Lines), ~forcats::fct_relevel(., "AML", after = Inf)) %>%
+        mutate_at(vars(any_of(!!input$grouping_var), -one_of("Age.Category")), ~forcats::fct_relevel(., "CD34+ PB", after = Inf)) %>%
+        mutate_at(vars(any_of(!!input$grouping_var), -one_of("Age.Category")), ~forcats::fct_relevel(., "NBM", after = Inf))
     }
     
     plotDF <- plotDF %>%
-      mutate_at(vars(Cell.Lines), ~forcats::fct_relevel(., "AML samples", after = Inf)) %>%
       drop_na(Expression) %>% # Removing samples without expression data from the plot
       group_by(!!input$grouping_var) %>%                                                              
       arrange_(input$grouping_var, "Expression")  # Reordering patients so that the specified groups are 
@@ -340,6 +345,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   
   #-------------------- Summary table tab -----------------------#
   
+  # https://glin.github.io/reactable/articles/examples.html#conditional-styling
   output$table <- DT::renderDataTable({
     # DT::datatable(tableFun(), options = list(dom = "t", paging = FALSE, scrollY = "500px"), autoHideNavigation = T, rownames = F)
     DT::datatable(tableFun(), 

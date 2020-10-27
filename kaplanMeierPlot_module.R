@@ -174,10 +174,11 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     # Outputting error messages if the gene symbol doesn't exist in our data
     validate(
       need(gene(), "Please enter a gene symbol or miRNA in the text box to the left.") %then%
-        need(gene() %in% rownames(expData()), "That gene symbol does not exist in the counts data! \nDouble-check the symbol, or try an alias.")
+        need(gene() %in% rownames(expData()), paste0(gene(), " does not exist in the counts data! \nDouble-check the symbol, or try an alias."))
     )
     
-    # Subsetting exp data to only retain gene of interest & adding counts data onto the CDEs to use for the survival analysis
+    # Subsetting exp data to only retain gene of interest & adding counts data 
+    # onto the CDEs. This will be used to categorize patients for the survival analysis
     mergedDF <- expData() %>%
       rownames_to_column("Gene") %>%
       filter(Gene == gene()) %>%
@@ -199,10 +200,11 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
       validate(
         need(length(levels(gtools::quantcut(mergedDF$Expression, q = 4))) == 4, "The expression data cannot be evenly divided into quartiles, \nlikely because expression of the gene is very low in the majority of patients. \n\nPlease select 'By median' instead.")
         )
+      
       mergedDF <- mergedDF %>%
         mutate(quartile = gtools::quantcut(Expression, q = 4, labels = c("Q1 - lowest quartile", 
-                                                                 "Q2", "Q3", 
-                                                                 "Q4 - highest quartile")))
+                                                                         "Q2", "Q3", 
+                                                                         "Q4 - highest quartile")))
     } else if (input$strata_var == "percentile") {
       validate(
         need(input$cutoff, "Please enter a percentile to use as a cutoff."))
@@ -232,19 +234,22 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     # depending on whether or not the test type is EFS, OS, DFS, or RR
     if (testType == "DFS") {
       # Recoding an "event" as 1 (censored data is 0)
-      event <- ifelse(grepl("[Ee]vent", plotData()[,"DFS from end of induction 1 for patients who are CR at EOI1 indicator"]), 1, 0) 
-      time <- plotData()[,"Days to DFS from end of induction 1 for patients who are CR at EOI1"]
+      event <- ifelse(grepl("[Ee]vent", plotData()[,"DFS.from.end.of.induction.1.for.patients.who.are.CR.at.EOI1.indicator"]), 1, 0) 
+      time <- plotData()[,"Days.to.DFS.from.end.of.induction.1.for.patients.who.are.CR.at.EOI1"]
     } else if (testType == "RR") {
-      event <- ifelse(grepl("[Ee]vent", plotData()[,"RR from CR (end of course 1) indicator"]), 1, 0)
-      time <- plotData()[,"Days to RR from CR (end of course 1)"]
+      event <- ifelse(grepl("[Ee]vent", plotData()[,"RR.from.CR..end.of.course.1..indicator"]), 1, 0)
+      time <- plotData()[,"Days.to.RR.from.CR..end.of.course.1."]
     } else if (testType %in% c("EFS", "OS")) {
-      
       validate(
-        need(paste0("Recoded ", testType, " ID") %in% colnames(plotData()), "This type of survival data is not available in this dataset.")
+        need(grepl("Event\\.ID|OS\\.ID|Event ID|OS ID|", colnames(plotData())), "This type of survival data is not available in this dataset.")
       )
       
-      event <- plotData()[,paste0("Recoded ", testType, " ID")]
-      time <- plotData()[,paste0(testType, " time (days)")]
+      time <- grep(paste0(input$test_type, "\\.time\\.\\.days"), colnames(plotData()), value = T)
+      event <- grep(paste0(input$test_type, "\\.ID"), colnames(plotData()), value = T)
+      
+      time <- plotData()[,time]
+      event <- plotData()[,event]
+     
     }
     
     # Converting the time from days -> years, if requested by the user
@@ -311,21 +316,22 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
                    grep(input$strata_var, colnames(plotData()), value = T))
     
     if (length(input$test_type) == 1) {
-      time <- grep(paste0("^", input$test_type, " time"), colnames(plotData()), value = T)
-      event <- grep(paste0("^", input$test_type, ".*ID"), colnames(plotData()), value = T)
+      time <- grep(paste0(input$test_type, "\\.time\\.\\.days"), colnames(plotData()), value = T)
+      event <- grep(paste0(input$test_type, "\\.*ID"), colnames(plotData()), value = T)
     } else if (length(input$test_type) > 1) {
       time <- unlist(lapply(input$test_type, function(x) {
-        grep(paste0("^", x, " time"), colnames(plotData()), value = T)
+        grep(paste0("^", x, "\\.time\\.\\.days"), colnames(plotData()), value = T)
       }))
       event <- unlist(lapply(input$test_type, function(x) {
-        grep(paste0("^", x, ".*ID"), colnames(plotData()), value = T)
+        grep(paste0("^", x, ".*\\.ID"), colnames(plotData()), value = T)
       }))
     }
     
     plotData() %>%
-      dplyr::select(any_of(c("Reg.", "USI", !!time, !!event, !!type))) %>% # Using !! before the variables to evaluate them to colnames in the select() call
-      dplyr::select(any_of(c("Reg.", "USI")), contains("EFS"), contains("OS"), !!type) %>%
-      rename(`Expression category` = !!type) ### PERCENTILE TABLE DOESN'T WORK, FIX!!!!!!!!
+      dplyr::select(any_of(c("USI", !!time, !!event, !!type))) %>% # Using !! before the variables to evaluate them to colnames in the select() call
+      dplyr::select(any_of(c("USI")), contains("EFS"), contains("OS"), !!type) %>%
+      rename(`Expression category` = !!type) %>%
+      rename(`Patient ID` = USI) 
   })
   
   # https://stackoverflow.com/questions/51302112/create-plots-based-on-check-box-selection-in-r-shiny
