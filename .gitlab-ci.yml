@@ -5,7 +5,7 @@ before_script:
 
 build_test:
   script:
-    - mkdir -p data/mRNA
+    - mkdir -p data/
     - aws s3 cp s3://fh-pi-meshinchi-s-eco-public/Shiny_App/data/ ./data --recursive
     - docker build -t dockerimages.fhcrc.org/target-data-viz:latest .
     - |
