@@ -1,5 +1,4 @@
 library(shiny)
-library(shinycssloaders)
 library(tidyverse)
 library(DT)
 library(dplyr)
