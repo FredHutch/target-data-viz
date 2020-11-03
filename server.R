@@ -1,4 +1,4 @@
-library(shiny)
+library(shiny) 
 library(tidyverse)
 library(DT)
 library(dplyr)
@@ -46,20 +46,6 @@ server <- function(input, output, session) {
     readData(target_cde, target_expData, beatAML_cde, beatAML_expData, adc_cart_targetData)
   }
   
-  # Creating a variable that will be used to reactively pass the gene of interest into each module,
-  # See https://tbradley1013.github.io/2018/07/20/r-shiny-modules--using-global-inputs/ for more  
-  # info on passing global Shiny variables into a module
-  target <- reactive({
-    if (grepl("^hsa\\-mir*|mir\\-*", input$geneInput, ignore.case = T)) {
-      symbol <- gsub("[Hh][Ss][Aa]-[Mm][Ii][Rr]", "hsa-miR", input$geneInput) # Casting the R to uppercase since this is all mature miR data
-    } else if (grepl("^MIMAT", input$geneInput, ignore.case = T)) { # Mapping MIMAT ID back to hsa ID, the user can enter either one
-      symbol <- miRmapping$hsa.ID.miRbase21[match(toupper(input$geneInput), miRmapping$MIMAT.ID)]
-    } else {
-      symbol <- toupper(input$geneInput)
-    }
-    return(symbol)
-  })
-  
   cohort <- reactive({
     input$seqDataCohort
   })
@@ -74,6 +60,22 @@ server <- function(input, output, session) {
     switch(input$seqDataCohort,
            "BeatAML" = beatAML_cde,
            "TARGET" = target_cde)
+  })
+  
+  # Creating a variable that will be used to reactively pass the gene of interest into each module,
+  # See https://tbradley1013.github.io/2018/07/20/r-shiny-modules--using-global-inputs/ for more  
+  # info on passing global Shiny variables into a module
+  target <- reactive({
+    if (grepl("^hsa\\-mir*|mir\\-*", input$geneInput, ignore.case = T)) {
+      symbol <- gsub("[Hh][Ss][Aa]-[Mm][Ii][Rr]", "hsa-miR", input$geneInput) # Casting the R to uppercase since this is all mature miR data
+    } else if (grepl("^MIMAT", input$geneInput, ignore.case = T)) { # Mapping MIMAT ID back to hsa ID, the user can enter either one
+      symbol <- miRmapping$hsa.ID.miRbase21[match(toupper(input$geneInput), miRmapping$MIMAT.ID)]
+    } else if (grepl("orf", input$geneInput, ignore.case = T)) {
+      symbol <- gsub("[Oo][Rr][F]", "orf", input$geneInput)
+    } else {
+      symbol <- toupper(input$geneInput)
+    }
+    return(symbol)
   })
   
   #--------------------- WF plot & KM plot tabs --------------------- #
