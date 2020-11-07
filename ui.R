@@ -1,4 +1,5 @@
 library(shiny)
+library(shinyalert)
 library(shinydashboard)
 library(shinythemes)
 library(shinyWidgets)
@@ -7,16 +8,19 @@ source("kaplanMeierPlot_module.R")
 
 ui <- dashboardPage(  
   
+  
   dashboardHeader(title = "Meshinchi Lab Data Viz Tools"),
   
   ###################### DASHBOARD SIDEBAR ######################
   dashboardSidebar(
+    useShinyalert(), # This line is required to be able to use this package on the server side
     sidebarMenu(id = "sdbr",
       
       #---------- Gene of interest input text box -------------#
       textInput("geneInput",                                   
                 label = "Enter a gene or miRNA", 
                 placeholder = "Example: MSLN"),
+      actionButton("check", label = "Not found? Click here!", style='padding:4px; font-size:60%', class = "btn-primary"),
       
       #--------- Cohort selection ---------------------------#
       radioGroupButtons("seqDataCohort", choices = c("TARGET", "Beat AML" = "BeatAML"), 

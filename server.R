@@ -1,4 +1,5 @@
 library(shiny) 
+library(shinyalert)
 library(tidyverse)
 library(DT)
 library(dplyr)
@@ -76,6 +77,35 @@ server <- function(input, output, session) {
       symbol <- toupper(input$geneInput)
     }
     return(symbol)
+  })
+  
+  observeEvent(input$check, {
+    
+    option <- grep(input$geneInput, rownames(seqData()), value = T, ignore.case = T)
+    msg <- paste0(option, collapse = "  or\n")
+    
+    # Check if miRNA name exists in the miRbase21 miRNA-seq data
+    shinyalert(
+      title = "Did you mean...",
+      text = paste0(msg, "  ?"),
+      size = "xs",
+      closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE,
+      html = FALSE,
+      type = "input",
+      inputType = "text",
+      inputValue = option[1],
+      inputPlaceholder = "Type choice here",
+      showConfirmButton = TRUE,
+      showCancelButton = FALSE,
+      confirmButtonText = "Retry",
+      confirmButtonCol = "#41B0FA",
+      timer = 0,
+      imageUrl = "",
+      animation = TRUE,
+      callbackR = function(x){
+        if (!is.null(x)) updateTextInput(session, "geneInput", label = NULL, value = input$shinyalert)
+      })
   })
   
   #--------------------- WF plot & KM plot tabs --------------------- #
