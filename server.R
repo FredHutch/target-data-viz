@@ -88,7 +88,7 @@ server <- function(input, output, session) {
     shinyalert(
       title = "Did you mean...",
       text = paste0(msg, "  ?"),
-      size = "xs",
+      # size = "xs",
       closeOnEsc = TRUE,
       closeOnClickOutside = TRUE,
       html = FALSE,
