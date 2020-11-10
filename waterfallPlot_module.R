@@ -31,8 +31,10 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                                            "Cell lines" = "Cell.Lines", 
                                            "Primary cytogenetics" = "Primary.Cyto", 
                                            "Primary fusions" = "Primary.Fusion.Cleaned",
+                                           "Primary CNVs" = "Primary.CNV",
                                            "Rare fusions" = "Rare.Fusions", 
                                            "KMT2A/MLL fusions" = "MLL.Fusion",
+                                           "NUP98 fusions" = "NUP98.Fusion",
                                            "SNVs" = "SNVs", 
                                            "Age category" = "Age.Category", 
                                            "Cyto/molecular risk" = "Cyto.Risk", 
@@ -42,16 +44,17 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                 radioButtons(ns("plot_type"), 
                              label = "Select a type of plot to generate", 
                               choices = list("Waterfall plot" = "wf", 
-                                             "Box/violin plots" = "bx")),
+                                             "Box/violin plots" = "bx",
+                                             "Strip plot" = "str")),
                 
                 conditionalPanel(
-                  condition = paste0("input['", ns("plot_type"), "'] == 'bx'"),
+                  condition = paste0("input['", ns("plot_type"), "'] == 'bx' || input['", ns("plot_type"), "'] == 'str'"),
                   checkboxInput(ns("log"),                                                  
                             label = "Log2 transform the data",
                             value = FALSE)),
                 
                 conditionalPanel(
-                  condition = paste0("input['", ns("plot_type"), "'] == 'bx'"),
+                  condition = paste0("input['", ns("plot_type"), "'] == 'bx' || input['", ns("plot_type"), "'] == 'str'"),
                   checkboxInput(ns("test"),                                                  
                                 label = "Perform significance tests",
                                 value = FALSE)),
@@ -146,8 +149,10 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
                         "Cell lines" = "Cell.Lines", 
                         "Primary cytogenetics" = "Primary.Cyto", 
                         "Primary fusions" = "Primary.Fusion.Cleaned",
+                        "Primary CNVs" = "Primary.CNV",
                         "Rare fusions" = "Rare.Fusions", 
                         "KMT2A/MLL fusions" = "MLL.Fusion",
+                        "NUP98 fusions" = "NUP98.Fusion",
                         "SNVs" = "SNVs", 
                         "Age category" = "Age.Category", 
                         "Cyto/molecular risk" = "Cyto.Risk", 
@@ -155,9 +160,11 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
                         "CNS disease" = "CNS.Disease.Category")
   
   disabled_choices <- c("Primary cytogenetics" = "Primary.Cyto", 
+                        "Primary CNVs" = "Primary.CNV",
                         "All sample types" = "AML.Sample", 
                         "Cell lines" = "Cell.Lines",
                         "Rare fusions" = "Rare.Fusions", 
+                        "NUP98 fuions" = "NUP98.Fusion",
                         "SNVs" = "SNVs", 
                         "CNS disease" = "CNS.Disease.Category")
   
@@ -191,16 +198,15 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       gather(USI, Expression) %>%
       mutate_at(vars(Expression), ~as.numeric(.)) %>%
       left_join(., clinData(), by = "USI") %>%
-      mutate(Log2 = log2(Expression + 1)) %>%
-      
-      # Modifying the chosen grouping variable to keep the NBMs and PBs from being categorized as NA
+      mutate(Log2 = log2(Expression + 1))
+    
+    # Modifying the chosen grouping variable to keep the NBMs and PBs from being categorized as NA
+    plotDF <- plotDF %>%  
       mutate_at(vars(any_of(!!input$grouping_var), -one_of("Age.Category")), ~case_when(Group == "NBM" ~ "NBM", 
                                                                                         Group == "CD34+ PB" ~ "CD34+ PB",
                                                                                         TRUE ~ .)) %>%
-      mutate_at(vars(any_of(!!input$grouping_var), -one_of("Age.Category")), ~case_when(Group == "NBM" ~ "NBM", 
-                                                                                        Group == "CD34+ PB" ~ "CD34+ PB",
-                                                                                        TRUE ~ .)) %>%
-      mutate_at(vars(any_of(c("MLL.Fusion", "Rare.Fusions"," Primary.Fusion", "SNVs"))), ~forcats::fct_relevel(., "Other AML", after = Inf))
+      mutate_at(vars(any_of(c("MLL.Fusion", "Rare.Fusions"," Primary.Fusion", "SNVs"))), ~forcats::fct_relevel(., "Other AML", after = Inf)) %>%
+      mutate_at(vars(any_of("Primary.CNV")), ~forcats::fct_relevel(., "No Relevant CNV", after = Inf))
     
     if (dataset() == "TARGET") {
       plotDF <- plotDF %>% 
@@ -252,29 +258,44 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   # can be called from multiple places in the script
   plotFun <- reactive({ 
     
+    if (input$log == TRUE) {
+      expCol <- "Log2"
+      yaxlab <- paste0(gene(), " Expression (log2 TPM + 1)\n")
+    } else {
+      expCol <- "Expression"
+      yaxlab <- paste0(gene(), " Expression (TPM)\n")
+    }
+    
     if (input$plot_type == "bx") {   # Modifying the axis labels and columns used 
-      if (input$log == TRUE) {       # if the selected plot type is a boxplot 
-        expCol <- "Log2"
-        yaxlab <- paste0(gene(), " Expression (log2 TPM + 1)\n")
-      } else {
-        expCol <- "Expression"
-        yaxlab <- paste0(gene(), " Expression (TPM)\n")
-      }
       
       p <- plotData() %>% 
         drop_na(input$grouping_var) %>%
         ggplot(aes_string(x = input$grouping_var, y = expCol, fill = input$grouping_var)) +
         theme_classic() +
-        labs(x = "\nCategories", y = yaxlab, fill = gsub("\\.", " ", input$grouping_var)) +
+        labs(x = NULL, y = yaxlab, fill = gsub("\\.", " ", input$grouping_var)) +
         theme(axis.text.x = element_blank(),
               plot.title = element_text(size = 15, hjust = 0.5),
-              axis.ticks = element_blank(),
               legend.position = "bottom") +
         geom_violin(scale = "width", aes_string(color = input$grouping_var)) +
-        geom_boxplot(width = 0.1, fill = "white") +
+        geom_boxplot(width = 0.1, fill = "white", outlier.size = 0.4) +
         guides(color = FALSE)
+      p
       
-    } else { # Generating a waterfall plot if boxplot/violin plot is not selected
+    } else if (input$plot_type == "str") { # Generating a strip plot with jittered points
+      p <- plotData() %>% 
+        drop_na(input$grouping_var) %>%
+        ggplot(aes_string(x = input$grouping_var, y = expCol, fill = input$grouping_var, color = input$grouping_var)) +
+        theme_classic() +
+        labs(x = NULL, y = yaxlab, fill = gsub("\\.", " ", input$grouping_var)) +
+        theme(axis.text.x = element_blank(),
+              plot.title = element_text(size = 15, hjust = 0.5),
+              legend.position = "bottom") +
+        guides(color = FALSE) +
+        geom_jitter(width = 0.3, size = 0.7) +
+        stat_summary(fun = median, geom = "crossbar", width = 0.6, color = "black")
+      p
+      
+    } else if (input$plot_type == "wf") { # Generating a waterfall plot
       
       p <- plotData() %>% 
         drop_na(input$grouping_var) %>%
