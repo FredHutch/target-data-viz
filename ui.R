@@ -20,7 +20,8 @@ ui <- dashboardPage(
       textInput("geneInput",                                   
                 label = "Enter a gene or miRNA", 
                 placeholder = "Example: MSLN"),
-      actionButton("check", label = "Not found? Click here!", style='padding:4px; font-size:60%', class = "btn-primary"),
+      actionButton("check", label = "Not found? Click here!", 
+                   style = 'padding:4px; font-size:60%', class = "btn-primary"),
       
       #--------- Cohort selection ---------------------------#
       radioGroupButtons("seqDataCohort", choices = c("TARGET", "Beat AML" = "BeatAML"), 

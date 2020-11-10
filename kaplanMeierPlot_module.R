@@ -304,7 +304,8 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     # Adding gene name as a text annotation layer, to be displayed in the top right corner of the plot
     # https://stackoverflow.com/questions/10747307/legend-placement-ggplot-relative-to-plotting-region
     plot$plot <- plot$plot +
-      ggplot2::annotate("text", y = 1, x = max(time, na.rm = T), label = gene(), hjust = 0.5, vjust = 1, size = 8, fontface = "bold")
+      ggplot2::annotate("text", y = 1, x = (max(time, na.rm = T) - max(time, na.rm = T)/4), 
+                        label = gene(), hjust = 0.5, vjust = 1, size = 8, fontface = "bold")
     
     return(plot$plot) # Final returned object from this function is the "plot" component of the ggsurvplot object
   }
@@ -323,7 +324,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
         grep(paste0("^", x, "\\.time\\.\\.days"), colnames(plotData()), value = T)
       }))
       event <- unlist(lapply(input$test_type, function(x) {
-        grep(paste0("^", x, "\\.ID"), colnames(plotData()), value = T)
+        grep(paste0(x, "\\.ID"), colnames(plotData()), value = T)
       }))
     }
     

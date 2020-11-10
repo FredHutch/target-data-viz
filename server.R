@@ -38,13 +38,14 @@ readData <- function(target_cde, target_expData, beatAML_cde, beatAML_expData, a
 
 ##############################################################################
 
-target_expData <- NULL # Setting this to null so it will only be read one time
+# target_expData <- NULL # Setting this to null so it will only be read one time
 
 server <- function(input, output, session) { 
   
   # Reading in the expression & clinical data one time, immediately after the app starts up
   if (is.null(target_expData)) {
-    readData(target_cde, target_expData, beatAML_cde, beatAML_expData, adc_cart_targetData)
+    # readData(target_cde, target_expData, beatAML_cde, beatAML_expData, adc_cart_targetData)
+    print("Testing mode - data already in environment")
   }
   
   cohort <- reactive({
@@ -82,15 +83,25 @@ server <- function(input, output, session) {
   observeEvent(input$check, {
     
     option <- grep(input$geneInput, rownames(seqData()), value = T, ignore.case = T)
-    msg <- paste0(option, collapse = "  or\n")
+    msg <- if (length(option) == 0) {
+      "No alternate names found!"
+    } else if (length(option) > 20) {
+      paste0(paste0(option[1:20], collapse = "  or\n"), ",\n...?")
+    } else {
+      paste0(paste0(option, collapse = "  or\n"), "?")
+    }
     
     # Check if miRNA name exists in the miRbase21 miRNA-seq data
+    # EDGE-CASES: What if nothing is found? What will the message in the popup box be?
+    # What if 100+ values are found? The box is so overloaded you can't exit out of it,
+    # needs a max length of values that it can return
+    # Also, when you click OUTSIDE the box, it just returns "false"
     shinyalert(
       title = "Did you mean...",
-      text = paste0(msg, "  ?"),
+      text = msg,
       # size = "xs",
       closeOnEsc = TRUE,
-      closeOnClickOutside = TRUE,
+      closeOnClickOutside = FALSE,
       html = FALSE,
       type = "input",
       inputType = "text",
