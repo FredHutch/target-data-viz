@@ -31,12 +31,27 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                                choices = list("Years" = "years", 
                                               "Days" = "days")), 
                   
+                  radioButtons(ns("filter_cohort"), 
+                               label = "Limit to a single subgroup?", 
+                               choices = list("No - view all patients" = "no",
+                                              "Yes" = "yes")),
+                  conditionalPanel(
+                    condition = paste0("input['", ns("filter_cohort"), "'] == 'yes'"),
+                    selectInput(ns("select_fusion"),                                                  
+                                 label = "Which one?",
+                                 choices = list( "KMT2A/MLL" = "MLL", 
+                                                 "inv(16)" = "inv(16)",
+                                                 "t(8;21)" = "t(8;21)",
+                                                 "Normal karyotype" = "Normal"))
+                    ), 
+                  
                   # Dropdown menu to select grouping variable for patients, based on expression
                   selectInput(ns("strata_var"), 
                               label = "Select a method of grouping the patients", 
                               choices = list("By median" = "median", 
                                              "By quartile" = "quartile", 
                                              "By percentile" = "percentile", 
+                                             "By TPM cutoff" = "tpm_value",
                                              "By mutation status" = "mutation")),
                   
                   # Adding 2 text boxes that will only appear if "Percentile" is selected for the strata
@@ -44,9 +59,15 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                   # https://github.com/rstudio/shiny/issues/1586 
                   conditionalPanel(
                     condition = paste0("input['", ns("strata_var"), "'] == 'percentile'"),
-                    textInput(ns("cutoff"),                                                  
+                    textInput(ns("perc_cutoff"),                                                  
                               label = "Cutoff percentile",
                               placeholder = "Example: 75")),
+                  
+                  conditionalPanel(
+                    condition = paste0("input['", ns("strata_var"), "'] == 'tpm_value'"),
+                    textInput(ns("tpm_cutoff"),                                                  
+                              label = "TPM cutoff value",
+                              placeholder = "Example: 5")),
                   
                   conditionalPanel(
                     condition = paste0("input['", ns("strata_var"), "'] == 'mutation'"),
@@ -76,7 +97,7 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                   position = "right", 
                   tabsetPanel(
                     
-                    #-------------------- KM plot tab -----------------------#
+                    #-------------------- Survival analysis tabs -----------------------#
                     
                     tabPanel("Kaplan-Meier curves", 
                              br(),
@@ -96,6 +117,25 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                                                      class = "btn-info"))
                              )
                     ), 
+                    
+                    # tabPanel("Cox Proportional Hazards", 
+                    #          br(),
+                    #          br(),
+                    #          fluidRow(
+                    #            style = 'height:40vh',
+                    #            column(9, offset = 0, align = "left", 
+                    #                   div(style = 'max-height: 500px; overflow-y: scroll; position: relative',
+                    #                       plotOutput(ns("plot"), height = "1500px"))),
+                    #            column(2, offset = 0, align = "right", 
+                    #                   downloadButton(ns("plot_download"), 
+                    #                                  label = "Download plot")),
+                    #            column(2, offset = 0, align = "right", 
+                    #                   downloadButton(ns("ggforest_download"), 
+                    #                                  label = "ggforest object", 
+                    #                                  style = 'padding:5px; font-size:70%; margin-top:10px',
+                    #                                  class = "btn-info"))
+                    #          )
+                    # ), 
                     
                     #-------------------- Patient data tab -----------------------#
                     
@@ -137,6 +177,9 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
   #-------------------- Data preparation -----------------------#
   
   observeEvent(dataset(), {
+    
+    # The Beat AML dataset is smaller and has more limited mutation & fusion data, so some of
+    # these options need to be filtered down when this dataset is selected
     if(dataset() == "BeatAML") {
       updateCheckboxGroupInput(
         session = session, 
@@ -149,36 +192,37 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
                         label = "Which mutation?",
                         choices = list("NPM1", "CEBPA", "WT1", "KIT", "JAK2", "NRAS", "FLT3-ITD" = "FLT3.ITD", "TP53"))
       
+    # The TARGET dataset has more survival data, fusion types, mutation data, etc.
     } else if (dataset() == "TARGET") {
       updateCheckboxGroupInput(
         session = session, 
         inputId = "test_type",
         label = "Select a survival type to model",
         choices = c("Event-Free Survival (EFS)" = "EFS",
-                       "Overall Survival (OS)" = "OS", 
-                       "Disease-Free Survival (DFS)" = "DFS", 
-                       "Relapse Risk (RR)" = "RR"))
+                    "Overall Survival (OS)" = "OS", 
+                    "Disease-Free Survival (DFS)" = "DFS", 
+                    "Relapse Risk (RR)" = "RR"))
       
       updateSelectInput("mutCol",   
                         session = session,
                   label = "Which mutation?",
-                  choices = list("NPM1" = "NPM.mutation.", "CEBPA" = "CEBPA.mutation.", "WT1" = "WT1.mutation.", "cKit (exon 8)" = "c.Kit.Mutation.Exon.8", 
-                                 "cKit (exon 17)" = "c.Kit.Mutation.Exon.17", "RAS mutation" = "RAS.Mutation", "RAS gene" = "RAS.Gene", "CBL" = "CBL.Mutation", 
+                  choices = list("NPM1" = "NPM.mutation.", "CEBPA" = "CEBPA.mutation.", 
+                                 "WT1" = "WT1.mutation.", "cKit (exon 8)" = "c.Kit.Mutation.Exon.8", 
+                                 "cKit (exon 17)" = "c.Kit.Mutation.Exon.17", "RAS mutation" = "RAS.Mutation", 
+                                 "RAS gene" = "RAS.Gene", "CBL" = "CBL.Mutation", 
                                  "FLT3-ITD" = "FLT3.ITD.positive.", "FLT3 point mutation" = "FLT3.PM.category"))
     }
   }, ignoreInit = T)
   
-  # Interactively filtering the exp data to only retain the gene of interest
+  # Interactively filtering the expression data to only retain the gene of interest
   plotData <- reactive({
-    
-    # Outputting error messages if the gene symbol doesn't exist in our data
     validate(
       need(gene(), "Please enter a gene symbol or miRNA in the text box to the left.") %then%
-        need(gene() %in% rownames(expData()), paste0(gene(), " does not exist in the counts data! \nDouble-check the symbol, or try an alias."))
+        need(gene() %in% rownames(expData()), paste0(gene(), " does not exist in the data! \nDouble-check the symbol, or try an alias."))
     )
     
-    # Subsetting exp data to only retain gene of interest & adding counts data 
-    # onto the CDEs. This will be used to categorize patients for the survival analysis
+    # Subsetting exp data to only retain gene of interest & merging with the 
+    # clinical metadata. This will be used to categorize patients for the survival analysis
     mergedDF <- expData() %>%
       rownames_to_column("Gene") %>%
       filter(Gene == gene()) %>%
@@ -187,38 +231,69 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
       gather(USI, Expression) %>%
       mutate_at(vars(Expression), ~as.numeric(.)) %>%
       left_join(., clinData(), by = "USI") %>%
-      mutate_at(vars(Group), ~ifelse(grepl("^RO|^BM", USI), "NBM", "AML"))
+      filter(Group == "AML") # The NBMs don't have outcome data anyway, they can be removed
     
-    # Adding column onto the merged dataset with grouping info based on the user selected strata_var
+    # Interactively selecting columns that contain fusion or cytogenetic information 
+    # (they differ between the available datasets)
+    if (input$filter_cohort == "yes" && dataset() == "TARGET") {
+      mergedDF <- filter(mergedDF, Primary.Cyto == input$select_fusion)
+      
+    } else if (input$filter_cohort == "yes" && dataset() == "BeatAML") {
+      mergedDF <- mergedDF %>%
+        mutate(KM.Filter.Code = case_when(Primary.Fusion.Cleaned == "CBFB-MYH11" ~ "inv(16)",
+                                          Primary.Fusion.Cleaned == "RUNX1-RUNX1T1" ~ "t(8;21)",
+                                          grepl("KMT2A", Primary.Fusion.Cleaned) ~ "MLL",
+                                          Primary.Fusion.Cleaned == "None" ~ "Normal",
+                                          TRUE ~ Primary.Fusion.Cleaned)) %>%
+        filter(KM.Filter.Code == input$select_fusion)
+    }
+    
+    # Adding column onto the merged dataset with user-selected plot grouping info,
+    # based on the 'strata_var' variable
     if (input$strata_var == "median") {
       mergedDF <- mergedDF %>%
         mutate(median = ifelse(Expression > median(Expression, na.rm = T), "Above median", "Below median"))
       
     } else if (input$strata_var == "quartile") {
-      # Throws an error message if the expression data can't be evenly divided into 4 quartiles, 
+      # Throws an error message if the expression data can't be evenly divided into 4 quartiles (in which case tryCatch returns FALSE), 
       # check with quantile(expData$Expression, probs = seq(0, 1, by = 0.25)) to see if Q1-Q3 have a TPM of 0
-      validate(
-        need(length(levels(gtools::quantcut(mergedDF$Expression, q = 4))) == 4, "The expression data cannot be evenly divided into quartiles, \nlikely because expression of the gene is very low in the majority of patients. \n\nPlease select 'By median' instead.")
-        )
+      nlevels <- try(length(levels(gtools::quantcut(mergedDF$Expression, q = 4, labels = c("Q1 - lowest quartile","Q2", "Q3","Q4 - highest quartile")))))
       
+      test <- ifelse(nlevels == 4, TRUE, FALSE)
+      validate(
+        need(test, "The expression data cannot be evenly divided into 4 quartiles, \nlikely because expression of the gene is very low in the majority of patients. \n\nPlease select 'By median' instead.")
+        )
+
       mergedDF <- mergedDF %>%
-        mutate(quartile = gtools::quantcut(Expression, q = 4, labels = c("Q1 - lowest quartile", 
-                                                                         "Q2", "Q3", 
-                                                                         "Q4 - highest quartile")))
+        mutate(quartile = gtools::quantcut(Expression, q = 4, labels = c("Q1 - lowest quartile","Q2", "Q3","Q4 - highest quartile")))
+      
     } else if (input$strata_var == "percentile") {
       validate(
-        need(input$cutoff, "Please enter a percentile to use as a cutoff."))
-          # need(input$cutoff > 0 && input$cutoff < 100, "The percentile must be between 0 and 100.")) # This doesn't work for some reason??
+        need(input$perc_cutoff, "Please enter a percentile to use as a cutoff.") %then%
+          need(input$perc_cutoff %in% as.character(seq(1,100)), "The percentile must be between 0 and 100."))
       
       mergedDF <- mergedDF %>%
         mutate(ranks = percent_rank(Expression)) %>%
-        mutate(percentile = case_when(ranks*100 < as.numeric(input$cutoff) ~ paste0("Below ", input$cutoff, "%"), 
-                                      ranks*100 >= as.numeric(input$cutoff) ~ paste0("Above ", input$cutoff, "%")))
+        mutate(percentile = case_when(ranks*100 < as.numeric(input$perc_cutoff) ~ paste0("Below ", input$perc_cutoff, "%"), 
+                                      ranks*100 >= as.numeric(input$perc_cutoff) ~ paste0("Above ", input$perc_cutoff, "%")))
+      
+    } else if (input$strata_var == "tpm_value") {
+      
+      # Checking to see if the minimum TPM value is 0 - will add 1 if it's 0, otherwise it will be left as-is
+      min_val <- ifelse(ceiling(min(mergedDF$Expression, na.rm = T)) == 0, 1, ceiling(min(mergedDF$Expression, na.rm = T)))
+      exp_range <- seq(min_val, floor(max(mergedDF$Expression, na.rm = T)))
+      validate(
+        need(input$tpm_cutoff, "Please enter a TPM value to use as a cutoff.") %then%
+          need(input$tpm_cutoff %in% as.character(exp_range), paste0("Must be a number between ", min_val, " and ", floor(max(mergedDF$Expression, na.rm = T)), "."))
+      )
+      
+      mergedDF <- mergedDF %>%
+        mutate(tpm_value = case_when(Expression < as.numeric(input$tpm_cutoff) ~ paste0("Below ", input$tpm_cutoff, " TPM"), 
+                                     Expression >= as.numeric(input$tpm_cutoff) ~ paste0("Above ", input$tpm_cutoff, " TPM")))
       
     } else if (input$strata_var == "mutation") {
       validate(
-        need(input$mutCol, "Please select a mutation of interest.")
-      )
+        need(input$mutCol, "Please select a mutation of interest."))
     }
     
     return(mergedDF)

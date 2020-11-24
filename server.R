@@ -38,14 +38,14 @@ readData <- function(target_cde, target_expData, beatAML_cde, beatAML_expData, a
 
 ##############################################################################
 
-target_expData <- NULL # Setting this to null so it will only be read one time
+# target_expData <- NULL # Setting this to null so it will only be read one time
 
 server <- function(input, output, session) { 
   
   # Reading in the expression & clinical data one time, immediately after the app starts up
   if (is.null(target_expData)) {
-    readData(target_cde, target_expData, beatAML_cde, beatAML_expData, adc_cart_targetData)
-    # print("Testing mode - data already in environment")
+    # readData(target_cde, target_expData, beatAML_cde, beatAML_expData, adc_cart_targetData)
+    print("Testing mode - data already in environment")
   }
   
   cohort <- reactive({
