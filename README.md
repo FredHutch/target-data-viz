@@ -1,7 +1,11 @@
 # TARGET Data Visualization Tools
 
-This directory contains the necessary files to visualize gene expression and outcome data from various Children's Oncology Group study cohorts. This data can be accessed interactively via a [Shiny app](https://meshinchi-data-viz.fredhutch.org/).
+This directory contains the necessary code to visualize gene expression and outcome data from various Children's Oncology Group (COG) pediatric AML cohorts. These data can be explored interactively via an R Shiny app. 
 
-All gene expression values are in transcripts per million (TPM).
+---> [Click here to launch the app in your web browser.](https://meshinchi-data-viz.fredhutch.org/) <---
 
-The scripts & R Shiny app were created by Amanda Leonti in Soheil Meshinchi's lab. The app is password portected - contact Amanda (aleonti@fredhutch.org) to be granted access.
+*Note*: The app is password protected - contact the app creator (aleonti@fredhutch.org) to be granted access.
+
+All mRNA gene expression values are in transcripts per million (TPM) and were aligned to GRCh37-lite/hg19. All miRNA expression values are in reads per million mapped reads (RPM) and were annotated using miRbase v21 annotations.
+
+The scripts & app are created and maintained by Amanda Leonti in Soheil Meshinchi's lab. 
