@@ -5,6 +5,7 @@ library(shinythemes)
 library(shinyWidgets)
 source("waterfallPlot_module.R")
 source("kaplanMeierPlot_module.R")
+source("degTable_module.R")
 
 ui <- dashboardPage(  
   
@@ -20,21 +21,26 @@ ui <- dashboardPage(
       textInput("geneInput",                                   
                 label = "Enter a gene or miRNA", 
                 placeholder = "Example: MSLN"),
+      
       actionButton("check", label = "Not found? Click here!", 
                    style = 'padding:4px; font-size:60%', class = "btn-primary"),
       
       #--------- Cohort selection ---------------------------#
       radioGroupButtons("seqDataCohort", choices = c("TARGET", "Beat AML" = "BeatAML"), 
                         status = "primary", label = "Select AML cohort", 
-                        selected = "TARGET", size = "sm"),
+                        selected = "TARGET", size = "xs"),
+      
+      radioGroupButtons("seqAssembly", choices = c("GRCh38" = "grch38", "GRCh37" = "grch37"), 
+                        status = "primary", label = "Select genome assembly", 
+                        selected = "grch38", size = "xs"),
       
       # --------- Plot generation tabs ------------------------#
       menuItem("Gene expression plots", tabName = "wfPlot", icon = icon("chart-bar")),
       menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical")),
       # menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
-      # menuItem("DE Genes", tabName = "deg", icon = icon("spinner")),
+      menuItem("DE Genes", tabName = "deTable", icon = icon("clipboard-list")), # stream, clipboard-list
       menuItem("External databases", tabName = "extData", icon = icon("atlas")),
-      menuItem("Reference info", tabName = "refs", icon = icon("microscope"))
+      menuItem("Reference info", tabName = "refs", icon = icon("dna"))
     )
   ),  
   
@@ -65,6 +71,13 @@ ui <- dashboardPage(
               kmPlotUI(id = "kaplanmeier", label = "Kaplan-Meier plot generation")
       ), 
       
+      # Sourcing the waterfall plot module UI component
+      tabItem(tabName = "deTable",
+              
+              # Calling the user interface module of the Waterfall Plot app
+             deTableUI(id = "degs", label = "Differentially expressed gene table")
+      ), 
+      
       # Building the external datasets tab that will contain links to other gene expression or protein databases
       tabItem(tabName = "extData",
               mainPanel(
@@ -79,7 +92,7 @@ ui <- dashboardPage(
                 fluidRow(
                   # https://renkun-ken.github.io/formattable/ <- Really interesting package for making tables prettier
                   # https://www.displayr.com/formattable/ <- Diff vignette, same package
-                  box(title = "ADC and CAR T-cell therapies", status = "info", collapsible = T, solidHeader = T, width = 12,
+                  box(title = "ADC and CAR T-cell therapies", collapsible = T, solidHeader = F, width = 12,
                       DT::dataTableOutput("therapyTable") # Scrollable table of ADC/CAR T-cell study info from clinicaltrials.gov
                   )
                 )
