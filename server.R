@@ -48,8 +48,8 @@ server <- function(input, output, session) {
   
   # Reading in the expression & clinical data one time, immediately after the app starts up
   if (is.null(target_expData)) {
-    # readData(target_cde, target_expData, beatAML_cde, beatAML_expData, adc_cart_targetData)
-    print("Testing mode - data already in environment")
+    readData(target_cde, target_expData, beatAML_cde, beatAML_expData, adc_cart_targetData)
+    # print("Testing mode - data already in environment")
   }
   
   cohort <- reactive({
