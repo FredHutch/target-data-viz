@@ -5,6 +5,7 @@ library(DT)
 library(dplyr)
 source("waterfallPlot_module.R")
 source("kaplanMeierPlot_module.R")
+source("degTable_module.R")
 `%then%` <- shiny:::`%OR%` # See https://shiny.rstudio.com/articles/validation.html for details on the %then% operator
 
 #################### Loading external data ########################################
@@ -21,7 +22,8 @@ readData <- function(target_cde, target_expData, beatAML_cde, beatAML_expData, a
   progress <- Progress$new()
   progress$set(value = 0.0, message = 'Please wait, loading data...')
   progress$set(value = 0.10, message = 'Loading mRNA expression data...')
-  target_expData <<- readRDS("data/mRNA/TARGET_RBD_Dx_AML_ExpressionData_TPM_filt4dupGenes_with_cellLines_CD34posNBM_DSAML_MPN_10.16.2020_FinalforShiny.RDS")
+  target_expData38 <<- readRDS("data/mRNA/TARGET_RBD_Dx_AML_ExpressionData_TPM_filt4dupGenes_with_cellLines_CD34posNBM_DSAML_MPN_GRCh38_12.17.2020_FinalforShiny.RDS")
+  target_expData37 <<- readRDS("data/mRNA/TARGET_RBD_Dx_AML_ExpressionData_TPM_filt4dupGenes_with_cellLines_CD34posNBM_DSAML_MPN_GRCh37_10.16.2020_FinalforShiny.RDS")
   progress$set(value = 0.25, message = 'Loading mRNA expression data...')
   beatAML_expData <<- readRDS("data/mRNA/BeatAML_Supplementary_Tables_TPM_Linear_Scale.RDS") %>%
     column_to_rownames("geneSymbol")
@@ -32,6 +34,8 @@ readData <- function(target_cde, target_expData, beatAML_cde, beatAML_expData, a
   load("data/Clinical/Beat_AML_Supplementary_ClinicalData_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/TARGET_AML_0531_1031_merged_CDEs_Shareable_9.18.20_FinalforShiny.RData", .GlobalEnv)
   load("data/ADC_and_CARTcell_Targets_Database_ADCReview_clinicaltrialsGov_FinalforShiny.RData", .GlobalEnv)
+  load("data/DEGs/TARGET_AML_vs_NBM_and_Others_Ribodepleted_DEGs_per_Group_GRCh37_12.18.2020_FinalforShiny.RData")
+  deColKey <<- read.csv("data/Limma_Column_Descriptions.csv")
   progress$set(value = 1, message = 'Done loading!')
   progress$close()
 }
@@ -44,8 +48,8 @@ server <- function(input, output, session) {
   
   # Reading in the expression & clinical data one time, immediately after the app starts up
   if (is.null(target_expData)) {
-    readData(target_cde, target_expData, beatAML_cde, beatAML_expData, adc_cart_targetData)
-    # print("Testing mode - data already in environment")
+    # readData(target_cde, target_expData, beatAML_cde, beatAML_expData, adc_cart_targetData)
+    print("Testing mode - data already in environment")
   }
   
   cohort <- reactive({
@@ -55,7 +59,11 @@ server <- function(input, output, session) {
   seqData <- reactive({
     switch(input$seqDataCohort,
            "BeatAML" = beatAML_expData,
-           "TARGET" = target_expData)
+           "TARGET" = target_expData38)
+    
+    switch(input$seqAssembly,
+           "grch37" = target_expData37,
+           "grch38" = target_expData38)
   })
   
   studyData <- reactive({
@@ -141,6 +149,12 @@ server <- function(input, output, session) {
              dataset = cohort,
              gene = target)
   
+  
+  # Calling the DEG table module
+  callModule(deTable, id = "degs",
+             table = degTables37,
+             gene = target)
+  
   #--------------------- External databases tab --------------------- #
 
   output$protAtlas <- renderInfoBox({
@@ -175,7 +189,9 @@ server <- function(input, output, session) {
       filter(`Gene target` == target()) 
     
     DT::datatable(table, 
-                  options = list(scrollY = "50vh"), 
+                  options = list(scrollY = "50vh",
+                                 pageLength = 25,
+                                 searchHighlight = TRUE), 
                   escape = F)
   })
 
