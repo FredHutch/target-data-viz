@@ -57,13 +57,17 @@ server <- function(input, output, session) {
   })
   
   seqData <- reactive({
-    switch(input$seqDataCohort,
-           "BeatAML" = beatAML_expData,
-           "TARGET" = target_expData38)
+    matrix <- switch(input$seqDataCohort,
+                     "BeatAML" = beatAML_expData,
+                     "TARGET" = target_expData38)
     
-    switch(input$seqAssembly,
-           "grch37" = target_expData37,
-           "grch38" = target_expData38)
+    assembly <- if (input$seqDataCohort == "TARGET" ) {
+      switch(input$seqAssembly,
+             "grch37" = target_expData37,
+             "grch38" = target_expData38)
+    } else {
+      matrix
+    }
   })
   
   studyData <- reactive({
@@ -100,31 +104,35 @@ server <- function(input, output, session) {
     }
     
     # Check if miRNA name exists in the miRbase21 miRNA-seq data
-    # EDGE-CASES: What if nothing is found? What will the message in the popup box be?
-    # What if 100+ values are found? The box is so overloaded you can't exit out of it,
-    # needs a max length of values that it can return
-    # Also, when you click OUTSIDE the box, it just returns "false"
-    shinyalert(
+    # shinyalert(
+    #   title = "Did you mean...",
+    #   text = msg,
+    #   # size = "xs",
+    #   closeOnEsc = TRUE,
+    #   closeOnClickOutside = FALSE,
+    #   html = FALSE,
+    #   type = "input",
+    #   inputType = "text",
+    #   inputValue = option[1],
+    #   inputPlaceholder = "Type choice here",
+    #   showConfirmButton = TRUE,
+    #   showCancelButton = FALSE,
+    #   confirmButtonText = "Retry",
+    #   confirmButtonCol = "#41B0FA",
+    #   timer = 0,
+    #   imageUrl = "",
+    #   animation = TRUE,
+    #   callbackR = function(x){
+    #     if (!is.null(x)) updateTextInput(session, "geneInput", label = NULL, value = input$shinyalert)
+    #   })
+    
+    modalDialog(
+      msg,
       title = "Did you mean...",
-      text = msg,
-      # size = "xs",
-      closeOnEsc = TRUE,
-      closeOnClickOutside = FALSE,
-      html = FALSE,
-      type = "input",
-      inputType = "text",
-      inputValue = option[1],
-      inputPlaceholder = "Type choice here",
-      showConfirmButton = TRUE,
-      showCancelButton = FALSE,
-      confirmButtonText = "Retry",
-      confirmButtonCol = "#41B0FA",
-      timer = 0,
-      imageUrl = "",
-      animation = TRUE,
-      callbackR = function(x){
-        if (!is.null(x)) updateTextInput(session, "geneInput", label = NULL, value = input$shinyalert)
-      })
+      size = "xs",
+      easyClose = F,
+      placeholder = "Type choice here",
+    )
   })
   
   #--------------------- WF plot & KM plot tabs --------------------- #
