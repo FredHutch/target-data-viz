@@ -49,6 +49,12 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                 
                 conditionalPanel(
                   condition = paste0("input['", ns("plot_type"), "'] == 'bx' || input['", ns("plot_type"), "'] == 'str'"),
+                  checkboxInput(ns("labels"),                                                  
+                                label = "Add x-axis labels",
+                                value = FALSE)),
+                
+                conditionalPanel(
+                  condition = paste0("input['", ns("plot_type"), "'] == 'bx' || input['", ns("plot_type"), "'] == 'str'"),
                   checkboxInput(ns("log"),                                                  
                             label = "Log2 transform the data",
                             value = FALSE)),
@@ -260,11 +266,19 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
     
     if (input$log == TRUE) {
       expCol <- "Log2"
-      yaxlab <- paste0(gene(), " Expression (log2 TPM + 1)\n")
+      yaxLab <- paste0("\n", gene(), " Expression (log2 TPM + 1)\n")
     } else {
       expCol <- "Expression"
-      yaxlab <- paste0(gene(), " Expression (TPM)\n")
+      yaxLab <- paste0("\n", gene(), " Expression (TPM)\n")
     }
+    
+    xaxLabs <- if (input$labels == TRUE) {
+      element_text(hjust = 1, vjust = 1, angle = 15) 
+    } else {
+      element_blank()
+    }
+    
+    plotLegend <- ifelse(input$labels == TRUE, "none", "bottom")
     
     if (input$plot_type == "bx") {   # Modifying the axis labels and columns used 
       
@@ -272,10 +286,10 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
         drop_na(input$grouping_var) %>%
         ggplot(aes_string(x = input$grouping_var, y = expCol, fill = input$grouping_var)) +
         theme_classic() +
-        labs(x = NULL, y = yaxlab, fill = gsub("\\.", " ", input$grouping_var)) +
-        theme(axis.text.x = element_blank(),
+        labs(x = NULL, y = yaxLab, fill = gsub("\\.", " ", input$grouping_var)) +
+        theme(axis.text.x = xaxLabs,
               plot.title = element_text(size = 15, hjust = 0.5),
-              legend.position = "bottom") +
+              legend.position = plotLegend) +
         geom_violin(scale = "width", aes_string(color = input$grouping_var)) +
         geom_boxplot(width = 0.1, fill = "white", outlier.size = 0.4) +
         guides(color = FALSE)
@@ -286,13 +300,13 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
         drop_na(input$grouping_var) %>%
         ggplot(aes_string(x = input$grouping_var, y = expCol, fill = input$grouping_var, color = input$grouping_var)) +
         theme_classic() +
-        labs(x = NULL, y = yaxlab, fill = gsub("\\.", " ", input$grouping_var)) +
-        theme(axis.text.x = element_blank(),
+        labs(x = NULL, y = yaxLab, fill = gsub("\\.", " ", input$grouping_var)) +
+        theme(axis.text.x = xaxLabs,
               plot.title = element_text(size = 15, hjust = 0.5),
-              legend.position = "bottom") +
+              legend.position = plotLegend) +
         guides(color = FALSE) +
         geom_jitter(width = 0.3, size = 0.7) +
-        stat_summary(fun = median, geom = "crossbar", width = 0.6, color = "black")
+        stat_summary(fun = median, geom = "crossbar", width = 0.5, color = "black")
       p
       
     } else if (input$plot_type == "wf") { # Generating a waterfall plot

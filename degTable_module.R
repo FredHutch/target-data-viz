@@ -81,7 +81,7 @@ deTable <- function(input, output, session, gene, table, parent) {
         DT::renderDataTable(# Interactively renders the datatable
           DT::datatable(deColKey, # Actually produces the datatable table object
                         class = "stripe row-border", 
-                        options = list(dom = "t"), 
+                        options = list(dom = "t", pageLength = nrow(deColKey)), 
                         width = "500",
                         rownames = F) %>%
             DT::formatStyle(columns = c(1,2), fontSize = "90%"),
