@@ -41,7 +41,6 @@ deTable <- function(input, output, session, gene, table, parent) {
   library(tidyverse)
   library(DT)
   library(shinyWidgets)
-  `%then%` <- shiny:::`%OR%` # See https://shiny.rstudio.com/articles/validation.html for details on the %then% operator
   
   # Making a function to generate a summary table with outcome data
   tableFun <- reactive({

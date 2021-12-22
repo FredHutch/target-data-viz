@@ -2,11 +2,10 @@ library(shiny)
 library(shinyalert)
 library(tidyverse)
 library(DT)
-library(dplyr)
 source("waterfallPlot_module.R")
 source("kaplanMeierPlot_module.R")
 source("degTable_module.R")
-`%then%` <- shiny:::`%OR%` # See https://shiny.rstudio.com/articles/validation.html for details on the %then% operator
+
 
 #################### Loading external data ########################################
 # PLEASE NOTE: Large expression datasets required for this app to function are *not* stored in the Github repo,
@@ -27,15 +26,23 @@ readData <- function(target_cde, target_expData, beatAML_cde, beatAML_expData, a
   progress$set(value = 0.25, message = 'Loading mRNA expression data...')
   beatAML_expData <<- readRDS("data/mRNA/BeatAML_Supplementary_Tables_TPM_Linear_Scale.RDS") %>%
     column_to_rownames("geneSymbol")
+  swog_expData <<- readRDS("data/mRNA/SWOG_AML_ExpressionData_TPM_GRCh38_FinalforShiny.RDS")
+  laml_expData <<- readRDS("data/mRNA/TCGA_LAML_ExpressionData_TPM_FinalforShiny.RDS")
+  
   progress$set(value = 0.50, message = 'Loading mature miRNA data...')
   load("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019_FinalforShiny.RData", .GlobalEnv)
   miRmapping <<- read.csv("data/miRNA/hsa_gff3_IDMap.csv")
+  
   progress$set(value = 0.75, message = 'Loading clinical data...')
   load("data/Clinical/Beat_AML_Supplementary_ClinicalData_FinalforShiny.RData", .GlobalEnv)
-  load("data/Clinical/TARGET_AML_0531_1031_merged_CDEs_Shareable_9.18.20_FinalforShiny.RData", .GlobalEnv)
+  load("data/Clinical/TARGET_AML_merged_CDEs_Shareable_FinalforShiny.RData", .GlobalEnv)
+  load("data/Clinical/SWOG_AML_Merged_CDEs_FinalforShiny.RData")
+  load("data/Clinical/TCGA_LAML_ClinicalData_FinalforShiny.RData")
+  
   load("data/ADC_and_CARTcell_Targets_Database_ADCReview_clinicaltrialsGov_FinalforShiny.RData", .GlobalEnv)
   load("data/DEGs/TARGET_AML_vs_NBM_and_Others_Ribodepleted_DEGs_per_Group_GRCh37_12.18.2020_FinalforShiny.RData", .GlobalEnv)
   deColKey <<- read.csv("data/Limma_Column_Descriptions.csv")
+  colMapping <<- read.csv("data/Dataset_Column_Mapping_File.csv", check.names = F, na.strings = "")
   progress$set(value = 1, message = 'Done loading!')
   progress$close()
 }
@@ -45,6 +52,10 @@ readData <- function(target_cde, target_expData, beatAML_cde, beatAML_expData, a
 target_expData <- NULL # Setting this to null so it will only be read one time
 
 server <- function(input, output, session) { 
+  
+  `%then%` <- function(a, b) {
+    if (is.null(a)) b else a
+  }
   
   # Reading in the expression & clinical data one time, immediately after the app starts up
   if (is.null(target_expData)) {
@@ -58,8 +69,10 @@ server <- function(input, output, session) {
   
   seqData <- reactive({
     matrix <- switch(input$seqDataCohort,
+                     "SWOG" = swog_expData,
                      "BeatAML" = beatAML_expData,
-                     "TARGET" = target_expData38)
+                     "TARGET" = target_expData38,
+                     "TCGA" = laml_expData)
     
     assembly <- if (input$seqDataCohort == "TARGET" ) {
       switch(input$seqAssembly,
@@ -72,8 +85,10 @@ server <- function(input, output, session) {
   
   studyData <- reactive({
     switch(input$seqDataCohort,
+           "SWOG" = swog_cde,
            "BeatAML" = beatAML_cde,
-           "TARGET" = target_cde)
+           "TARGET" = target_cde,
+           "TCGA" = laml_cde)
   })
   
   # Creating a variable that will be used to reactively pass the gene of interest into each module,
@@ -129,7 +144,7 @@ server <- function(input, output, session) {
     modalDialog(
       msg,
       title = "Did you mean...",
-      size = "xs",
+      size = "s",
       easyClose = F,
       placeholder = "Type choice here",
     )
@@ -165,6 +180,8 @@ server <- function(input, output, session) {
   
   #--------------------- External databases tab --------------------- #
 
+  # TO DO: Add a searchable AML-restricted gene list to this tab
+  
   output$protAtlas <- renderInfoBox({
     
     validate(
@@ -209,16 +226,25 @@ server <- function(input, output, session) {
   # https://stackoverflow.com/questions/56064805/displaying-html-file-using-includehtml-in-shiny-is-not-working-with-renderui
   
   # output$test <- renderUI({
-
-    # Method 1
-    # includeHTML() is designed to work with HTML fragments, so a "self contained" HTML file is needed
+    
+    ########### Method 1 ##############
+    # includeHTML() is designed to work with HTML fragments, so a "self contained" HTML file is needed,
+    # aka only the <body> section with an <html> </html> tag layer outside of it
     # includeHTML("www/UMAP/TARGET_AMLdx_rlps_NBM_PCAselect_selfcontained.html") # Doesn't work, produces a blank page
     # HTML(knitr::knit2html("About.Rmd", fragment.only = TRUE))
-
-    # Method 2, see iframe details at https://plotly-r.com/saving.html
+    
+    # Trying w/ full HTML file from St Jude
+    # includeHTML("www/Protein_Paint/embed_StJude_ProteinPaint.html") # !!! This works !!!
+    
+    # Passing r variables to html IF the html is included in a markdown:
+    # https://stackoverflow.com/questions/61543937/pass-r-variable-to-html-in-r-markdown
+    # {{ uiOutput("score_value") }} <- I think this is the syntax I need to embed in the HTML file?
+    
+    ########### Method 2 ############# 
+    # see iframe details at https://plotly-r.com/saving.html
     # tags$iframe(seamless="seamless",
-                # src="www/UMAP/plotly/TARGET_AMLdx_rlps_NBM_PCAselect_not_selfcontained_bodyOnly.html",
-                # height=600, width=800, scrolling="yes")
-    # })
+    # src="www/UMAP/plotly/TARGET_AMLdx_rlps_NBM_PCAselect_not_selfcontained_bodyOnly.html",
+    # height=600, width=800, scrolling="yes")
+  # })
   
 }

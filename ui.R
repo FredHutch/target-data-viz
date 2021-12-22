@@ -26,10 +26,11 @@ ui <- dashboardPage(
                    style = 'padding:4px; font-size:60%', class = "btn-primary"),
       
       #--------- Cohort selection ---------------------------#
-      radioGroupButtons("seqDataCohort", choices = c("TARGET", "Beat AML" = "BeatAML"), 
-                        status = "primary", label = "Select AML cohort", 
-                        selected = "TARGET", size = "xs"),
+      radioButtons("seqDataCohort", choices = c("TARGET", "Beat AML" = "BeatAML", "SWOG", "TGCA LAML" = "TCGA"), 
+                   label = "Select AML cohort", 
+                   selected = "TARGET"),
       
+      # !!!!!! NOTE !!!!!!! This should be made into a conditional panel for TARGET dataset only
       radioGroupButtons("seqAssembly", choices = c("GRCh38" = "grch38", "GRCh37" = "grch37"), 
                         status = "primary", label = "Select genome assembly", 
                         selected = "grch38", size = "xs"),
@@ -37,10 +38,11 @@ ui <- dashboardPage(
       # --------- Plot generation tabs ------------------------#
       menuItem("Gene expression plots", tabName = "wfPlot", icon = icon("chart-bar")),
       menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical")),
-      # menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
       menuItem("DE Genes", tabName = "deTable", icon = icon("clipboard-list")), # stream, clipboard-list
-      menuItem("External databases", tabName = "extData", icon = icon("atlas")),
-      menuItem("Reference info", tabName = "refs", icon = icon("dna"))
+      # menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
+      # menuItem("Protein Paint", tabName = "protPaint", icon = icon("palette")),
+      menuItem("External databases", tabName = "extData", icon = icon("atlas"))
+      # menuItem("Reference info", tabName = "refs", icon = icon("dna"))
     )
   ),  
   
@@ -97,25 +99,27 @@ ui <- dashboardPage(
                   )
                 )
               )
-      ),
+      )
       
       # tabItem(tabName = "umap",
               # mainPanel(
                   # This works, but messes up the entire dashboard! Prob isn't designed to work with Shiny Dashboard
                   # includeHTML("www/UMAP/TARGET_AMLdx_rlps_NBM_PCAselect_selfcontained.html")
-                  
+
                   # Part of method 1, does not work, no clue why
                   # htmlOutput("test") # I think it's able to access the file, but not display it
+                  # Maybe try an iframe instead?
+                  # https://stackoverflow.com/questions/22177974/r-shiny-using-iframe-for-local-files
+                  # https://github.com/rstudio/shiny/issues/2535
               # )
       # ),
       
-      tabItem(tabName = "refs", 
-              mainPanel(
-                position = "center", 
-                fluidRow(
-                  box(title = "RNA-seq reference information - coming soon")
-                )
-              ))
+      # tabItem(tabName = "protPaint",
+      #         mainPanel(
+      #           # This works!!!!!!
+      #           includeHTML("www/Protein_Paint/embed_StJude_ProteinPaint.html")
+      #         )
+      # ),
     )
   )
 )

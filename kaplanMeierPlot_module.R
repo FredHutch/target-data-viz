@@ -4,6 +4,9 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
   library(DT)
   ns <- NS(id)
   
+  mut_choices <- as.list(filter(colMapping, Module_Code == "Mutation" & !is.na(Final_Column_Label))$Final_Column_Name)
+  names(mut_choices) <- filter(colMapping, Module_Code == "Mutation" & !is.na(Final_Column_Label))$Final_Column_Label
+  
   tagList( 
     # Throwing a fluidPage() inside of the taglist so I can use a Bootstrap theme... it does work, not sure how kosher this is though?
     fluidPage(theme = shinytheme("lumen"),
@@ -37,13 +40,23 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                                               "Yes" = "yes")),
                   conditionalPanel(
                     condition = paste0("input['", ns("filter_cohort"), "'] == 'yes'"),
-                    selectInput(ns("select_fusion"),                                                  
-                                 label = "Which one?",
-                                 choices = list( "KMT2A/MLL" = "MLL", 
-                                                 "inv(16)" = "inv(16)",
-                                                 "t(8;21)" = "t(8;21)",
-                                                 "Normal karyotype" = "Normal"))
-                    ), 
+                    selectInput(ns("select_subgroup"),                                                  
+                                label = "Which one?",
+                                choices = list("KMT2A/MLL rearranged" = "MLL|KMT2A-",       # The name of each list item is the option the
+                                               "inv(16)" = "inv\\(16\\)",                   # user will see in a drop-down menu;
+                                               "t(8;21)" = "t\\(8\\;21\\)",                 # the value is the regex that will be used to 
+                                               "FLT3-ITD" = "FLT3-ITD",                     # filter the dataset for the specified alteration.
+                                               "KMT2A-PTD" = "KMT2A-PTD",
+                                               "WT1" = "WT1",
+                                               "NPM1" = "NPM1(?!\\-)",
+                                               "CEBPA" = "CEBPA",
+                                               "CBFA2T3-GLIS2" = "CBFA2T3\\-GLIS2", 
+                                               "NUP98 fusions" = "NUP98-",
+                                               "Monosomy 7" = "[Mm]onosomy7",
+                                               "del5q/del7q" = "del5q|del7q",
+                                               "Trisomy 8" = "[Tt]risomy8",
+                                               "Normal karyotype" = "Normal"))
+                  ), 
                   
                   # Dropdown menu to select grouping variable for patients, based on expression
                   selectInput(ns("strata_var"), 
@@ -73,16 +86,7 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                     condition = paste0("input['", ns("strata_var"), "'] == 'mutation'"),
                     selectInput(ns("mutCol"),                                                  
                               label = "Which mutation?",
-                              choices = list("NPM1" = "NPM.mutation.", 
-                                             "CEBPA" = "CEBPA.mutation.", 
-                                             "WT1" = "WT1.mutation.", 
-                                             "cKit (exon 8)" = "c.Kit.Mutation.Exon.8", 
-                                             "cKit (exon 17)" = "c.Kit.Mutation.Exon.17", 
-                                             "RAS mutation" = "RAS.Mutation", 
-                                             "RAS gene" = "RAS.Gene", 
-                                             "CBL" = "CBL.Mutation", 
-                                             "FLT3-ITD" = "FLT3.ITD.positive.", 
-                                             "FLT3 point mutation" = "FLT3.PM.category"))),
+                              choices = mut_choices)),
                   
                   helpText("The patients are sorted by expression of the gene of interest.
                              Kaplan-Meier curves will be generated for each half of patients (median), 
@@ -168,53 +172,208 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
   library(survival)
   library(tidyverse)
   library(cowplot)
+  library(cmprsk)
   library(gtools)
   library(data.table)
   library(DT)
   library(openxlsx)
-  `%then%` <- shiny:::`%OR%` # See https://shiny.rstudio.com/articles/validation.html for details on the %then% operator
   
-  #-------------------- Data preparation -----------------------#
+  bs <- 16 # Base font size for figures
+  
+  #################################################################
+  #------------------------- FUNCTIONS ---------------------------#
+  #################################################################
+  
+  # See https://shiny.rstudio.com/articles/validation.html for details on the %then% operator
+  # `%then%` <- shiny:::`%OR%` 
+  `%then%` <- function(a, b) {
+    if (is.null(a)) b else a
+  }
+  
+  # This is turning into an unwieldy, clunky megafunction and should be broken into some smaller functions: 
+  # 1. Fitting the survival object
+  # 2. Generating the actual plot
+  # These could even be separated into 2 functions each, one for the KM function and the other for cumul. inc analysis
+  KMplot <- function(testType) {
+    
+    # Identifying which event column is needed, 
+    # depending on which test type is selected
+    validate(
+      need(grepl("EFS\\.ID|OS\\.ID|DFS\\.ID|RR\\.ID", colnames(plotData())), "This type of survival data is not available in this dataset.")
+    )
+    time <- grep(paste0(testType, "\\.Time"), colnames(plotData()), value = T)
+    event <- grep(paste0(testType, "\\.ID"), colnames(plotData()), value = T)
+    time <- plotData()[,time]
+    event <- plotData()[,event]
+    
+    # Converting the time from days -> years, if requested by the user.
+    if (input$time_type == "years") {
+      time <- time/365
+    }
+    
+    # Creating the survival objects for EFS, DFS, and OS.
+    if (testType != "RR" ) { 
+      surv.obj <- Surv(time = as.numeric(time),
+                       event = as.numeric(event))
+    }
+    
+    # Fitting the Kaplan-Meier curves using the recoded survival data.
+    # If test type is RR, the cumulative incidence function will be used instead.
+    if (testType == "RR") {
+      group <- ifelse(input$strata_var == "mutation", input$mutCol, input$strata_var)
+      group <- as.vector(plotData()[,group])
+      group <- gsub(" ", ".", group)
+      fit <- cmprsk::cuminc(ftime = time, 
+                            fstatus = event, 
+                            cencode = "Censored", # This is the censor code for the TARGET data
+                            group = group)
+    } else {
+      formula <- if (input$strata_var == "mutation") { 
+        as.formula(paste0("surv.obj ~ ", input$mutCol))
+      } else {
+        as.formula(paste0("surv.obj ~ ", input$strata_var))
+      }
+      
+      fit <- survminer::surv_fit(formula = formula, data = plotData())
+      names(fit$strata) <- gsub(".+=", "", names(fit$strata)) # Fixing the names of the strata to make them more concise & descriptive
+      
+      # Adding patient count (n) to the strata name (not sure how to do this for RR quite yet)
+      for (x in seq(length(names(fit$strata)))) {
+        names(fit$strata)[x] <- paste0(names(fit$strata[x]), " (n = ", fit$n[[x]], ")")
+      }
+    }
+    
+    # Creating the plot title using the group & test type information
+    title <- paste0("Kaplan-Meier curves for ", testType)
+    
+    nstrata <- if (input$strata_var == "mutation") {
+      length(levels(as.factor(plotData()[[input$mutCol]])))
+    } else {
+      length(levels(as.factor(plotData()[[input$strata_var]])))
+    }
+    
+    # Changing colors of ggsurvplot & ggcomprisk objects:
+    # https://stackoverflow.com/questions/51387396/different-color-type-and-line-type-for-multiple-groups-in-survival-curve
+    # https://stackoverflow.com/questions/64186565/customizing-a-competing-risks-plot-in-r-with-package-cmprsk
+    if (testType == "RR") {
+      # Relapse risk plots need to be generated w/ the cumulative incidence of risk calculation, not the Kaplan-Meier method,
+      # so this will need a different plotting method to accommodate the cuminc object ('fit').
+      plot <- ggcompetingrisks(fit, 
+                               data = plotData(),
+                               multiple_panels = F,
+                               palette = RColorBrewer::brewer.pal(9, "Set1")[c(1:5, 7:9)],
+                               ggtheme = theme_classic(base_size = bs) + 
+                                 theme(plot.title = element_text(hjust = 0.5, size = bs + 2),
+                                       legend.position = "bottom")) +
+        ggplot2::annotate("text", y = 1, x = (max(time, na.rm = T) - max(time, na.rm = T)/5),
+                          label = gene(), hjust = 0.5, vjust = 1, size = 8, fontface = "bold") +
+        guides(fill = guide_legend(nrow = 2), color = guide_legend(nrow = 2), linetype = guide_legend(nrow = 2))
+    
+      # Changing default strata schema, rather than using a distinct linetype for each group (aka the default)
+      # https://stackoverflow.com/questions/64186565/customizing-a-competing-risks-plot-in-r-with-package-cmprsk
+      plot$mapping <- aes(x = time, y = est, colour = group, linetype = event)
+      plot <- plot + 
+        geom_line(size = 1) + # Making line wider than default, to match the KM plot for OS, EFS, etc.
+        labs(x = paste0("Time (", input$time_type, ")"),
+             title = "Cumulative incidence curves for RR",
+             linetype = "Event",
+             colour = "Group")
+    } else {
+      # Creates a plot for OS, EFS, and DFS, which use Kaplan-Meier curves and the logrank test
+      plot <- ggsurvplot(fit, data = plotData(), # Creating the Kaplan-Meier plot
+                         pval = TRUE,
+                         ggtheme = theme_classic(base_size = bs) + theme(plot.title = element_text(hjust = 0.5, size = bs + 2)),
+                         legend = "bottom",
+                         title = title) +
+        guides(fill = guide_legend(title = NULL, nrow = nstrata), 
+               color = guide_legend(title = NULL, nrow = nstrata)) +
+        labs(x = paste0("Time (", input$time_type, ")"))
+      
+      # Adding gene name as a text annotation layer (to the ggsurvplot object), 
+      # to be displayed in the top right corner of the plot
+      # https://stackoverflow.com/questions/10747307/legend-placement-ggplot-relative-to-plotting-region
+      plot$plot <- plot$plot +
+        ggplot2::annotate("text", y = 1, x = (max(time, na.rm = T) - max(time, na.rm = T)/5), 
+                          label = gene(), hjust = 0.5, vjust = 1, size = 8, fontface = "bold")
+    }
+  }
+  
+  # Function to generate a table with outcome data used for the figures
+  tableFun <- reactive({
+    type <- ifelse(input$strata_var == "mutation", input$mutCol, 
+                   grep(input$strata_var, colnames(plotData()), value = T))
+    
+    if (length(input$test_type) == 1) {
+      time <- grep(paste0(input$test_type, "\\.time\\.\\.days"), colnames(plotData()), value = T)
+      event <- grep(paste0(input$test_type, "\\.ID"), colnames(plotData()), value = T)
+    } else if (length(input$test_type) > 1) {
+      time <- unlist(lapply(input$test_type, function(x) {
+        grep(paste0("^", x, "\\.time\\.\\.days"), colnames(plotData()), value = T)
+      }))
+      event <- unlist(lapply(input$test_type, function(x) {
+        grep(paste0(x, "\\.ID"), colnames(plotData()), value = T)
+      }))
+    }
+  
+    plotData() %>%
+      dplyr::select(any_of(c("PatientID", !!time, !!event, !!type, "Age.Category", "Primary.Fusion", "SNVs", "Risk", "Filter.Code"))) %>%
+      rename(`Expression category` = !!type) %>%
+      rename(`Patient ID` = PatientID) 
+  })
+  
+  # Used the info here to figure out how to display multiple plots:
+  # https://stackoverflow.com/questions/51302112/create-plots-based-on-check-box-selection-in-r-shiny
+  finalPlot <- reactive({
+    validate(
+      need(input$test_type, "Please select at least one survival metric to analyze.")
+    )
+    if (length(input$test_type) == 1) {
+      list(KMplot(input$test_type))                   # This creates a gg & ggplot object.
+    } else if (length(input$test_type) > 1) {         # Generating multiple plots if the user selects more than 1 type
+      lapply(input$test_type, function(x) KMplot(x)) 
+    }
+  })
+  
+  #################################################################
+  #-------------------- DATA PREPARATION -------------------------#
+  #################################################################
   
   observeEvent(dataset(), {
-    
-    # The Beat AML dataset is smaller and has more limited mutation & fusion data, so some of
-    # these options need to be filtered down when this dataset is selected
-    if(dataset() == "BeatAML") {
-      updateCheckboxGroupInput(
-        session = session, 
-        inputId = "test_type",
-        label = "Select a survival type to model",
-        choices = c("Overall Survival (OS)" = "OS"))
+      
+      if (dataset() ==  "SWOG") {
+        # All columns w/ mutation data follow the same naming convention, so they can be easily selected w/ grep.
+        mut_choices <- as.list(grep("mutation", colnames(swog_cde), value = T))
+        names(mut_choices) <- gsub("_mutation", "", mut_choices)
+      } else {
+        mut_choices <- as.list(filter(colMapping, Module_Code == "Mutation" & !is.na(!!sym(dataset())))$Final_Column_Name)
+        names(mut_choices) <- filter(colMapping, Module_Code == "Mutation" & !is.na(!!sym(dataset())))$Final_Column_Label
+      }
+      
+      survival_choices <- filter(colMapping, grepl("\\.ID|\\.Time", Final_Column_Name)) %>%
+        filter(!is.na(!!sym(dataset()))) %>% 
+        pull(Final_Column_Name) %>%
+        gsub("\\..+", "", .) %>%
+        unique()
+      
+      names(survival_choices) <- case_when(grepl("OS", survival_choices) ~ "Overall Survival (OS)",
+                                           grepl("EFS", survival_choices) ~ "Event-Free Survival (EFS)",
+                                           grepl("DFS", survival_choices) ~ "Disease-Free Survival (DFS)",
+                                           grepl("RR", survival_choices) ~ "Relapse Risk (RR)")
+
+      updateCheckboxGroupInput(session = session, 
+                               inputId = "test_type",
+                               label = "Select a survival type to model",
+                               choices = survival_choices)
       
       updateSelectInput(session = session,
                         inputId = "mutCol",
                         label = "Which mutation?",
-                        choices = list("NPM1", "CEBPA", "WT1", "KIT", "JAK2", "NRAS", "FLT3-ITD" = "FLT3.ITD", "TP53"))
-      
-    # The TARGET dataset has more survival data, fusion types, mutation data, etc.
-    } else if (dataset() == "TARGET") {
-      updateCheckboxGroupInput(
-        session = session, 
-        inputId = "test_type",
-        label = "Select a survival type to model",
-        choices = c("Event-Free Survival (EFS)" = "EFS",
-                    "Overall Survival (OS)" = "OS", 
-                    "Disease-Free Survival (DFS)" = "DFS", 
-                    "Relapse Risk (RR)" = "RR"))
-      
-      updateSelectInput("mutCol",   
-                        session = session,
-                  label = "Which mutation?",
-                  choices = list("NPM1" = "NPM.mutation.", "CEBPA" = "CEBPA.mutation.", 
-                                 "WT1" = "WT1.mutation.", "cKit (exon 8)" = "c.Kit.Mutation.Exon.8", 
-                                 "cKit (exon 17)" = "c.Kit.Mutation.Exon.17", "RAS mutation" = "RAS.Mutation", 
-                                 "RAS gene" = "RAS.Gene", "CBL" = "CBL.Mutation", 
-                                 "FLT3-ITD" = "FLT3.ITD.positive.", "FLT3 point mutation" = "FLT3.PM.category"))
-    }
-  }, ignoreInit = T)
+                        choices = mut_choices)
+    })
   
-  # Interactively filtering the expression data to only retain the gene of interest
+  # The reactive function below contains multiple components that
+  # generate the dataframe that will be used for generating Kaplan-Meier estimates
+  # and plotting the survival curves
   plotData <- reactive({
     validate(
       need(gene(), "Please enter a gene symbol or miRNA in the text box to the left.") %then%
@@ -226,26 +385,23 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     mergedDF <- expData() %>%
       rownames_to_column("Gene") %>%
       filter(Gene == gene()) %>%
-      dplyr::select(Gene, any_of(intersect(clinData()$USI, colnames(expData())))) %>%
+      dplyr::select(Gene, any_of(intersect(clinData()$PatientID, colnames(expData())))) %>%
       column_to_rownames("Gene") %>%
-      gather(USI, Expression) %>%
+      gather(PatientID, Expression) %>% # Making the dataframe a long-format table, for use with ggplot
       mutate_at(vars(Expression), ~as.numeric(.)) %>%
-      left_join(., clinData(), by = "USI") %>%
-      filter(Group == "AML") # The NBMs don't have outcome data anyway, they can be removed
+      left_join(., clinData(), by = "PatientID") %>%
+      filter(AML.Sample == "AML") # Removing NBMs, as they don't have outcome data
     
     # Interactively selecting columns that contain fusion or cytogenetic information 
-    # (they differ between the available datasets)
-    if (input$filter_cohort == "yes" && dataset() == "TARGET") {
-      mergedDF <- filter(mergedDF, Primary.Cyto == input$select_fusion)
+    # (the columns differ between the available datasets).
+    # This will be used to restrict the dataset to specific subgroups, if the user opts to do so.
+    if (input$filter_cohort == "yes") {
       
-    } else if (input$filter_cohort == "yes" && dataset() == "BeatAML") {
-      mergedDF <- mergedDF %>%
-        mutate(KM.Filter.Code = case_when(Primary.Fusion.Cleaned == "CBFB-MYH11" ~ "inv(16)",
-                                          Primary.Fusion.Cleaned == "RUNX1-RUNX1T1" ~ "t(8;21)",
-                                          grepl("KMT2A", Primary.Fusion.Cleaned) ~ "MLL",
-                                          Primary.Fusion.Cleaned == "None" ~ "Normal",
-                                          TRUE ~ Primary.Fusion.Cleaned)) %>%
-        filter(KM.Filter.Code == input$select_fusion)
+      test <- any(grepl(input$select_subgroup, mergedDF$Filter.Code, perl = T))
+      validate(
+        need(test, "There are either no records in the dataset that contain the selected alteration,\nor there is currently insufficient data to identify them.")
+      )
+      mergedDF <- filter(mergedDF, grepl(input$select_subgroup, Filter.Code, perl = T))
     }
     
     # Adding column onto the merged dataset with user-selected plot grouping info,
@@ -256,14 +412,13 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
       
     } else if (input$strata_var == "quartile") {
       # Throws an error message if the expression data can't be evenly divided into 4 quartiles (in which case tryCatch returns FALSE), 
-      # check with quantile(expData$Expression, probs = seq(0, 1, by = 0.25)) to see if Q1-Q3 have a TPM of 0
-      nlevels <- try(length(levels(gtools::quantcut(mergedDF$Expression, q = 4, labels = c("Q1 - lowest quartile","Q2", "Q3","Q4 - highest quartile")))))
+      # can be checked using quantile(expData$Expression, probs = seq(0, 1, by = 0.25)) to see if Q1-Q3 have a TPM of 0
+      nlevels <- try(length(levels(gtools::quantcut(mergedDF$Expression, q = 4, labels = c("Q1","Q2", "Q3","Q4")))))
       
       test <- ifelse(nlevels == 4, TRUE, FALSE)
       validate(
         need(test, "The expression data cannot be evenly divided into 4 quartiles, \nlikely because expression of the gene is very low in the majority of patients. \n\nPlease select 'By median' instead.")
-        )
-
+      )
       mergedDF <- mergedDF %>%
         mutate(quartile = gtools::quantcut(Expression, q = 4, labels = c("Q1 - lowest quartile","Q2", "Q3","Q4 - highest quartile")))
       
@@ -293,170 +448,45 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
       
     } else if (input$strata_var == "mutation") {
       validate(
-        need(input$mutCol, "Please select a mutation of interest."))
+        need(input$mutCol, "Please select a mutation of interest.")
+      )
     }
     
     return(mergedDF)
   })
+
   
   
+  #################################################################
+  #-------------------- FINAL MODULE OUTPUTS ---------------------#
+  #################################################################
   
-  #------------------- Functions --------------------------#
   
-  KMplot <- function(testType) {
-    
-    # Identifying which event column is needed, 
-    # depending on whether or not the test type is EFS, OS, DFS, or RR
-    if (testType == "DFS") {
-      # Recoding an "event" as 1 (censored data is 0)
-      event <- ifelse(grepl("[Ee]vent", plotData()[,"DFS.from.end.of.induction.1.for.patients.who.are.CR.at.EOI1.indicator"]), 1, 0) 
-      time <- plotData()[,"Days.to.DFS.from.end.of.induction.1.for.patients.who.are.CR.at.EOI1"]
-    } else if (testType == "RR") {
-      event <- ifelse(grepl("[Ee]vent", plotData()[,"RR.from.CR..end.of.course.1..indicator"]), 1, 0)
-      time <- plotData()[,"Days.to.RR.from.CR..end.of.course.1."]
-    } else if (testType %in% c("EFS", "OS")) {
-      validate(
-        need(grepl("Event\\.ID|OS\\.ID|Event ID|OS ID|", colnames(plotData())), "This type of survival data is not available in this dataset.")
-      )
-      
-      time <- grep(paste0(testType, "\\.time\\.\\.days"), colnames(plotData()), value = T)
-      event <- grep(paste0("Recoded\\.", testType, "\\.ID"), colnames(plotData()), value = T)
-      
-      time <- plotData()[,time]
-      event <- plotData()[,event]
-     
-    }
-    
-    # Converting the time from days -> years, if requested by the user
-    if (input$time_type == "years") {
-      time <- time/365
-    }
-    
-    # Creating the survival objects
-    surv.obj <- Surv(time = as.numeric(time),
-                     event = as.numeric(event))
-    
-    formula <- if (input$strata_var == "mutation") {
-      as.formula(paste0("surv.obj ~ ", input$mutCol))
-    } else {
-      as.formula(paste0("surv.obj ~ ", input$strata_var))
-    }
-    
-    # Fitting the Kaplan-Meier curves using the recoded survival data
-    fit <- survminer::surv_fit(formula = formula, data = plotData())
-    
-    # Fixing the names of the strata to make them more concise & descriptive
-    names(fit$strata) <- gsub(".+=", "", names(fit$strata))
-    
-    # Adding patient count (n) to the strata name
-    for (x in seq(length(names(fit$strata)))) {
-      names(fit$strata)[x] <- paste0(names(fit$strata[x]), " (n = ", fit$n[[x]], ")")
-    }
-    
-    # Creating the plot title using the group & test type information
-    title <- paste0("Kaplan-Meier curves for ", testType)
-    
-    strataCol <- if (input$strata_var == "mutation") { 
-      length(levels(as.factor(plotData()[[input$mutCol]])))
-    } else {
-      length(levels(as.factor(plotData()[[input$strata_var]])))
-    }
-    
-    # Creating the Kaplan-Meier plot
-    plot <- ggsurvplot(fit, data = plotData(),
-                       pval = TRUE,
-                       ggtheme = theme_bw() + theme(plot.title = element_text(hjust = 0.5, 
-                                                                              size = 12)),
-                       legend = "right",
-                       title = title) +
-      guides(
-        fill = guide_legend(title = NULL, 
-                            nrow = strataCol), # This is problematic for the mutation strata type, need to figure out a workaround
-        color = guide_legend(title = NULL, 
-                             nrow = strataCol)) +
-      labs(x = paste0("Time (in ", input$time_type, ")"))
-    
-    # Adding gene name as a text annotation layer, to be displayed in the top right corner of the plot
-    # https://stackoverflow.com/questions/10747307/legend-placement-ggplot-relative-to-plotting-region
-    plot$plot <- plot$plot +
-      ggplot2::annotate("text", y = 1, x = (max(time, na.rm = T) - max(time, na.rm = T)/4), 
-                        label = gene(), hjust = 0.5, vjust = 1, size = 8, fontface = "bold")
-    
-    return(plot$plot) # Final returned object from this function is the "plot" component of the ggsurvplot object
-  }
-  
-  # Making a function to generate a summary table with outcome data
-  tableFun <- reactive({
-    
-    type <- ifelse(input$strata_var == "mutation", input$mutCol, 
-                   grep(input$strata_var, colnames(plotData()), value = T))
-    
-    if (length(input$test_type) == 1) {
-      time <- grep(paste0(input$test_type, "\\.time\\.\\.days"), colnames(plotData()), value = T)
-      event <- grep(paste0(input$test_type, "\\.ID"), colnames(plotData()), value = T)
-    } else if (length(input$test_type) > 1) {
-      time <- unlist(lapply(input$test_type, function(x) {
-        grep(paste0("^", x, "\\.time\\.\\.days"), colnames(plotData()), value = T)
-      }))
-      event <- unlist(lapply(input$test_type, function(x) {
-        grep(paste0(x, "\\.ID"), colnames(plotData()), value = T)
-      }))
-    }
-    
-    plotData() %>%
-      dplyr::select(any_of(c("USI", !!time, !!event, !!type))) %>% # Using !! before the variables to evaluate them to colnames in the select() call
-      dplyr::select(any_of(c("USI")), contains("EFS"), contains("OS"), !!type) %>%
-      rename(`Expression category` = !!type) %>%
-      rename(`Patient ID` = USI) 
-  })
-  
-  # https://stackoverflow.com/questions/51302112/create-plots-based-on-check-box-selection-in-r-shiny
-  finalPlot <- reactive({
-    # Error message that appears if the user hasn't checked either test type box yet
-    validate(
-      need(input$test_type, "Please select at least one survival metric to analyze.")
-      )
-    if (length(input$test_type) == 1) {
-      list(KMplot(input$test_type))                   # This creates a gg & ggplot object
-    } else if (length(input$test_type) > 1) {         # Generating multiple plots if the user selects more than 1 type
-      lapply(input$test_type, function(x) KMplot(x)) 
-    }
-  })
-  
-  # Setting the dimensions of the final, downloaded plot (this does NOT apply to the plot displayed on the page)
-  plotHeight <- reactive({
-    4 * length(input$test_type)
-  })
-  
-  plotWidth <- reactive({
-    if (any(nchar(unique(clinData[[input$mutCol]]) > 27))) {
-      6.5
-    } else {
-      5.5
-    }
-  })
-  
-  #-------------------- KM plot tab -----------------------------#
+  #-------------------- Plot tab -----------------------#
   
   output$plot <- renderPlot({
     cowplot::plot_grid(plotlist = finalPlot(), ncol = 1, nrow = 4)
   })
   
-  # Adding a download button widget for the plot
+  # Adding a download button widget for the plot.
+  # Will need to add a prompt for entering username & password prior to download.
   output$plot_download <- downloadHandler(
     filename = function(){
-      paste0("TARGET_AAML1031_", gene(), "_KaplanMeier_Curves_", paste(input$test_type, collapse = "_"), "_generated_", format(Sys.time(), "%m.%d.%Y"), ".png")
+      paste0(as.character(dataset()), "_AML_", paste(input$test_type, collapse = "_"), "_Kaplan-Meier_curves_by_", gene(), "_generated_", format(Sys.time(), "%m.%d.%Y"), ".pdf")
     },
     content = function(file){
-      plots <- cowplot::plot_grid(plotlist = finalPlot(), ncol = 1, nrow = length(input$test_type))
-      ggsave(filename = file, plot = plots, width = plotWidth(), height = plotHeight(), device = "png", dpi = 150)
+      # plots <- cowplot::plot_grid(plotlist = finalPlot(), ncol = 1, nrow = length(input$test_type))
+      # ggsave(filename = file, plot = plots, width = plotWidth(), height = plotHeight(), device = "png", dpi = 150)
+      pdf(file = file, width = 5, height = 5)
+      invisible(lapply(finalPlot(), print))
+      dev.off()
     }
   )
   
-  # Adding a download button widget for the ggsurvplot object - THIS STILL NEEDS WORK
+  # Adding a download button widget for the ggsurvplot object - Does not work yet!
   output$ggsurvplot_download <- downloadHandler(
     filename = function() {
-      paste0("TARGET_AAML1031_", gene(), "_KaplanMeier_Curves_", paste(input$test_type, collapse = "_"), "_ggsurvplotObject_generated_", format(Sys.time(), "%m.%d.%Y"), ".RDS")
+      paste0(as.character(dataset()), "_AML_", paste(input$test_type, collapse = "_"), "_Kaplan-Meier_curves_by_", gene(), "_ggsurvplotObject_generated_", format(Sys.time(), "%m.%d.%Y"), ".RDS")
     },
     content = function(file) {
       withProgress(message = "Saving RDS file", detail = "This may take a while...", value = 0, {
@@ -471,7 +501,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     }
   )
   
-  #-------------------- Patient data tab -----------------------#
+  #-------------------- Outcome data tab -----------------------#
   
   output$table <- DT::renderDataTable({
     DT::datatable(tableFun(), options = list(paging = FALSE, scrollY = "500px"), rownames = F)
@@ -480,7 +510,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
   # Adding a download button widget for the table
   output$table_download <- downloadHandler(
     filename = function(){
-      paste0("TARGET_AAML1031_", gene(), "_Summary_Table_generated_", format(Sys.time(), "%m.%d.%Y"), ".xlsx")
+      paste0(as.character(dataset()), "_Outcome_Summary_Table_basedOn_", gene(), "Expression_generated_", format(Sys.time(), "%m.%d.%Y"), ".xlsx")
     }, 
     content = function(file){
       write.xlsx(file = file, x = tableFun())
