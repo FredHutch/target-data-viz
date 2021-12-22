@@ -1,5 +1,5 @@
 # Loading packages
-library(dplyr)
+library(tidyverse)
 library(shiny)
 library(shinyalert)
 library(shinydashboard)
@@ -45,7 +45,6 @@ readData <- function() {
   
   load("data/ADC_and_CARTcell_Targets_Database_ADCReview_clinicaltrialsGov_FinalforShiny.RData", .GlobalEnv)
   load("data/DEGs/TARGET_AML_vs_NBM_and_Others_Ribodepleted_DEGs_per_Group_GRCh37_12.18.2020_FinalforShiny.RData", .GlobalEnv)
-  # colMapping <<- read.csv("data/Dataset_Column_Mapping_File.csv", check.names = F, na.strings = "")
   deColKey <<- read.csv("data/Limma_Column_Descriptions.csv")
   progress$set(value = 1, message = 'Done loading!')
   progress$close()
