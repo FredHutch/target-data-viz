@@ -6,6 +6,7 @@ This directory contains the necessary code to visualize gene expression and outc
 
 *Note*: The app is password protected - contact the app creator (aleonti@fredhutch.org) to be granted access.
 
-All mRNA gene expression values are in transcripts per million (TPM) and were aligned to GRCh37-lite/hg19. All miRNA expression values are in reads per million mapped reads (RPM) and were annotated using miRbase v21 annotations.
+All mRNA gene expression values are in transcripts per million (TPM). 
+All miRNA expression values are in reads per million mapped reads (RPM) and were annotated using miRbase v21 annotations.
 
 The scripts & app are created and maintained by Amanda Leonti in Soheil Meshinchi's lab. 
