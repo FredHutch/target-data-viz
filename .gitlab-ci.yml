@@ -14,7 +14,7 @@ build_test:
           docker stop target-data-viz && docker rm --force target-data-viz
         fi
     - docker run -d --name target-data-viz -p 8888:8888 dockerimages.fhcrc.org/target-data-viz:latest
-    - sleep 15 && curl -u "${TEST_USER}:${TEST_PASSWORD}" -sI  http://localhost:8888  |head -1|grep -q "200 OK"
+    - sleep 120 && curl -u "${TEST_USER}:${TEST_PASSWORD}" -sI  http://localhost:8888  |head -1|grep -q "200 OK"
     - docker stop target-data-viz && docker rm --force target-data-viz
 
 
