@@ -1,65 +1,18 @@
-library(shiny) 
-library(shinyalert)
-library(tidyverse)
-library(DT)
-source("waterfallPlot_module.R")
-source("kaplanMeierPlot_module.R")
-source("degTable_module.R")
+# Check the file below for global scripts & variables, 
+# they were removed from the server & ui scripts to help clean them up.
+source("global.R")
 
-
-#################### Loading external data ########################################
-# PLEASE NOTE: Large expression datasets required for this app to function are *not* stored in the Github repo,
-# as the filesizes are >1 GB. To access the expression data & run this app on your local machine, 
-# the appropriate "data" directory will need to be copied down from our AWS S3 bucket to replace the "data" folder in the local repo.
-# When pushing/pulling back to Github, the "data" folder in this repo will be ignored! 
-# To modify the data used by this app, the Shiny app "data" object in S3 must be modified. Changes to the
-# local "data" folder accessed by the Shiny scripts will NOT affect the web version of the app.
-
-readData <- function(target_cde, target_expData, beatAML_cde, beatAML_expData, adc_cart_targetData) {
-  # Creating a progress bar to let the user know when the expression data is done loading.
-  # Code adapted from http://www.mazsoft.com/blog/post/2018/01/01/show-progress-bar-when-pre-loading-data-in-shiny-app
-  progress <- Progress$new()
-  progress$set(value = 0.0, message = 'Please wait, loading data...')
-  progress$set(value = 0.10, message = 'Loading mRNA expression data...')
-  target_expData38 <<- readRDS("data/mRNA/TARGET_RBD_Dx_AML_ExpressionData_TPM_filt4dupGenes_with_cellLines_CD34posNBM_DSAML_MPN_GRCh38_12.17.2020_FinalforShiny.RDS")
-  target_expData37 <<- readRDS("data/mRNA/TARGET_RBD_Dx_AML_ExpressionData_TPM_filt4dupGenes_with_cellLines_CD34posNBM_DSAML_MPN_GRCh37_10.16.2020_FinalforShiny.RDS")
-  progress$set(value = 0.25, message = 'Loading mRNA expression data...')
-  beatAML_expData <<- readRDS("data/mRNA/BeatAML_Supplementary_Tables_TPM_Linear_Scale.RDS") %>%
-    column_to_rownames("geneSymbol")
-  swog_expData <<- readRDS("data/mRNA/SWOG_AML_ExpressionData_TPM_GRCh38_FinalforShiny.RDS")
-  laml_expData <<- readRDS("data/mRNA/TCGA_LAML_ExpressionData_TPM_FinalforShiny.RDS")
-  
-  progress$set(value = 0.50, message = 'Loading mature miRNA data...')
-  load("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019_FinalforShiny.RData", .GlobalEnv)
-  miRmapping <<- read.csv("data/miRNA/hsa_gff3_IDMap.csv")
-  
-  progress$set(value = 0.75, message = 'Loading clinical data...')
-  load("data/Clinical/Beat_AML_Supplementary_ClinicalData_FinalforShiny.RData", .GlobalEnv)
-  load("data/Clinical/TARGET_AML_merged_CDEs_Shareable_FinalforShiny.RData", .GlobalEnv)
-  load("data/Clinical/SWOG_AML_Merged_CDEs_FinalforShiny.RData")
-  load("data/Clinical/TCGA_LAML_ClinicalData_FinalforShiny.RData")
-  
-  load("data/ADC_and_CARTcell_Targets_Database_ADCReview_clinicaltrialsGov_FinalforShiny.RData", .GlobalEnv)
-  load("data/DEGs/TARGET_AML_vs_NBM_and_Others_Ribodepleted_DEGs_per_Group_GRCh37_12.18.2020_FinalforShiny.RData", .GlobalEnv)
-  deColKey <<- read.csv("data/Limma_Column_Descriptions.csv")
-  colMapping <<- read.csv("data/Dataset_Column_Mapping_File.csv", check.names = F, na.strings = "")
-  progress$set(value = 1, message = 'Done loading!')
-  progress$close()
-}
-
-##############################################################################
-
-target_expData <- NULL # Setting this to null so it will only be read one time
+# Explicitly setting this to null before app startup. 
+# This will allow a function (sourced in global.R) to trigger 
+# all source file loading at script startup ONLY.
+target_expData <- NULL 
 
 server <- function(input, output, session) { 
-  
-  `%then%` <- function(a, b) {
-    if (is.null(a)) b else a
-  }
-  
-  # Reading in the expression & clinical data one time, immediately after the app starts up
+
+  # Reading in the expression & clinical data one time, 
+  # immediately after the app starts up
   if (is.null(target_expData)) {
-    readData(target_cde, target_expData, beatAML_cde, beatAML_expData, adc_cart_targetData)
+    readData()
     # print("Testing mode - data already in environment")
   }
   
@@ -108,7 +61,6 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$check, {
-    
     option <- grep(input$geneInput, rownames(seqData()), value = T, ignore.case = T)
     msg <- if (length(option) == 0) {
       "No alternate names found!"
@@ -183,7 +135,6 @@ server <- function(input, output, session) {
   # TO DO: Add a searchable AML-restricted gene list to this tab
   
   output$protAtlas <- renderInfoBox({
-    
     validate(
       need(target(), "Please enter a gene symbol or miRNA in the text box."))
     
@@ -194,7 +145,6 @@ server <- function(input, output, session) {
   })
   
   output$gtex <- renderInfoBox({
-    
     validate(
       need(target(), "Please enter a gene symbol or miRNA in the text box."))
     
@@ -205,7 +155,6 @@ server <- function(input, output, session) {
   })
   
   output$therapyTable <- DT::renderDataTable({
-    
     validate(
       need(target(), "Please enter a gene symbol in the text box.") %then%
         need(target() %in% adc_cart_targetData$`Gene target`, paste0("We do not have record of ", target(), "being targeted\n for ADC or CAR T-cell therapies.")))
@@ -226,21 +175,21 @@ server <- function(input, output, session) {
   # https://stackoverflow.com/questions/56064805/displaying-html-file-using-includehtml-in-shiny-is-not-working-with-renderui
   
   # output$test <- renderUI({
-    
+
     ########### Method 1 ##############
     # includeHTML() is designed to work with HTML fragments, so a "self contained" HTML file is needed,
     # aka only the <body> section with an <html> </html> tag layer outside of it
     # includeHTML("www/UMAP/TARGET_AMLdx_rlps_NBM_PCAselect_selfcontained.html") # Doesn't work, produces a blank page
     # HTML(knitr::knit2html("About.Rmd", fragment.only = TRUE))
-    
+
     # Trying w/ full HTML file from St Jude
     # includeHTML("www/Protein_Paint/embed_StJude_ProteinPaint.html") # !!! This works !!!
-    
+
     # Passing r variables to html IF the html is included in a markdown:
     # https://stackoverflow.com/questions/61543937/pass-r-variable-to-html-in-r-markdown
     # {{ uiOutput("score_value") }} <- I think this is the syntax I need to embed in the HTML file?
-    
-    ########### Method 2 ############# 
+
+    ########### Method 2 #############
     # see iframe details at https://plotly-r.com/saving.html
     # tags$iframe(seamless="seamless",
     # src="www/UMAP/plotly/TARGET_AMLdx_rlps_NBM_PCAselect_not_selfcontained_bodyOnly.html",

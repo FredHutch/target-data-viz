@@ -1,14 +1,8 @@
-library(shiny)
-library(shinyalert)
-library(shinydashboard)
-library(shinythemes)
-library(shinyWidgets)
-source("waterfallPlot_module.R")
-source("kaplanMeierPlot_module.R")
-source("degTable_module.R")
+# Check the file below for global scripts & variables, 
+# they were removed from the server & ui scripts to help clean them up.
+source("global.R")
 
 ui <- dashboardPage(  
-  
   
   dashboardHeader(title = "Meshinchi Lab Data Viz Tools"),
   
@@ -102,24 +96,24 @@ ui <- dashboardPage(
       )
       
       # tabItem(tabName = "umap",
-              # mainPanel(
-                  # This works, but messes up the entire dashboard! Prob isn't designed to work with Shiny Dashboard
-                  # includeHTML("www/UMAP/TARGET_AMLdx_rlps_NBM_PCAselect_selfcontained.html")
-
-                  # Part of method 1, does not work, no clue why
-                  # htmlOutput("test") # I think it's able to access the file, but not display it
-                  # Maybe try an iframe instead?
-                  # https://stackoverflow.com/questions/22177974/r-shiny-using-iframe-for-local-files
-                  # https://github.com/rstudio/shiny/issues/2535
-              # )
+      #         mainPanel(
+      #             # This works, but messes up the entire dashboard! Prob isn't designed to work with Shiny Dashboard
+      #             # includeHTML("www/UMAP/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html")
+      # 
+      #             # Part of method 1, does not work, no clue why
+      #             # htmlOutput("test") # I think it's able to access the file, but not display it
+      #             # Maybe try an iframe instead?
+      #             # https://stackoverflow.com/questions/22177974/r-shiny-using-iframe-for-local-files
+      #             # https://github.com/rstudio/shiny/issues/2535
+      #         )
       # ),
-      
+      # 
       # tabItem(tabName = "protPaint",
       #         mainPanel(
       #           # This works!!!!!!
       #           includeHTML("www/Protein_Paint/embed_StJude_ProteinPaint.html")
       #         )
-      # ),
+      # )
     )
   )
 )

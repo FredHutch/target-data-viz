@@ -413,7 +413,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
     DT::datatable(tableFun(), 
                   callback = JS("$('table.dataTable.no-footer').css('border-bottom', 'none');"),
                   options = list(dom = "t", paging = FALSE, scrollY = "600px"), 
-                  autoHideNavigation = T, 
+                  # autoHideNavigation = T, 
                   rownames = F)
   })
   
