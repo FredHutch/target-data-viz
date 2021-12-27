@@ -169,15 +169,15 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
     # Selecting units to display on the y-axis
     if (input$log == TRUE) {
       expCol <- "Log2"
-      yaxLab <- paste0(gene(), " Expression (log2 TPM + 1)")
-    } else {
+      yaxLab <- paste0("\n", gene(), " Expression (log2 TPM + 1)") # The extra newline is to keep x-axis labels 
+    } else {                                                       # from running off the side of the plot
       expCol <- "Expression"
-      yaxLab <- paste0(gene(), " Expression (TPM)")
+      yaxLab <- paste0("\n", gene(), " Expression (TPM)")
     }
     
     # Customizing the x-axis labels based on user input
     xaxLabs <- if (input$labels == TRUE) {
-      element_text(hjust = 1, vjust = 1, angle = 15) 
+      element_text(hjust = 1, vjust = 1, angle = 20) 
     } else {
       element_blank()
     }
@@ -380,7 +380,6 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   })
   
   # Adding a download button widget for the plot
-  # NOTE: Need to change filename to reflect dataset being used (Beat AML, TARGET, TCGA, etc.)
   output$plot_download <- downloadHandler(
     filename = function() {
       paste0(dataset(), "_AML_", gene(), "_", input$grouping_var, "_", input$plot_type, "_generated_", format(Sys.time(), "%m.%d.%Y"), ".png")
@@ -409,11 +408,9 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   
   # https://glin.github.io/reactable/articles/examples.html#conditional-styling
   output$table <- DT::renderDataTable({
-    # DT::datatable(tableFun(), options = list(dom = "t", paging = FALSE, scrollY = "500px"), autoHideNavigation = T, rownames = F)
     DT::datatable(tableFun(), 
                   callback = JS("$('table.dataTable.no-footer').css('border-bottom', 'none');"),
                   options = list(dom = "t", paging = FALSE, scrollY = "600px"), 
-                  # autoHideNavigation = T, 
                   rownames = F)
   })
   
