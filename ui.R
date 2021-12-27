@@ -1,6 +1,6 @@
 # Check the file below for global scripts & variables, 
 # they were removed from the server & ui scripts to help clean them up.
-source("global.R")
+# source("global.R")
 
 ui <- dashboardPage(  
   

@@ -1,6 +1,6 @@
 # Check the file below for global scripts & variables, 
 # they were removed from the server & ui scripts to help clean them up.
-source("global.R")
+# source("global.R")
 
 # Explicitly setting this to null before app startup. 
 # This will allow a function (sourced in global.R) to trigger 
@@ -12,7 +12,7 @@ server <- function(input, output, session) {
   # Reading in the expression & clinical data one time, 
   # immediately after the app starts up
   if (is.null(target_expData)) {
-    readData()
+    # readData()
     # print("Testing mode - data already in environment")
   }
   
