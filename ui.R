@@ -80,7 +80,8 @@ ui <- dashboardPage(
                 position = "center",
                 fluidRow(
                   infoBoxOutput("protAtlas"),
-                  infoBoxOutput("gtex")
+                  infoBoxOutput("gtex"),
+                  infoBoxOutput("protPaint")
                 ),
                 br(), # Centering on the page
                 br(),
@@ -109,9 +110,24 @@ ui <- dashboardPage(
       # ),
       # 
       # tabItem(tabName = "protPaint",
+      #         sidebarPanel(
+      #           helpText("Please enter the gene or region of interest in the text box to the right."),
+      #           helpText("The figure was created with the ProteinPaint visualization tool found at the St. Jude PeCan Portal: https://pecan.stjude.cloud/"),
+      #           helpText("Original publication in Nature Genetics: https://www.nature.com/articles/ng.3466")
+      #         ),
       #         mainPanel(
-      #           # This works!!!!!!
-      #           includeHTML("www/Protein_Paint/embed_StJude_ProteinPaint.html")
+      #           # The 'includeHTML' command below works, but clips off the edges of the final embedded page
+      #           # includeHTML("www/Protein_Paint/embed_StJude_ProteinPaint_writeTest.html")
+      #           
+      #           # Displaying the HTML in an iframe from the server side works better.
+      #           # More info on embedding HTML from Protein Paint:
+      #           # https://stjudecloud.github.io/docs/guides/proteinpaint/developers-guide/embedding-proteinpaint/
+      #           
+      #           # The problem: I can't get it to populate w/ the same gene as the user has entered in the text box...
+      #           # I've tried to do that by manipulating the file on the server-side, but then the embedded page doesn't
+      #           # display properly. This still needs work.
+      #           htmlOutput(outputId = "htmlDisplay")
+      #         
       #         )
       # )
     )
