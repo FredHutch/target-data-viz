@@ -73,7 +73,6 @@ source("degTable_module.R")
   load("data/DEGs/TARGET_AML_vs_NBM_and_Others_Ribodepleted_DEGs_per_Group_GRCh37_12.18.2020_FinalforShiny.RData", .GlobalEnv)
   deColKey <<- read.csv("data/Limma_Column_Descriptions.csv")
   colMapping <<- read.csv("data/Dataset_Column_Mapping_File.csv", check.names = F, na.strings = "")
-  protPaint_html <<- includeHTML("www/Protein_Paint/embed_StJude_ProteinPaint_test.html")
 # }
 
 # if (is.null(target_expData38)) {
