@@ -8,13 +8,6 @@
 target_expData <- NULL 
 
 server <- function(input, output, session) { 
-
-  # Reading in the expression & clinical data one time, 
-  # immediately after the app starts up
-  if (is.null(target_expData)) {
-    # readData()
-    # print("Testing mode - data already in environment")
-  }
   
   cohort <- reactive({
     input$seqDataCohort
@@ -136,7 +129,7 @@ server <- function(input, output, session) {
   
   output$protAtlas <- renderInfoBox({
     validate(
-      need(target(), "Please enter a gene symbol or miRNA in the text box."))
+      need(target(), "Please enter a gene symbol in the text box."))
     
         infoBox(value = "Human Protein Atlas", 
                  title = "Protein expression",
@@ -146,7 +139,7 @@ server <- function(input, output, session) {
   
   output$gtex <- renderInfoBox({
     validate(
-      need(target(), "Please enter a gene symbol or miRNA in the text box."))
+      need(target(), "Please enter a gene symbol in the text box."))
     
     infoBox(value = "GTEX Gene \nExpression", 
             title = "Normal tissue expression",
@@ -154,10 +147,20 @@ server <- function(input, output, session) {
             icon = icon("prescription-bottle"), href = paste0("https://gtexportal.org/home/gene/", target(), "#geneExpression"))
   })
   
+  output$protPaint <- renderInfoBox({
+    validate(
+      need(target(), "Please enter a gene symbol in the text box."))
+    
+    infoBox(value = "St. Jude \nProteinPaint", 
+            title = "PeCan visualization",
+            color = "blue", fill = F,
+            icon = icon("prescription-bottle"), href = paste0("https://proteinpaint.stjude.org/?genome=hg19&gene=", target(), "&dataset=pediatric"))
+  })
+  
   output$therapyTable <- DT::renderDataTable({
     validate(
       need(target(), "Please enter a gene symbol in the text box.") %then%
-        need(target() %in% adc_cart_targetData$`Gene target`, paste0("We do not have record of ", target(), "being targeted\n for ADC or CAR T-cell therapies.")))
+        need(target() %in% adc_cart_targetData$`Gene target`, paste0("We do not have record of ", target(), " being targeted\n by ADC or CAR T-cell therapies.")))
     
     table <- adc_cart_targetData %>%
       filter(`Gene target` == target()) 
@@ -169,6 +172,46 @@ server <- function(input, output, session) {
                   escape = F)
   })
 
+  
+  #--------------------- Protein Paint tab --------------------- #
+  
+  # UPDATE: Moved this entire section to the "External Databases" tab, this was extremely finicky and I had trouble getting it to work.
+  
+  # Can't figure out a way to reactively update the HTML embedding to
+  # reflect the user-specified gene (in the Shiny app text box).
+  # I would need to update the "positionbygene" parameter in the actual HTML file to do this,
+  # url <- reactive({
+  #   # https://stackoverflow.com/questions/28982722/shiny-iframe-reactive
+  #   user_entry <- isolate(target()) # https://stackoverflow.com/questions/45886021/how-can-you-pass-a-url-to-an-iframe-via-textinput-in-r-shiny
+  #   final <- isolate(paste0("https://proteinpaint.stjude.org/?genome=hg19&gene=", target(), "&dataset=pediatric"))
+  #   return(final)
+  # })
+  
+  # output$htmlDisplay <- renderUI({
+  #   # validate( # This validate statement will only be needed when the embedded HTML is synced w/ the user-specified gene entry.
+  #     # need(target(), "Please enter a gene symbol in the text box."))
+  #   
+  #   tags$iframe(style = "border-width: 0;",
+  #               width = 1300,
+  #               height = 800,
+  #               src = url())
+  #               # src = "https://proteinpaint.stjude.org/?genome=hg19&gene=MSLN&dataset=pediatric")
+  #               # src = "Protein_Paint/embed_StJude_ProteinPaint.html") # src param must be a filename in the www folder,
+  # })                                                                  # don't include the "www/" prefix or it won't work!
+  
+  # Trying to write out a modified version of the ProteinPaint HTML file whenever the target() reactive variable is changed.
+  # This modified HTML file could then be supplied to the 'src' parameter in the iframe.
+  # This would automatically update the HTML embedding to reflect the user-supplied gene.
+  # I'm having issues getting this to work, though, so it will be commented out for now. 
+  # Hopefully will have more time to work this out in the future - I think I may need to add an "Update"
+  # action button
+  # writeFile <- reactive({
+  #   protPaint_html_mod <- gsub("(?<=positionbygene\\:\\').+(?=\\')", target(), protPaint_html, perl = T)
+  #   write_file(protPaint_html_mod, "www/Protein_Paint/embed_StJude_ProteinPaint_writeTest.html")   
+  # })
+   # writeFile()
+  
+  #--------------------- UMAP tab --------------------- #
   
   # Following this post, but it doesn't work: https://stackoverflow.com/questions/24875943/display-html-file-in-shiny-app
   # This person is having the same issue I am:

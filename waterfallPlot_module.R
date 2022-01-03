@@ -94,7 +94,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                 tabsetPanel(
                   
                   #-------------------- Waterfall plot -----------------------#
-                  tabPanel("Plot", # This is the title of the tab panel, NOT the name of the plot object!
+                  tabPanel("Plot",           # This is the title of the tab panel, NOT the name of the plot object!
                            br(),   
                            br(),             # Linebreaks to help center the plot on the page
                            fluidRow(
