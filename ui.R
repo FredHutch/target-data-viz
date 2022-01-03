@@ -33,7 +33,7 @@ ui <- dashboardPage(
       menuItem("Gene expression plots", tabName = "wfPlot", icon = icon("chart-bar")),
       menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical")),
       menuItem("DE Genes", tabName = "deTable", icon = icon("clipboard-list")), # stream, clipboard-list
-      # menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
+      menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
       # menuItem("Protein Paint", tabName = "protPaint", icon = icon("palette")),
       menuItem("External databases", tabName = "extData", icon = icon("atlas"))
       # menuItem("Reference info", tabName = "refs", icon = icon("dna"))
@@ -94,20 +94,17 @@ ui <- dashboardPage(
                   )
                 )
               )
-      )
+      ),
       
-      # tabItem(tabName = "umap",
-      #         mainPanel(
-      #             # This works, but messes up the entire dashboard! Prob isn't designed to work with Shiny Dashboard
-      #             # includeHTML("www/UMAP/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html")
-      # 
-      #             # Part of method 1, does not work, no clue why
-      #             # htmlOutput("test") # I think it's able to access the file, but not display it
-      #             # Maybe try an iframe instead?
-      #             # https://stackoverflow.com/questions/22177974/r-shiny-using-iframe-for-local-files
-      #             # https://github.com/rstudio/shiny/issues/2535
-      #         )
-      # ),
+      tabItem(tabName = "umap",
+              mainPanel(
+                  # This works, but messes up the entire dashboard! Not sure why.
+                  # includeHTML("www/UMAP/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html")
+                  
+                  # Different method using an iframe
+                  htmlOutput("umapEmbedding")
+              )
+      )
       # 
       # tabItem(tabName = "protPaint",
       #         sidebarPanel(
