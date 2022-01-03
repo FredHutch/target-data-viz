@@ -217,26 +217,25 @@ server <- function(input, output, session) {
   # This person is having the same issue I am:
   # https://stackoverflow.com/questions/56064805/displaying-html-file-using-includehtml-in-shiny-is-not-working-with-renderui
   
-  # output$test <- renderUI({
+  output$umapEmbedding <- renderUI({
 
     ########### Method 1 ##############
     # includeHTML() is designed to work with HTML fragments, so a "self contained" HTML file is needed,
     # aka only the <body> section with an <html> </html> tag layer outside of it
-    # includeHTML("www/UMAP/TARGET_AMLdx_rlps_NBM_PCAselect_selfcontained.html") # Doesn't work, produces a blank page
-    # HTML(knitr::knit2html("About.Rmd", fragment.only = TRUE))
-
-    # Trying w/ full HTML file from St Jude
-    # includeHTML("www/Protein_Paint/embed_StJude_ProteinPaint.html") # !!! This works !!!
+    # includeHTML("www/UMAP/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html")
 
     # Passing r variables to html IF the html is included in a markdown:
     # https://stackoverflow.com/questions/61543937/pass-r-variable-to-html-in-r-markdown
     # {{ uiOutput("score_value") }} <- I think this is the syntax I need to embed in the HTML file?
 
     ########### Method 2 #############
-    # see iframe details at https://plotly-r.com/saving.html
-    # tags$iframe(seamless="seamless",
-    # src="www/UMAP/plotly/TARGET_AMLdx_rlps_NBM_PCAselect_not_selfcontained_bodyOnly.html",
-    # height=600, width=800, scrolling="yes")
-  # })
+    # see iframe details at https://plotly-r.com/saving.html,
+    # using same parameters as the unused code above for Protein Paint.
+    # To do: get a folder of UMAPs from Jenny, and allow the user to select the base plot they want to manipulate.
+    tags$iframe(seamless = "seamless",
+                style = "border-width: 0;",
+                src = "UMAP/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html",
+                height = 800, width = 1300, scrolling = "yes")
+  })
   
 }
