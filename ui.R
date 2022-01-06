@@ -24,16 +24,18 @@ ui <- dashboardPage(
                    label = "Select AML cohort", 
                    selected = "TARGET"),
       
-      # !!!!!! NOTE !!!!!!! This should be made into a conditional panel for TARGET dataset only
-      radioGroupButtons("seqAssembly", choices = c("GRCh38" = "grch38", "GRCh37" = "grch37"), 
-                        status = "primary", label = "Select genome assembly", 
-                        selected = "grch38", size = "xs"),
+      conditionalPanel("input['seqDataCohort'] == 'TARGET'",
+                       radioGroupButtons("seqAssembly", choices = c("GRCh38" = "grch38", "GRCh37" = "grch37"), 
+                                         status = "primary", label = "Select genome assembly", 
+                                         selected = "grch38", size = "xs")
+      ),
       
       # --------- Plot generation tabs ------------------------#
       menuItem("Gene expression plots", tabName = "wfPlot", icon = icon("chart-bar")),
       menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical")),
       menuItem("DE Genes", tabName = "deTable", icon = icon("clipboard-list")), # stream, clipboard-list
       menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
+      menuItem("Gene expressors", tabName = "geneExp", icon = icon("chart-pie")),
       # menuItem("Protein Paint", tabName = "protPaint", icon = icon("palette")),
       menuItem("External databases", tabName = "extData", icon = icon("atlas"))
       # menuItem("Reference info", tabName = "refs", icon = icon("dna"))
@@ -72,6 +74,13 @@ ui <- dashboardPage(
               
               # Calling the user interface module of the Waterfall Plot app
              deTableUI(id = "degs", label = "Differentially expressed gene table")
+      ), 
+      
+      # Sourcing the waterfall plot module UI component
+      tabItem(tabName = "geneExp",
+              
+              # Calling the user interface module of the Waterfall Plot app
+              geneExpUI(id = "exps", label = "Identify gene-positive cases")
       ), 
       
       # Building the external datasets tab that will contain links to other gene expression or protein databases

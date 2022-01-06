@@ -117,11 +117,17 @@ server <- function(input, output, session) {
              dataset = cohort,
              gene = target)
   
-  
   # Calling the DEG table module
   callModule(deTable, id = "degs",
              table = degTables37,
              gene = target)
+  
+  # Calling the DEG table module
+  callModule(geneExp, id = "exps",
+             clinData = studyData, 
+             expData = seqData, 
+             gene = target,
+             dataset = cohort)
   
   #--------------------- External databases tab --------------------- #
 
