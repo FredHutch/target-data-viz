@@ -31,11 +31,13 @@ ui <- dashboardPage(
       ),
       
       # --------- Plot generation tabs ------------------------#
-      menuItem("Gene expression plots", tabName = "wfPlot", icon = icon("chart-bar")),
+      menuItem("Expression plots", tabName = "wfPlot", icon = icon("chart-bar")),
+      menuItem("Gene expressors", tabName = "geneExp", icon = icon("chart-pie")),
       menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical")),
+      # menuItem("Cox models", tabName = "coxPH"),
+      # menuItem("Heatmaps", tabName = "heatmap", icon = icon("th")),
       menuItem("DE Genes", tabName = "deTable", icon = icon("clipboard-list")), # stream, clipboard-list
       menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
-      menuItem("Gene expressors", tabName = "geneExp", icon = icon("chart-pie")),
       # menuItem("Protein Paint", tabName = "protPaint", icon = icon("palette")),
       menuItem("External databases", tabName = "extData", icon = icon("atlas"))
       # menuItem("Reference info", tabName = "refs", icon = icon("dna"))

@@ -116,11 +116,8 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                            br(),
                            br(),
                            fluidRow(
-                             column(10, offset = 0, align = "left", 
-                                    DT::dataTableOutput(ns("table"))), # Table of summary stats for plot
-                             column(1, offset = 0, align = "right", 
-                                    downloadButton(ns("table_download"), 
-                                                   label = "Download table"))
+                             column(12, offset = 0, align = "left", 
+                                    DT::dataTableOutput(ns("table")))
                            )
                   )
                 )
@@ -169,10 +166,10 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
     # Selecting units to display on the y-axis
     if (input$log == TRUE) {
       expCol <- "Log2"
-      yaxLab <- paste0("\n", gene(), " Expression (log2 TPM + 1)") # The extra newline is to keep x-axis labels 
-    } else {                                                       # from running off the side of the plot
+      yaxLab <- paste0("\n", gene(), " Expression (log2 TPM + 1)\n") # The extra newline is to keep x-axis labels 
+    } else {                                                         # from running off the side of the plot
       expCol <- "Expression"
-      yaxLab <- paste0("\n", gene(), " Expression (TPM)")
+      yaxLab <- paste0("\n", gene(), " Expression (TPM)\n")
     }
     
     # Customizing the x-axis labels based on user input
@@ -194,7 +191,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
         theme(axis.text.x = xaxLabs,
               plot.title = element_text(size = bs + 2, hjust = 0.5),
               legend.position = plotLegend,
-              legend.text = element_text(size = bs - 6),
+              legend.text = element_text(size = bs - 5),
               legend.title = element_blank()) +
         geom_violin(scale = "width", aes_string(color = input$grouping_var)) +
         geom_boxplot(width = 0.1, fill = "white", outlier.size = 0.4) +
@@ -210,7 +207,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
         theme(axis.text.x = xaxLabs,
               plot.title = element_text(size = bs + 2, hjust = 0.5),
               legend.position = plotLegend,
-              legend.text = element_text(size = bs - 6),
+              legend.text = element_text(size = bs - 5),
               legend.title = element_blank()) +
         guides(color = "none") +
         geom_jitter(width = 0.3, size = 0.7) +
@@ -227,7 +224,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
               plot.title = element_text(size = bs + 2, hjust = 0.5),
               axis.ticks = element_blank(),
               legend.position = "bottom",
-              legend.text = element_text(size = bs - 6),
+              legend.text = element_text(size = bs - 5),
               legend.title = element_blank()) +
         geom_bar(stat = "identity", width = 1, position = position_dodge(width = 0.4))
       p
@@ -408,21 +405,26 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   
   # https://glin.github.io/reactable/articles/examples.html#conditional-styling
   output$table <- DT::renderDataTable({
+    # DT::datatable(tableFun(), 
+    #               callback = JS("$('table.dataTable.no-footer').css('border-bottom', 'none');"),
+    #               options = list(dom = "t", paging = FALSE, scrollY = "600px"), 
+    #               rownames = F)
+    
     DT::datatable(tableFun(), 
+                  class = "compact nowrap hover row-border order-column", # Defines the CSS formatting of the final table, can string multiple options together
                   callback = JS("$('table.dataTable.no-footer').css('border-bottom', 'none');"),
-                  options = list(dom = "t", paging = FALSE, scrollY = "600px"), 
-                  rownames = F)
+                  extensions = 'Buttons', # See https://rstudio.github.io/DT/extensions.html for more extensions & features
+                  options = list(scrollY = "70vh",
+                                 dom = 'Bfrtip',
+                                 buttons = list(
+                                   list(extend = 'excel', filename = paste0(dataset(), "_AML_", gene(), "_Summary_Table_generated_", format(Sys.time(), "%m.%d.%Y")))),
+                                 scrollX = TRUE,
+                                 # fixedColumns = list(leftColumns = 1),
+                                 searchHighlight = TRUE,
+                                 pageLength = 50), 
+                  escape = F) %>%
+      DT::formatStyle(columns = c(1,2,4), fontSize = "100%")
   })
-  
-  # Adding a download button widget for the table
-  output$table_download <- downloadHandler(
-    filename = function(){
-      paste0(dataset(), "_AML_", gene(), "_Summary_Table_generated_", format(Sys.time(), "%m.%d.%Y"), ".xlsx")
-    }, 
-    content = function(file){
-      write.xlsx(file = file, x = tableFun())
-    }
-  )
 
   # This will hide the ADC/CAR T action buttons if the gene isn't the target of any clinical trials
   observeEvent(gene(), {

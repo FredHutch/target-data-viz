@@ -152,7 +152,7 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
       
       expTable <- expTable %>%
         mutate(Quartile = gtools::quantcut(Expression, q = 4, labels = c("Q1","Q2", "Q3","Q4"))) %>%
-        mutate(Filter.Category = case_when(Quartiles == "Q4" ~ paste0(gene(), "+"), 
+        mutate(Filter.Category = case_when(Quartile == "Q4" ~ paste0(gene(), "+"), 
                                            TRUE ~ paste0(gene(), "-")))
       
     } else if (chooseMethod() == "median") {
@@ -178,7 +178,8 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
     }
     
     expTable <-  expTable %>%
-      arrange(desc(Expression))
+      arrange(desc(Expression)) %>% # Setting this up in case I want to add the study ID to this table later (aka "Protocol" column)
+      dplyr::select(Sample.ID, AML.Sample, matches("Protocol"), Gene, Expression, Filter.Category, Alterations)
     
     return(expTable)
     
@@ -193,17 +194,8 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
       x <- filter(finalTable, grepl("\\+", Filter.Category)) %>%
         pull(Expression) %>%
         min(., na.rm = T)
-      
-      print("Other cutoff selected, will use quartiles")
-      print(paste0("Q4 starts at ", round(x, 2), " TPM"))
-      print("")
-      
     } else if (chooseMethod() == "median") {
       x <- med
-      
-      print("Other cutoff selected, will use median")
-      print(paste0("Median is ", round(x, 2), " TPM"))
-      print("")
     } else {
       # This needs to be cast as a numeric, since the textInput() widget creates a character string
       x <- as.numeric(input$tpm_cutoff) 
@@ -218,22 +210,28 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
     expTable <- makeTable()
     x_intercept <- xint()
     
-    rnge <- c(min(expTable$Expression, na.rm = T), max(expTable$Expression, na.rm = T))
-    print(rnge)
+    # rnge <- c(min(expTable$Expression, na.rm = T), max(expTable$Expression, na.rm = T))
+    span <- c(min(expTable$Expression, na.rm = T), max(expTable$Expression, na.rm = T))
+    span <- span[2] - span[1]
     
-    bincount <- rnge[2] - rnge[1]
-    bincount <- case_when(bincount >= 200 ~ 100,
-                          # bincount > 50 & bincount < 100 ~ 70,
-                          bincount < 1 ~ 1,
-                          TRUE ~ bincount)
-    print(bincount)
+    bincount <- case_when(span >= 200 ~ 100,
+                          span < 1 ~ 1,
+                          TRUE ~ span)
     
-    hist(expTable$Expression, 
+    label <- case_when(chooseMethod() == "median" ~ paste0(round(x_intercept, 2), " TPM (median)"),
+                       chooseMethod() == "quartile" ~ paste0(round(x_intercept, 2), " TPM (4th quartile)"),
+                       TRUE ~ paste0(round(x_intercept, 2), " TPM"))
+    
+    h <- hist(expTable$Expression, 
          breaks = bincount, 
          xlab = "TPM value", 
          ylab = "Frequency", 
          main = "Distribution of TPM values")
-    abline(v = x_intercept, col = "red") # Need this to be able to display the median or Q4 cutoff as well!
+    abline(v = x_intercept, col = "red")
+    text(x = x_intercept, 
+         y = max(h$counts)*0.75, 
+         labels = label, 
+         col = "red", pos = 4)
   })
   
   
@@ -245,8 +243,6 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
       count(Filter.Category)
     
     ref_lvl <- unique(grep("\\+", expTable$Filter.Category, value = T))
-    
-    print(ref_lvl)
     
     expTable <- expTable %>%
       mutate(prop = n / sum(expTable$n, na.rm = T)*100) %>%
@@ -263,10 +259,10 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
       # Placing text labels on a pie chart:
       # https://stackoverflow.com/questions/16184188/ggplot-facet-piechart-placing-text-in-the-middle-of-pie-chart-slices
       geom_text(aes(label = lab), position = position_stack(vjust = 0.5), color = "white", size = 6) + # Change labels to an N value & % of total!!!!
-      labs(title = paste0("Proportion of ", gene(), "+ cases\n(using selected criteria)")) +
-      theme(legend.position = "bottom", 
+      labs(title = paste0("Proportion of ", gene(), "+ cases\n(using selected criteria)\n\n")) +
+      theme(legend.position = "top", 
             legend.title = element_blank(),
-            legend.text = element_text(size = 13),
+            legend.text = element_text(size = 14),
             plot.title = element_text(hjust = 0.5, face = "bold"))
     
     plot
@@ -289,7 +285,7 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
                   options = list(scrollY = "70vh",
                                  dom = 'Bfrtip',
                                  buttons = list(
-                                   list(extend = 'excel', filename = paste0(dataset(), "_AML_", gene(), "pos_patientList_generated_", format(Sys.time(), "%m.%d.%Y"), ".xlsx"))),
+                                   list(extend = 'excel', filename = paste0(dataset(), "_AML_", gene(), "pos_patientList_generated_", format(Sys.time(), "%m.%d.%Y")))),
                                  scrollX = TRUE,
                                  # fixedColumns = list(leftColumns = 1),
                                  searchHighlight = TRUE,

@@ -122,24 +122,25 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                              )
                     ), 
                     
-                    # tabPanel("Cox Proportional Hazards", 
+                    # tabPanel("Cox Proportional Hazards",
                     #          br(),
                     #          br(),
                     #          fluidRow(
                     #            style = 'height:40vh',
-                    #            column(9, offset = 0, align = "left", 
-                    #                   div(style = 'max-height: 500px; overflow-y: scroll; position: relative',
-                    #                       plotOutput(ns("plot"), height = "1500px"))),
-                    #            column(2, offset = 0, align = "right", 
-                    #                   downloadButton(ns("plot_download"), 
-                    #                                  label = "Download plot")),
-                    #            column(2, offset = 0, align = "right", 
-                    #                   downloadButton(ns("ggforest_download"), 
-                    #                                  label = "ggforest object", 
-                    #                                  style = 'padding:5px; font-size:70%; margin-top:10px',
-                    #                                  class = "btn-info"))
+                    #            column(9, offset = 0, align = "left",
+                    #                   # div(style = 'max-height: 500px; overflow-y: scroll; position: relative',
+                    #                       # plotOutput(ns("plot"), height = "1500px")
+                    #                   )
+                    #            # column(2, offset = 0, align = "right",
+                    #            #        downloadButton(ns("plot_download"),
+                    #            #                       label = "Download plot")),
+                    #            # column(2, offset = 0, align = "right",
+                    #            #        downloadButton(ns("ggforest_download"),
+                    #            #                       label = "ggforest object",
+                    #            #                       style = 'padding:5px; font-size:70%; margin-top:10px',
+                    #            #                       class = "btn-info"))
                     #          )
-                    # ), 
+                    # ),
                     
                     #-------------------- Patient data tab -----------------------#
                     
@@ -147,11 +148,8 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                              br(),
                              br(),
                              fluidRow(
-                               column(11, offset = 0, align = "left", 
+                               column(12, offset = 0, align = "left", 
                                       DT:: dataTableOutput(ns("table"))),  # Table of summary stats for plot + outcome data
-                               column(1, offset = 0, align = "right", 
-                                      downloadButton(ns("table_download"), 
-                                                     label = "Download table", class = NULL))
                              )
                     )
                   )
@@ -300,6 +298,11 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
   
   # Function to generate a table with outcome data used for the figures
   tableFun <- reactive({
+    
+    validate(
+      need(input$test_type, "Please select at least one survival metric to analyze.")
+    )
+    
     type <- ifelse(input$strata_var == "mutation", input$mutCol, 
                    grep(input$strata_var, colnames(plotData()), value = T))
     
@@ -317,8 +320,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
   
     plotData() %>%
       dplyr::select(any_of(c("PatientID", !!time, !!event, !!type, "Age.Category", "Primary.Fusion", "SNVs", "Risk", "Filter.Code"))) %>%
-      rename(`Expression category` = !!type) %>%
-      rename(`Patient ID` = PatientID) 
+      rename(Expression.category = !!type)
   })
   
   # Used the info here to figure out how to display multiple plots:
@@ -504,16 +506,17 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
   #-------------------- Outcome data tab -----------------------#
   
   output$table <- DT::renderDataTable({
-    DT::datatable(tableFun(), options = list(paging = FALSE, scrollY = "500px"), rownames = F)
+    DT::datatable(tableFun(), 
+                  class = "compact nowrap hover row-border order-column", # Defines the CSS formatting of the final table, can string multiple options together
+                  extensions = 'Buttons', # See https://rstudio.github.io/DT/extensions.html for more extensions & features
+                  options = list(scrollY = "70vh",
+                                 dom = 'Bfrtip',
+                                 buttons = list(
+                                   list(extend = 'excel', filename = paste0(as.character(dataset()), "_Outcome_Summary_Table_basedOn_", gene(), "_Expression_generated_", format(Sys.time(), "%m.%d.%Y")))),
+                                 scrollX = TRUE,
+                                 searchHighlight = TRUE,
+                                 pageLength = 50), 
+                  escape = F) %>%
+      DT::formatStyle(columns = c(1,2,4), fontSize = "100%")
   })
-  
-  # Adding a download button widget for the table
-  output$table_download <- downloadHandler(
-    filename = function(){
-      paste0(as.character(dataset()), "_Outcome_Summary_Table_basedOn_", gene(), "Expression_generated_", format(Sys.time(), "%m.%d.%Y"), ".xlsx")
-    }, 
-    content = function(file){
-      write.xlsx(file = file, x = tableFun())
-    }
-  )
 }
