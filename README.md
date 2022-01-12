@@ -5,12 +5,10 @@ This directory contains the necessary code to visualize gene expression and outc
 ---> [Click here to launch the app in your web browser](https://meshinchi-data-viz.fredhutch.org/) <---
 
 ## Access
-___
 
 *Please Note*: The app is password protected - contact the app creator (aleonti@fredhutch.org) to be granted access.
 
 ## The data
-___
 
 All mRNA gene expression values are in transcripts per million (TPM). Please see the respective publications for each dataset for more information:
 
@@ -21,7 +19,6 @@ All mRNA gene expression values are in transcripts per million (TPM). Please see
 All miRNA expression values are in reads per million mapped reads (RPM) and were annotated using miRbase v21 annotations. These data are only available for the TARGET AML cohort. 
 
 ## Problems?
-__
 
 Please file an issue if you encounter any problems, bugs, or have suggestions for improving the app. We'd love to hear your feedback!
 
