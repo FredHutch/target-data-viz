@@ -1,6 +1,8 @@
 # TARGET Data Visualization Tools
 
-This directory contains the necessary code to visualize gene expression and outcome data from various Children's Oncology Group (COG) pediatric AML cohorts, by way of an R Shiny app (please see [here](https://shiny.rstudio.com/) for more info). These data can be explored interactively with the Shiny app. 
+This directory contains the necessary code to visualize gene expression and outcome data from various Children's Oncology Group (COG) pediatric AML cohorts, by way of an R Shiny app (please see [here](https://shiny.rstudio.com/) for more info about Shiny). 
+
+These data can be explored interactively with the Shiny app. 
 
 ---> [Click here to launch the app in your web browser](https://meshinchi-data-viz.fredhutch.org/) <---
 
