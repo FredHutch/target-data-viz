@@ -4,9 +4,11 @@ This directory contains the necessary code to visualize gene expression and outc
 
 These data can be explored interactively with the Shiny app. 
 
-#=========================================================#
+===========================================================
+
 ---> [Click here to launch the app in your web browser](https://meshinchi-data-viz.fredhutch.org/) <---
-#=========================================================#
+
+===========================================================
 
 ## Access
 
