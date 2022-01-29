@@ -12,6 +12,7 @@ ADD data /srv/shiny-server/data/
 
 ADD system/. /home/shiny/system/
 
+ADD www /srv/shiny-server/www/
 
 EXPOSE 8888
 
