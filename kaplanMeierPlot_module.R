@@ -7,12 +7,9 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
   mut_choices <- as.list(filter(colMapping, Module_Code == "Mutation" & !is.na(Final_Column_Label))$Final_Column_Name)
   names(mut_choices) <- filter(colMapping, Module_Code == "Mutation" & !is.na(Final_Column_Label))$Final_Column_Label
   
-  tagList( 
-    # Throwing a fluidPage() inside of the taglist so I can use a Bootstrap theme... it does work, not sure how kosher this is though?
-    fluidPage(theme = shinytheme("lumen"),
-              tags$head(tags$style(HTML('.shiny-output-error-validation {
-                                                                         color: #93C54B;
-                                                                         }'))), # Custom CSS to modify the app error messages
+  # Using tagList() instead of fluidPage() to allow for the ADC/CAR T-cell therapy button to change the tab
+  tagList(
+    fluidPage(
     
               ###############################################################
               #----------------------- SIDEBAR -----------------------------#
@@ -88,11 +85,24 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                               label = "Which mutation?",
                               choices = mut_choices)),
                   
+                  br(),
+                  
                   helpText("The patients are sorted by expression of the gene of interest.
                              Kaplan-Meier curves will be generated for each half of patients (median), 
                              for each quartile of patients (quartile), 
-                             or for patients that fall either above or below a percentile cutoff point specified by the user (percentile).")),
+                             or for patients that fall either above or below a percentile cutoff point specified by the user (percentile)."),
+                br(),
+                br(),
+                downloadButton(ns("plot_download"), 
+                               label = "plot", 
+                               class = "plotdwnld"),
                 
+                shinyBS::bsTooltip(ns("plot_download"), 
+                                   title = "Click here to download a copy of the plot",
+                                   placement = "right", 
+                                   trigger = "hover")
+                ),
+              
                 ###############################################################
                 #----------------------- MAIN PLOT PANEL ---------------------#
                 ###############################################################
@@ -108,17 +118,8 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                              br(),
                              fluidRow(
                                style = 'height:40vh',
-                               column(9, offset = 0, align = "left", 
-                                      div(style = 'max-height: 500px; overflow-y: scroll; position: relative',
-                                          plotOutput(ns("plot"), height = "1500px"))),
-                               column(2, offset = 0, align = "right", 
-                                      downloadButton(ns("plot_download"), 
-                                                     label = "Download plot")),
-                               column(2, offset = 0, align = "right", 
-                                      downloadButton(ns("ggsurvplot_download"), 
-                                                     label = "ggsurvplot object", 
-                                                     style = 'padding:5px; font-size:70%; margin-top:10px',
-                                                     class = "btn-info"))
+                               div(style = 'max-height: 900px; overflow-y: scroll; position: relative',
+                                   plotOutput(ns("plot"), height = "1400px", width = "50%")),
                              )
                     ), 
                     
@@ -148,9 +149,8 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                              br(),
                              br(),
                              fluidRow(
-                               column(12, offset = 0, align = "left", 
-                                      DT:: dataTableOutput(ns("table"))),  # Table of summary stats for plot + outcome data
-                             )
+                               DT::dataTableOutput(ns("table")) # Table of summary stats for plot + outcome data
+                             ),  
                     )
                   )
                 )
@@ -168,25 +168,14 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
   
   library(survminer)
   library(survival)
-  library(tidyverse)
   library(cowplot)
   library(cmprsk)
   library(gtools)
-  library(data.table)
-  library(DT)
   library(openxlsx)
-  
-  bs <- 16 # Base font size for figures
   
   #################################################################
   #------------------------- FUNCTIONS ---------------------------#
   #################################################################
-  
-  # See https://shiny.rstudio.com/articles/validation.html for details on the %then% operator
-  # `%then%` <- shiny:::`%OR%` 
-  `%then%` <- function(a, b) {
-    if (is.null(a)) b else a
-  }
   
   # This is turning into an unwieldy, clunky megafunction and should be broken into some smaller functions: 
   # 1. Fitting the survival object
@@ -280,7 +269,8 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
       # Creates a plot for OS, EFS, and DFS, which use Kaplan-Meier curves and the logrank test
       plot <- ggsurvplot(fit, data = plotData(), # Creating the Kaplan-Meier plot
                          pval = TRUE,
-                         ggtheme = theme_classic(base_size = bs) + theme(plot.title = element_text(hjust = 0.5, size = bs + 2)),
+                         ggtheme = theme_classic(base_size = bs) + theme(plot.title = element_text(hjust = 0.5, size = bs + 2),
+                                                                         axis.text.x = element_text(size = bs + 1)),
                          legend = "bottom",
                          title = title) +
         guides(fill = guide_legend(title = NULL, nrow = nstrata), 
@@ -512,7 +502,8 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
                   options = list(scrollY = "70vh",
                                  dom = 'Bfrtip',
                                  buttons = list(
-                                   list(extend = 'excel', filename = paste0(as.character(dataset()), "_Outcome_Summary_Table_basedOn_", gene(), "_Expression_generated_", format(Sys.time(), "%m.%d.%Y")))),
+                                   list(extend = 'excel', 
+                                        filename = paste0(as.character(dataset()), "_Outcome_Summary_Table_basedOn_", gene(), "_Expression_generated_", format(Sys.time(), "%m.%d.%Y")))),
                                  scrollX = TRUE,
                                  searchHighlight = TRUE,
                                  pageLength = 50), 

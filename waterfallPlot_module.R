@@ -1,34 +1,28 @@
 # UI function for the waterfall plot module
 wfPlotUI <- function(id, label = "Gene expression plot parameters"){
   
-  library(DT)
-  library(shinyjs)
-  library(shinyWidgets)
   ns <- NS(id) # Setting a unique namespace for this module
   
   # Creating a list of dropdown choices for the plot type selection
   choices <- as.list(filter(colMapping, Module_Code != "Mutation" & !is.na(Final_Column_Label))$Final_Column_Name)
   names(choices) <- filter(colMapping, Module_Code != "Mutation" & !is.na(Final_Column_Label))$Final_Column_Label
-  # https://github.com/dreamRs/shinyWidgets <- Give this a shot for some of the new checkbox options
-  # https://www.htmlwidgets.org/showcase_d3heatmap.html <- Interactive heatmaps
-  # https://cran.r-project.org/web/packages/shinyjqui/vignettes/introduction.html <- Make items resizable!!
   
+  # Using tagList() instead of fluidPage() to allow for the ADC/CAR T-cell therapy button to change the tab
   tagList(
     useShinyjs(),
-            
+    fluidPage(theme = shinythemes::shinytheme(theme = "paper"), 
+
+
             ###############################################################
             #----------------------- SIDEBAR -----------------------------#
             ###############################################################
             
             sidebarLayout(
-              
-              # Placing the sidebar on the left side of the screen
-              position = "left",
-              
+              position = "left", # Placing the sidebar on the left side of the screen
               sidebarPanel(
                 
                 # Dropdown menu to select variable to use for arranging/grouping patients in waterfall plot
-                pickerInput(ns("grouping_var"), 
+                selectInput(ns("grouping_var"), 
                             label = "Select a grouping variable",             # The name of each list item is what is shown in the box;
                             choices = choices),                               # the value corresponds to a column of the CDEs
                           
@@ -36,7 +30,13 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                              label = "Select a type of plot to generate", 
                               choices = list("Waterfall plot" = "wf", 
                                              "Box/violin plots" = "bx",
-                                             "Strip plot" = "str")),
+                                             "Strip plot" = "str",
+                                             "Scatter plot" = "sctr")),
+                
+                conditionalPanel(
+                  condition = paste0("input['", ns("plot_type"), "'] == 'sctr'"),
+                  textInput(ns("gene2"),                                                  
+                            label = "2nd gene for comparison")), 
                 
                 conditionalPanel(
                   condition = paste0("input['", ns("plot_type"), "'] == 'bx' || input['", ns("plot_type"), "'] == 'str'"),
@@ -45,7 +45,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                                 value = FALSE)),
                 
                 conditionalPanel(
-                  condition = paste0("input['", ns("plot_type"), "'] == 'bx' || input['", ns("plot_type"), "'] == 'str'"),
+                  condition = paste0("input['", ns("plot_type"), "'] == 'bx' || input['", ns("plot_type"), "'] == 'str' || input['", ns("plot_type"), "'] == 'sctr'"),
                   checkboxInput(ns("log"),                                                  
                             label = "Log2 transform the data",
                             value = FALSE)),
@@ -74,10 +74,22 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                 
                 # http://timelyportfolio.github.io/buildingwidgets/week25/sweetalert_examples.html <- Alert to notify
                 # user that they're switching tabs
-                hidden(
-                  actionButton(ns("adc_flag"), "See ADC or CAR T-cell therapies")
-                )
+                shinyjs::hidden(
+                  actionButton(ns("adc_flag"), 
+                               label = "See targeted therapies", 
+                               class = "btn-primary") 
+                               # width = "50%")
+                ),
+                br(),
+                br(),
+                downloadButton(ns("plot_download"), 
+                               label = "plot", 
+                               class = "plotdwnld"),
                 
+                shinyBS::bsTooltip(ns("plot_download"), 
+                                   title = "Click here to download a copy of the plot",
+                                   placement = "right", 
+                                   trigger = "hover")
               ),
               
               
@@ -86,11 +98,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
               ###############################################################
               
               mainPanel(
-                
                 position = "right",
-                tags$head(tags$style(HTML(".small-box {height: 40px}"))),
-                tags$style(HTML(".fa{font-size: 20px;}")),
-                
                 tabsetPanel(
                   
                   #-------------------- Waterfall plot -----------------------#
@@ -98,16 +106,9 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                            br(),   
                            br(),             # Linebreaks to help center the plot on the page
                            fluidRow(
-                             column(10, offset = 0, align = "left",                   # This will be a reactive object that is linked to an item in the 
-                                    plotOutput(ns("plot"), width = "100%")),          # output list, created in the "server" script
-                             column(2, offset = 0, align = "right",                   
-                                    downloadButton(ns("plot_download"), 
-                                                   label = "Download plot")),
-                             column(2, offset = 0, align = "right", 
-                                    downloadButton(ns("ggplot_download"), 
-                                                   label = "ggplot2 object", 
-                                                   style = 'padding:5px; font-size:70%; margin-top:10px',
-                                                   class = "btn-info"))
+                             column(12, offset = 0, align = "left",                   # This will be a reactive object that is linked to an item in the 
+                                    plotOutput(ns("plot"), width = "600px")           # output list, created in the "server" script
+                                    )          
                            )
                   ),
                   
@@ -124,6 +125,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
               ) 
             )
   )
+  )
 }
 
 
@@ -131,131 +133,9 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
 # Server function for the waterfall plot module
 wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetData, gene, dataset, parent){
   
-  library(tidyverse)
-  library(DT)
-  library(shinyWidgets)
+  library(ggpubr)
   
   bs <- 17 # Base font size for figures
-  
-  #################################################################
-  #------------------------- FUNCTIONS ---------------------------#
-  #################################################################
-  
-  # See https://shiny.rstudio.com/articles/validation.html for details on the %then% operator
-  # `%then%` <- shiny:::`%OR%` 
-  
-  # Version above seems to be deprecated, use below code instead:
-  `%then%` <- function(a, b) {
-    if (is.null(a)) b else a
-  }
-  
-  reLevel_cols <- function(col) {
-    new_col <- col
-    if (any(grepl("Other AML", col))) {
-      new_col <- forcats::fct_relevel(new_col, "Other AML", after = Inf)
-    }
-    if (any(grepl("No Relevant CNV", col))) {
-      new_col <- forcats::fct_relevel(col, "No Relevant CNV", after = Inf)
-    }
-    return(new_col)
-  }
-  
-  #----------------- Plot generation function -------------------#
-  plotFun <- reactive({ 
-    
-    # Selecting units to display on the y-axis
-    if (input$log == TRUE) {
-      expCol <- "Log2"
-      yaxLab <- paste0("\n", gene(), " Expression (log2 TPM + 1)\n") # The extra newline is to keep x-axis labels 
-    } else {                                                         # from running off the side of the plot
-      expCol <- "Expression"
-      yaxLab <- paste0("\n", gene(), " Expression (TPM)\n")
-    }
-    
-    # Customizing the x-axis labels based on user input
-    xaxLabs <- if (input$labels == TRUE) {
-      element_text(hjust = 1, vjust = 1, angle = 20) 
-    } else {
-      element_blank()
-    }
-    
-    # Specifying location of the plot legend
-    plotLegend <- ifelse(input$labels == TRUE, "none", "bottom")
-    
-    if (input$plot_type == "bx") { # Generating box plots
-      p <- plotData() %>% 
-        drop_na(input$grouping_var) %>%
-        ggplot(aes_string(x = input$grouping_var, y = expCol, fill = input$grouping_var)) +
-        theme_classic(base_size = bs) +
-        labs(x = NULL, y = yaxLab, fill = gsub("\\.", " ", input$grouping_var)) +
-        theme(axis.text.x = xaxLabs,
-              plot.title = element_text(size = bs + 2, hjust = 0.5),
-              legend.position = plotLegend,
-              legend.text = element_text(size = bs - 5),
-              legend.title = element_blank()) +
-        geom_violin(scale = "width", aes_string(color = input$grouping_var)) +
-        geom_boxplot(width = 0.1, fill = "white", outlier.size = 0.4) +
-        guides(color = "none")
-      p
-      
-    } else if (input$plot_type == "str") { # Generating strip plots w/ jittered raw data points
-      p <- plotData() %>% 
-        drop_na(input$grouping_var) %>%
-        ggplot(aes_string(x = input$grouping_var, y = expCol, fill = input$grouping_var, color = input$grouping_var)) +
-        theme_classic(base_size = bs) +
-        labs(x = NULL, y = yaxLab, fill = gsub("\\.", " ", input$grouping_var)) +
-        theme(axis.text.x = xaxLabs,
-              plot.title = element_text(size = bs + 2, hjust = 0.5),
-              legend.position = plotLegend,
-              legend.text = element_text(size = bs - 5),
-              legend.title = element_blank()) +
-        guides(color = "none") +
-        geom_jitter(width = 0.3, size = 0.7) +
-        stat_summary(fun = median, geom = "crossbar", width = 0.5, color = "black")
-      p
-      
-    } else if (input$plot_type == "wf") { # Generating a waterfall plot
-      p <- plotData() %>% 
-        drop_na(input$grouping_var) %>%
-        ggplot(aes_string(x = "PatientID", y = "Expression", fill = input$grouping_var)) +
-        theme_classic(base_size = bs) +
-        labs(x = "Patients", y = yaxLab, fill = gsub("\\.", " ", input$grouping_var)) +
-        theme(axis.text.x = element_blank(),
-              plot.title = element_text(size = bs + 2, hjust = 0.5),
-              axis.ticks = element_blank(),
-              legend.position = "bottom",
-              legend.text = element_text(size = bs - 5),
-              legend.title = element_blank()) +
-        geom_bar(stat = "identity", width = 1, position = position_dodge(width = 0.4))
-      p
-    }
-    
-    # Performing hypothesis tests 
-    if (length(input$comparisons) > 1) {
-      validate(
-        need(length(input$comparisons > 1), "Please select 2 groups to compare.")) # !!!!! Need to add another error message for the cell lines specifically !!!!!!
-      c <- p + ggpubr::stat_compare_means(method = "wilcox.test", comparisons = list(input$comparisons))
-      c # Return plot generated above + additional geom layer created by stat_compare_means
-    } else {
-      p # Return the plot as-is with no additional geom layers
-    }
-  })
-  
-  #----------------- Summary table function -------------------#
-  # Function to generate an expression summary table from the plot data
-  tableFun <- reactive({
-    plotData() %>%
-      drop_na(input$grouping_var) %>%
-      group_by(!!as.name(input$grouping_var)) %>%
-      dplyr::summarize(N = n(), 
-                       Gene = gene(),
-                       `Mean (TPM)` = round(mean(Expression, na.rm = T), 2), 
-                       `Median (TPM)` = round(median(Expression, na.rm = T), 2), 
-                       `Range (TPM)` = paste0(round(min(Expression), 2), " - ", round(max(Expression), 2)), 
-                       .groups = "keep")
-  })
-  
-  
   
   #################################################################
   #-------------------- DATA PREPARATION -------------------------#
@@ -300,6 +180,21 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
     }
   }, ignoreInit = T)
   
+  #################################################################
+  #------------------------- FUNCTIONS ---------------------------#
+  #################################################################
+  
+  reLevel_cols <- function(col) {
+    new_col <- col
+    if (any(grepl("Other AML", col))) {
+      new_col <- forcats::fct_relevel(new_col, "Other AML", after = Inf)
+    }
+    if (any(grepl("No Relevant CNV", col))) {
+      new_col <- forcats::fct_relevel(col, "No Relevant CNV", after = Inf)
+    }
+    return(new_col)
+  }
+  
   # Filtering the ADC & CAR T-cell therapy data to select therapies targeting the gene of interest.
   # This will be used for the conditional button that links to the therapeutic database tab.
   therapyData <- reactive({
@@ -314,11 +209,26 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
         need(gene() %in% rownames(expData()), paste0(gene(), " does not exist in the counts data!\nDouble-check the symbol or ID, or try an alias/synonym."))
       )
     
+    # Requests entry of another gene symbol ONLY when the input plot type is a scatter plot
+    if (input$plot_type == "sctr" && input$gene2 == "") {
+      validate("Please enter a 2nd gene symbol or miRNA in the new text box.")
+    }
+    
+    if (input$gene2 == gene()) {
+      validate("Please enter a different 2nd gene symbol.")
+    }
+    
+    # The default value for an empty text entry box = ""
+    genes2keep <- if (input$plot_type == "sctr" & input$gene2 != "") {
+      c(gene(), input$gene2)
+    } else if (input$plot_type != "sctr") {
+      gene()
+    }
+    
     df <- expData() %>%
       rownames_to_column("Gene") %>%
-      filter(Gene == gene()) %>%
-      dplyr::select(Gene, any_of(intersect(clinData()$PatientID, colnames(expData())))) %>%
-      column_to_rownames("Gene")
+      filter(Gene %in% genes2keep) %>%
+      dplyr::select(Gene, any_of(intersect(clinData()$PatientID, colnames(expData()))))
     
     return(df)
   })
@@ -330,8 +240,9 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       need(!((dataset() %in% c("BeatAML", "SWOG", "TCGA")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
     
     plotDF <- geneData() %>%
-      gather(PatientID, Expression) %>%
-      mutate_at(vars(Expression), ~as.numeric(.)) %>%
+      pivot_longer(names_to = "PatientID", values_to = "Expression", -Gene) %>%
+      drop_na(Expression) %>% # Removing samples without expression data from the dataset
+      mutate(across(Expression, ~as.numeric(.))) %>%
       left_join(., clinData(), by = "PatientID") %>%
       mutate(Log2 = log2(Expression + 1))
     
@@ -351,19 +262,165 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
     }
     
     plotDF <- plotDF %>%
-      drop_na(Expression) %>% # Removing samples without expression data from the plot
-      group_by(!!input$grouping_var) %>%                                                              
-      arrange_(input$grouping_var, "Expression")  # Reordering patients so that the specified groups are 
-                                                  # grouped together and ordered by increasing expression
-
-    # Setting the patient order using factor levels, so they won't be rearranged 
-    # alphabetically by ggplot (this step is required for waterfall plots made w/ ggplot)
-    plotDF$PatientID <- factor(plotDF$PatientID, levels = plotDF$PatientID)
+      # group_by(!!input$grouping_var) %>%    # Don't think this is needed....                                                           
+      arrange_(input$grouping_var, "Expression")      # Reordering patients so that the specified groups are 
+                                                                     # grouped together and ordered by increasing expression.
+    if (input$plot_type == "wf") {
+      # Setting the patient order using factor levels, so they won't be rearranged 
+      # alphabetically by ggplot (this step is required for waterfall plots made w/ ggplot)
+      plotDF$PatientID <- factor(plotDF$PatientID, levels = plotDF$PatientID)
+    }
     
     return(plotDF)
   })
 
   
+  #----------------- Plot generation function -------------------#
+  plotFun <- reactive({ 
+    
+    if (any(grepl(gene(), c(miRmapping$Alias, miRmapping$MIMAT.ID)))) {
+      units <- "RPM"
+    } else {
+      units <- "TPM"
+    }
+    
+    # Selecting units to display on the y-axis
+    if (input$log == TRUE) {
+      expCol <- "Log2"
+      yaxLab <- paste0("\n", gene(), " Expression (log2 ", units, " + 1)\n") # The extra newline is to keep x-axis labels 
+    } else {                                                         # from running off the side of the plot
+      expCol <- "Expression"
+      yaxLab <- paste0("\n", gene(), " Expression (", units, ")\n")
+    }
+    
+    # Customizing the x-axis labels based on user input
+    xaxLabs <- if (input$labels == TRUE) {
+      element_text(hjust = 1, vjust = 1, angle = 20) 
+    } else {
+      element_blank()
+    }
+    
+    # Specifying location of the plot legend
+    plotLegend <- ifelse(input$labels == TRUE, "none", "bottom")
+    
+    if (input$plot_type == "bx") { # Generating box plots
+      p <- plotData() %>% 
+        drop_na(input$grouping_var) %>%
+        ggplot(aes_string(x = input$grouping_var, y = expCol, fill = input$grouping_var)) +
+        theme_classic(base_size = bs) +
+        labs(x = NULL, y = yaxLab, fill = gsub("\\.", " ", input$grouping_var)) +
+        theme(axis.text.x = xaxLabs,
+              axis.text.y = element_text(size = bs + 1),
+              plot.title = element_text(size = bs + 2, hjust = 0.5),
+              legend.position = plotLegend,
+              legend.text = element_text(size = bs - 5),
+              legend.title = element_blank()) +
+        geom_violin(scale = "width", aes_string(color = input$grouping_var)) +
+        geom_boxplot(width = 0.1, fill = "white", outlier.size = 0.4) +
+        guides(color = "none")
+      p
+      
+    } else if (input$plot_type == "str") { # Generating strip plots w/ jittered raw data points
+      p <- plotData() %>% 
+        drop_na(input$grouping_var) %>%
+        ggplot(aes_string(x = input$grouping_var, y = expCol, fill = input$grouping_var, color = input$grouping_var)) +
+        theme_classic(base_size = bs) +
+        labs(x = NULL, y = yaxLab, fill = gsub("\\.", " ", input$grouping_var)) +
+        theme(axis.text.x = xaxLabs,
+              axis.text.y = element_text(size = bs + 1),
+              plot.title = element_text(size = bs + 2, hjust = 0.5),
+              legend.position = plotLegend,
+              legend.text = element_text(size = bs - 5),
+              legend.title = element_blank()) +
+        guides(color = "none") +
+        geom_jitter(width = 0.3, size = 0.7) +
+        stat_summary(fun = median, geom = "crossbar", width = 0.5, color = "black")
+      p
+      
+    } else if (input$plot_type == "wf") { # Generating a waterfall plot
+      p <- plotData() %>% 
+        drop_na(input$grouping_var) %>%
+        ggplot(aes_string(x = "PatientID", y = "Expression", fill = input$grouping_var)) +
+        theme_classic(base_size = bs) +
+        labs(x = "Patients", y = yaxLab, fill = gsub("\\.", " ", input$grouping_var)) +
+        theme(axis.text.x = element_blank(),
+              axis.text.y = element_text(size = bs),
+              plot.title = element_text(size = bs + 2, hjust = 0.5),
+              axis.ticks.x = element_blank(),
+              legend.position = "bottom",
+              legend.text = element_text(size = bs - 5),
+              legend.title = element_blank()) +
+        geom_bar(stat = "identity", width = 1, position = position_dodge(width = 0.4))
+      p
+      
+    } else if (input$plot_type == "sctr") { # Generating a scatter plot
+      
+      p <- plotData() %>%
+        drop_na(input$grouping_var) %>%
+        filter(Disease.Group == "AML") %>%
+        ungroup() %>%
+        dplyr::select(PatientID, Gene, Expression, !!sym(input$grouping_var)) %>%
+        pivot_wider(names_from = "Gene", values_from = "Expression")
+      
+      if (input$log == TRUE) {
+        p <- p %>%
+          mutate(expCol_1 = log2(!!sym(gene()) + 1),
+                 expCol_2 = log2(!!sym(input$gene2) + 1))
+        xaxLab <- paste0("\n", gene(), " (log2 TPM + 1)")
+        yaxLab <- paste0(input$gene2, " (log2 TPM + 1)\n")
+      } else {
+        xaxLab <- paste0("\n", gene(), " (TPM)")
+        yaxLab <- paste0(input$gene2, " (TPM)\n")
+        p <- p %>%
+          rename(expCol_1 = !!sym(gene()),
+                 expCol_2 = !!sym(input$gene2))
+      }
+      
+      p <- p %>%
+        ggpubr::ggscatter(.,  x = "expCol_1", y = "expCol_2",
+                  cor.coef = TRUE,
+                  cor.coef.size = 7, 
+                  cor.method = "spearman",
+                  xlab = xaxLab, 
+                  ylab = yaxLab, 
+                  size = 2, 
+                  add = "reg.line", 
+                  conf.int = TRUE, 
+                  color = input$grouping_var,
+                  add.params = list(color = "black", fill = "grey90", size = 1)) + 
+        guides(color = guide_legend(override.aes = list(size = 5, shape = 16))) +
+        theme(axis.title = element_text(size = bs),
+              axis.text = element_text(size = bs),
+              legend.text = element_text(size = bs - 5), 
+              legend.title = element_blank(),
+              legend.position = "bottom")
+      p
+    }
+    
+    # Performing hypothesis tests 
+    if (length(input$comparisons) > 1) {
+      validate(
+        need(length(input$comparisons > 1), "Please select 2 groups to compare.")) # !!!!! Need to add another error message for the cell lines specifically !!!!!!
+      c <- p + ggpubr::stat_compare_means(method = "wilcox.test", comparisons = list(input$comparisons))
+      c # Return plot generated above + additional geom layer created by stat_compare_means
+    } else {
+      p # Return the plot as-is with no additional geom layers
+    }
+  })
+  
+  #----------------- Summary table function -------------------#
+  # Function to generate an expression summary table from the plot data
+  tableFun <- reactive({
+    plotData() %>%
+      drop_na(input$grouping_var) %>%
+      group_by(!!as.name(input$grouping_var)) %>%
+      dplyr::summarize(N = n(), 
+                       Gene = gene(),
+                       `Mean (TPM)` = round(mean(Expression, na.rm = T), 2), 
+                       `Median (TPM)` = round(median(Expression, na.rm = T), 2), 
+                       `Range (TPM)` = paste0(round(min(Expression), 2), " - ", round(max(Expression), 2)), 
+                       .groups = "keep")
+  })
   
   #################################################################
   #-------------------- FINAL MODULE OUTPUTS ---------------------#
@@ -405,14 +462,10 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   
   # https://glin.github.io/reactable/articles/examples.html#conditional-styling
   output$table <- DT::renderDataTable({
-    # DT::datatable(tableFun(), 
-    #               callback = JS("$('table.dataTable.no-footer').css('border-bottom', 'none');"),
-    #               options = list(dom = "t", paging = FALSE, scrollY = "600px"), 
-    #               rownames = F)
     
     DT::datatable(tableFun(), 
                   class = "compact nowrap hover row-border order-column", # Defines the CSS formatting of the final table, can string multiple options together
-                  callback = JS("$('table.dataTable.no-footer').css('border-bottom', 'none');"),
+                  callback = DT::JS("$('table.dataTable.no-footer').css('border-bottom', 'none');"),
                   extensions = 'Buttons', # See https://rstudio.github.io/DT/extensions.html for more extensions & features
                   options = list(scrollY = "70vh",
                                  dom = 'Bfrtip',

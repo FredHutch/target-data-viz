@@ -6,9 +6,7 @@ geneExpUI <- function(id, label = "Identifying expressors"){
   library(shinyWidgets)
   ns <- NS(id) # Setting a unique namespace for this module
   
-  fluidPage(theme = shinytheme("lumen"),
-            tags$head(tags$style(HTML('.shiny-output-error-validation { color: #93C54B; }'))), # Custom CSS to modify the app error messages
-            tags$head(tags$style(HTML('.box{-webkit-box-shadow: none; -moz-box-shadow: none;box-shadow: none;}'))), # Removes border around boxes
+  fluidPage(
             
             sidebarLayout(
               position = "left", 

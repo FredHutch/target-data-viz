@@ -5,12 +5,19 @@ library(shinyalert)
 library(shinydashboard)
 library(shinythemes)
 library(shinyWidgets)
+library(shinyjs)
+library(shinyBS)
+library(data.table)
+library(DT)
+
+# https://rstudio.github.io/bslib/articles/bslib.html#bootswatch New themes package to check out
 
 ######### Loading modules
 source("waterfallPlot_module.R")
 source("kaplanMeierPlot_module.R")
 source("degTable_module.R")
 source("geneExpressors_module.R")
+source("heatmap_module.R")
 
 ######### Loading external data
 # PLEASE NOTE: Large expression datasets required for this app to function are *not* stored in the Github repo,
@@ -47,7 +54,7 @@ readData <- function(x) {
   colMapping <<- read.csv("data/Dataset_Column_Mapping_File.csv", check.names = F, na.strings = "")
 }
 
-testing <- FALSE
+testing <- TRUE
 
 if (testing == TRUE) {
   print("Testing mode - data already in environment")
@@ -59,3 +66,5 @@ if (testing == TRUE) {
 `%then%` <- function(a, b) {
   if (is.null(a)) b else a
 }
+
+bs <- 16 # Base font size for figures

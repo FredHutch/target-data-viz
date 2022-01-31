@@ -1,13 +1,9 @@
 # UI function for the differentially expressed gene table module
 deTableUI <- function(id, label = "Differentially expressed gene table") {
   
-  library(DT)
-  library(shinyWidgets)
   ns <- NS(id) # Setting a unique namespace for this module
   
-  fluidPage(theme = shinytheme("lumen"),
-            tags$head(tags$style(HTML('.shiny-output-error-validation { color: #93C54B; }'))), # Custom CSS to modify the app error messages
-            
+  fluidPage(
             sidebarLayout(
               position = "left", 
               
@@ -18,7 +14,9 @@ deTableUI <- function(id, label = "Differentially expressed gene table") {
                 
                 br(),
                 
-                actionButton(ns("col_key"), "Click here for column descriptions", style = 'padding:5px; font-size:80%')
+                actionButton(ns("col_key"), 
+                             label = "Click here for column descriptions", 
+                             style = 'padding:5px; font-size:80%')
               ),
             
             mainPanel(position = "right", 
@@ -37,10 +35,6 @@ deTableUI <- function(id, label = "Differentially expressed gene table") {
 
 # Server function for the differentially expressed gene table module
 deTable <- function(input, output, session, gene, table, parent) {
-  
-  library(tidyverse)
-  library(DT)
-  library(shinyWidgets)
   
   # Making a function to generate a summary table with outcome data
   tableFun <- reactive({

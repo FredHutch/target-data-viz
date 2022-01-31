@@ -1,12 +1,3 @@
-# Check the file below for global scripts & variables, 
-# they were removed from the server & ui scripts to help clean them up.
-# source("global.R")
-
-# Explicitly setting this to null before app startup. 
-# This will allow a function (sourced in global.R) to trigger 
-# all source file loading at script startup ONLY.
-target_expData <- NULL 
-
 server <- function(input, output, session) { 
   
   cohort <- reactive({
@@ -64,35 +55,26 @@ server <- function(input, output, session) {
     }
     
     # Check if miRNA name exists in the miRbase21 miRNA-seq data
-    # shinyalert(
-    #   title = "Did you mean...",
-    #   text = msg,
-    #   # size = "xs",
-    #   closeOnEsc = TRUE,
-    #   closeOnClickOutside = FALSE,
-    #   html = FALSE,
-    #   type = "input",
-    #   inputType = "text",
-    #   inputValue = option[1],
-    #   inputPlaceholder = "Type choice here",
-    #   showConfirmButton = TRUE,
-    #   showCancelButton = FALSE,
-    #   confirmButtonText = "Retry",
-    #   confirmButtonCol = "#41B0FA",
-    #   timer = 0,
-    #   imageUrl = "",
-    #   animation = TRUE,
-    #   callbackR = function(x){
-    #     if (!is.null(x)) updateTextInput(session, "geneInput", label = NULL, value = input$shinyalert)
-    #   })
-    
-    modalDialog(
-      msg,
+    shinyalert(
       title = "Did you mean...",
-      size = "s",
-      easyClose = F,
-      placeholder = "Type choice here",
-    )
+      text = msg,
+      closeOnEsc = TRUE,
+      closeOnClickOutside = TRUE,
+      html = FALSE,
+      type = "input",
+      inputType = "text",
+      inputValue = option[1],
+      inputPlaceholder = "Type choice here",
+      showConfirmButton = TRUE,
+      showCancelButton = FALSE,
+      confirmButtonText = "Retry",
+      confirmButtonCol = "#41B0FA",
+      timer = 0,
+      imageUrl = "",
+      animation = TRUE,
+      callbackR = function(x){
+        if (!is.null(x)) updateTextInput(session, "geneInput", label = NULL, value = input$shinyalert)
+      })
   })
   
   #--------------------- WF plot & KM plot tabs --------------------- #
@@ -117,6 +99,13 @@ server <- function(input, output, session) {
              dataset = cohort,
              gene = target)
   
+  # This module is not ready for prime time yet
+  # callModule(heatmap, id = "heatmap", 
+  #            clinData = studyData, 
+  #            expData = seqData, 
+  #            dataset = cohort,
+  #            gene = target)
+  
   # Calling the DEG table module
   callModule(deTable, id = "degs",
              table = degTables37,
@@ -133,34 +122,37 @@ server <- function(input, output, session) {
 
   # TO DO: Add a searchable AML-restricted gene list to this tab
   
-  output$protAtlas <- renderInfoBox({
+  output$protAtlas <- renderValueBox({
     validate(
       need(target(), "Please enter a gene symbol in the text box."))
     
-        infoBox(value = "Human Protein Atlas", 
-                 title = "Protein expression",
-                 color = "red", 
-                 icon = icon("prescription-bottle"), href = paste0("https://www.proteinatlas.org/search/", target()))
+        valueBox(value = tags$p("Human Protein\nAtlas", style = "font-size: 60%"),
+                 subtitle = "Protein expression", 
+                 color = "light-blue", 
+                 icon = icon("prescription-bottle"),
+                 href = paste0("https://www.proteinatlas.org/search/", target()))
   })
   
-  output$gtex <- renderInfoBox({
+  output$gtex <- renderValueBox({
     validate(
       need(target(), "Please enter a gene symbol in the text box."))
     
-    infoBox(value = "GTEX Gene \nExpression", 
-            title = "Normal tissue expression",
-            color = "orange", fill = F,
-            icon = icon("prescription-bottle"), href = paste0("https://gtexportal.org/home/gene/", target(), "#geneExpression"))
+    valueBox(value = tags$p("GTEx", style = "font-size: 60%"),
+             subtitle = "Normal tissue expression",
+             color = "light-blue",
+             icon = icon("prescription-bottle"),
+             href = paste0("https://gtexportal.org/home/gene/", target(), "#geneExpression"))
   })
   
-  output$protPaint <- renderInfoBox({
+  output$protPaint <- renderValueBox({
     validate(
       need(target(), "Please enter a gene symbol in the text box."))
     
-    infoBox(value = "St. Jude \nProteinPaint", 
-            title = "PeCan visualization",
-            color = "blue", fill = F,
-            icon = icon("prescription-bottle"), href = paste0("https://proteinpaint.stjude.org/?genome=hg19&gene=", target(), "&dataset=pediatric"))
+    valueBox(value = tags$p("ProteinPaint", style = "font-size: 60%"),
+             subtitle = "St. Jude PeCan visualization",
+             color = "light-blue",
+             icon = icon("prescription-bottle"), 
+             href = paste0("https://proteinpaint.stjude.org/?genome=hg19&gene=", target(), "&dataset=pediatric"))
   })
   
   output$therapyTable <- DT::renderDataTable({
@@ -238,6 +230,9 @@ server <- function(input, output, session) {
     # see iframe details at https://plotly-r.com/saving.html,
     # using same parameters as the unused code above for Protein Paint.
     # To do: get a folder of UMAPs from Jenny, and allow the user to select the base plot they want to manipulate.
+    # NOTE: Don't include 'www/' in filepath, see
+    # https://stackoverflow.com/questions/41784631/include-link-to-local-html-file-in-datatable-in-shiny
+    # for an explanation.
     tags$iframe(seamless = "seamless",
                 style = "border-width: 0;",
                 src = "UMAP/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html",
