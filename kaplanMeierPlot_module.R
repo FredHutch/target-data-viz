@@ -328,7 +328,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
       names(survival_choices) <- case_when(grepl("OS", survival_choices) ~ "Overall Survival (OS)",
                                            grepl("EFS", survival_choices) ~ "Event-Free Survival (EFS)",
                                            grepl("DFS", survival_choices) ~ "Disease-Free Survival (DFS)",
-                                           grepl("RR", survival_choices) ~ "Relapse Risk (RR)"),
+                                           grepl("RR", survival_choices) ~ "Relapse Risk (RR)")
 
       updateCheckboxGroupInput(session = session, 
                                inputId = "test_type",
