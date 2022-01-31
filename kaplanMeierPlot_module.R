@@ -1,8 +1,6 @@
 # UI for the Kaplan-Meier plot module
 kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
-  
-  library(DT)
-  ns <- NS(id)
+  ns <- NS(id) # Setting a unique namespace for this module
   
   mut_choices <- as.list(filter(colMapping, Module_Code == "Mutation" & !is.na(Final_Column_Label))$Final_Column_Name)
   names(mut_choices) <- filter(colMapping, Module_Code == "Mutation" & !is.na(Final_Column_Label))$Final_Column_Label
@@ -329,8 +327,8 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
       
       names(survival_choices) <- case_when(grepl("OS", survival_choices) ~ "Overall Survival (OS)",
                                            grepl("EFS", survival_choices) ~ "Event-Free Survival (EFS)",
-                                           grepl("RR", survival_choices) ~ "Relapse Risk (RR)"),
                                            grepl("DFS", survival_choices) ~ "Disease-Free Survival (DFS)",
+                                           grepl("RR", survival_choices) ~ "Relapse Risk (RR)"),
 
       updateCheckboxGroupInput(session = session, 
                                inputId = "test_type",
