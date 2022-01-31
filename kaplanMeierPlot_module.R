@@ -123,26 +123,6 @@ kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
                              )
                     ), 
                     
-                    # tabPanel("Cox Proportional Hazards",
-                    #          br(),
-                    #          br(),
-                    #          fluidRow(
-                    #            style = 'height:40vh',
-                    #            column(9, offset = 0, align = "left",
-                    #                   # div(style = 'max-height: 500px; overflow-y: scroll; position: relative',
-                    #                       # plotOutput(ns("plot"), height = "1500px")
-                    #                   )
-                    #            # column(2, offset = 0, align = "right",
-                    #            #        downloadButton(ns("plot_download"),
-                    #            #                       label = "Download plot")),
-                    #            # column(2, offset = 0, align = "right",
-                    #            #        downloadButton(ns("ggforest_download"),
-                    #            #                       label = "ggforest object",
-                    #            #                       style = 'padding:5px; font-size:70%; margin-top:10px',
-                    #            #                       class = "btn-info"))
-                    #          )
-                    # ),
-                    
                     #-------------------- Patient data tab -----------------------#
                     
                     tabPanel("Patient survival data", 
@@ -349,8 +329,8 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
       
       names(survival_choices) <- case_when(grepl("OS", survival_choices) ~ "Overall Survival (OS)",
                                            grepl("EFS", survival_choices) ~ "Event-Free Survival (EFS)",
+                                           grepl("RR", survival_choices) ~ "Relapse Risk (RR)"),
                                            grepl("DFS", survival_choices) ~ "Disease-Free Survival (DFS)",
-                                           grepl("RR", survival_choices) ~ "Relapse Risk (RR)")
 
       updateCheckboxGroupInput(session = session, 
                                inputId = "test_type",

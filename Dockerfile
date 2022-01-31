@@ -7,11 +7,9 @@ RUN R -q -e 'install.packages(c("dplyr"), repos="https://cran.r-project.org")'
 RUN rm -rf /srv/shiny-server/
 ADD *.R /srv/shiny-server/
 
+# adds each subdirectory to the Docker image
 ADD data /srv/shiny-server/data/
-
-
 ADD system/. /home/shiny/system/
-
 ADD www /srv/shiny-server/www/
 
 EXPOSE 8888

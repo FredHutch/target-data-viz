@@ -1,16 +1,10 @@
 # UI function for the waterfall plot module
 geneExpUI <- function(id, label = "Identifying expressors"){
-  
-  library(DT)
-  library(shinyjs)
-  library(shinyWidgets)
   ns <- NS(id) # Setting a unique namespace for this module
   
   fluidPage(
-            
             sidebarLayout(
               position = "left", 
-              
               sidebarPanel(
                 helpText("In the absence of protein expression data, it can be useful to identify expressors of a gene (or miRNA species) using available RNA-seq data. However, in order to determine samples that are positive or negative for the gene of interest, the application of arbitrary cutoff points to the continuous transcript expression data is required."),
                 helpText("Recommended cutoff values include 5, or 10 TPM, which are higher than typical sequencing noise, or 1 TPM if the majority of cases express the gene/miRNA species near 0. 
@@ -84,10 +78,6 @@ geneExpUI <- function(id, label = "Identifying expressors"){
 }
 
 geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
-  
-  library(tidyverse)
-  library(DT)
-  library(shinyWidgets)
   
   #################################################################
   #------------------------- FUNCTIONS ---------------------------#
