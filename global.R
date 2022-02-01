@@ -17,7 +17,7 @@ source("waterfallPlot_module.R")
 source("kaplanMeierPlot_module.R")
 source("degTable_module.R")
 source("geneExpressors_module.R")
-# source("heatmap_module.R")
+source("heatmap_module.R")
 
 ######### Loading external data
 # PLEASE NOTE: Large expression datasets required for this app to function are *not* stored in the Github repo,
@@ -54,7 +54,7 @@ readData <- function(x) {
   colMapping <<- read.csv("data/Dataset_Column_Mapping_File.csv", check.names = F, na.strings = "")
 }
 
-testing <- TRUE
+testing <- FALSE
 
 if (testing == TRUE) {
   print("Testing mode - data already in environment")

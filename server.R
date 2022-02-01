@@ -126,8 +126,8 @@ server <- function(input, output, session) {
     validate(
       need(target(), "Please enter a gene symbol in the text box."))
     
-        valueBox(value = tags$p("Human Protein Atlas", style = "font-size: 60%"),
-                 subtitle = "Human protein expression", 
+        valueBox(value = tags$p("Human Protein\nAtlas", style = "font-size: 60%"),
+                 subtitle = "Protein expression", 
                  color = "light-blue", 
                  icon = icon("prescription-bottle"),
                  href = paste0("https://www.proteinatlas.org/search/", target()))
@@ -148,7 +148,7 @@ server <- function(input, output, session) {
     validate(
       need(target(), "Please enter a gene symbol in the text box."))
     
-    valueBox(value = tags$p("Protein Paint", style = "font-size: 60%"),
+    valueBox(value = tags$p("ProteinPaint", style = "font-size: 60%"),
              subtitle = "St. Jude PeCan visualization",
              color = "light-blue",
              icon = icon("prescription-bottle"), 
@@ -211,6 +211,10 @@ server <- function(input, output, session) {
   
   #--------------------- UMAP tab --------------------- #
   
+  # Following this post, but it doesn't work: https://stackoverflow.com/questions/24875943/display-html-file-in-shiny-app
+  # This person is having the same issue I am:
+  # https://stackoverflow.com/questions/56064805/displaying-html-file-using-includehtml-in-shiny-is-not-working-with-renderui
+  
   output$umapEmbedding <- renderUI({
 
     ########### Method 1 ##############
@@ -222,21 +226,17 @@ server <- function(input, output, session) {
     # https://stackoverflow.com/questions/61543937/pass-r-variable-to-html-in-r-markdown
     # {{ uiOutput("score_value") }} <- I think this is the syntax I need to embed in the HTML file?
 
-    # Following this post, but it doesn't work: https://stackoverflow.com/questions/24875943/display-html-file-in-shiny-app
-    # This person is having the same issue I am:
-    # https://stackoverflow.com/questions/56064805/displaying-html-file-using-includehtml-in-shiny-is-not-working-with-renderui
-
     ########### Method 2 #############
     # see iframe details at https://plotly-r.com/saving.html,
     # using same parameters as the unused code above for Protein Paint.
     # To do: get a folder of UMAPs from Jenny, and allow the user to select the base plot they want to manipulate.
     # NOTE: Don't include 'www/' in filepath, see
-    # https://stackoverflow.com/questions/41784631/include-link-to-local-html-file-in-datatable-in-shiny and
-    # https://shiny.rstudio.com/articles/css.html for an explanation.
+    # https://stackoverflow.com/questions/41784631/include-link-to-local-html-file-in-datatable-in-shiny
+    # for an explanation.
     tags$iframe(seamless = "seamless",
                 style = "border-width: 0;",
                 src = "UMAP/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html",
-                height = 700, width = 1300, scrolling = "yes")
+                height = 800, width = 1300, scrolling = "yes")
   })
   
 }
