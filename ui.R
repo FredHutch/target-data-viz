@@ -58,7 +58,7 @@ ui <- dashboardPage(
     )
   ),  
   
-  ###################### DASHBOARD PAGES ######################
+  ###################### DASHBOARD PAGES #######################
   dashboardBody(
     
     # Using some custom CSS to...

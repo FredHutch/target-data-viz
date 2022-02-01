@@ -10,7 +10,8 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
   # Using tagList() instead of fluidPage() to allow for the ADC/CAR T-cell therapy button to change the tab
   tagList(
     useShinyjs(),
-    fluidPage(theme = shinythemes::shinytheme(theme = "paper"), 
+    fluidPage(
+      theme = shinythemes::shinytheme(theme = "paper"),
 
 
             ###############################################################
@@ -135,7 +136,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   
   library(ggpubr)
   
-  bs <- 17 # Base font size for figures
+  # bs <- 17 # Base font size for figures
   
   #################################################################
   #-------------------- DATA PREPARATION -------------------------#
@@ -278,7 +279,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   #----------------- Plot generation function -------------------#
   plotFun <- reactive({ 
     
-    if (any(grepl(gene(), c(miRmapping$Alias, miRmapping$MIMAT.ID)))) {
+    if (any(grepl(gene(), c(miRmapping$Alias, miRmapping$hsa.ID.miRbase21)))) {
       units <- "RPM"
     } else {
       units <- "TPM"
@@ -288,7 +289,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
     if (input$log == TRUE) {
       expCol <- "Log2"
       yaxLab <- paste0("\n", gene(), " Expression (log2 ", units, " + 1)\n") # The extra newline is to keep x-axis labels 
-    } else {                                                         # from running off the side of the plot
+    } else {                                                                 # from running off the side of the plot
       expCol <- "Expression"
       yaxLab <- paste0("\n", gene(), " Expression (", units, ")\n")
     }
@@ -366,11 +367,11 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
         p <- p %>%
           mutate(expCol_1 = log2(!!sym(gene()) + 1),
                  expCol_2 = log2(!!sym(input$gene2) + 1))
-        xaxLab <- paste0("\n", gene(), " (log2 TPM + 1)")
-        yaxLab <- paste0(input$gene2, " (log2 TPM + 1)\n")
+        xaxLab <- paste0("\n", gene(), " (log2 ", units, " + 1)")
+        yaxLab <- paste0(input$gene2, " (log2 ", units, " + 1)\n")
       } else {
-        xaxLab <- paste0("\n", gene(), " (TPM)")
-        yaxLab <- paste0(input$gene2, " (TPM)\n")
+        xaxLab <- paste0("\n", gene(), " (", units, ")")
+        yaxLab <- paste0(input$gene2, " (", units, ")\n")
         p <- p %>%
           rename(expCol_1 = !!sym(gene()),
                  expCol_2 = !!sym(input$gene2))

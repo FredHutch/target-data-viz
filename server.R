@@ -236,7 +236,7 @@ server <- function(input, output, session) {
     tags$iframe(seamless = "seamless",
                 style = "border-width: 0;",
                 src = "UMAP/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html",
-                height = 800, width = 1300, scrolling = "yes")
+                height = 700, width = 1300, scrolling = "yes")
   })
   
 }
