@@ -54,7 +54,7 @@ readData <- function(x) {
   colMapping <<- read.csv("data/Dataset_Column_Mapping_File.csv", check.names = F, na.strings = "")
 }
 
-testing <- TRUE
+testing <- FALSE
 
 if (testing == TRUE) {
   print("Testing mode - data already in environment")
