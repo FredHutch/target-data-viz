@@ -37,11 +37,6 @@ readData <- function(x) {
   swog_expData <<- readRDS("data/mRNA/SWOG_AML_ExpressionData_TPM_GRCh38_FinalforShiny.RDS")
   laml_expData <<- readRDS("data/mRNA/TCGA_LAML_ExpressionData_TPM_FinalforShiny.RDS")
   
-  ###### NOTE #######
-  # Substitute dummy variable until I can get some actual gene-level counts for this cohort
-  stjude_expData <- target_expData38
-  #################
-  
   # miRNA expression matrices (for TARGET dataset only)
   load("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019_FinalforShiny.RData", .GlobalEnv)
   miRmapping <<- read.csv("data/miRNA/hsa_gff3_IDMap.csv")
@@ -51,8 +46,6 @@ readData <- function(x) {
   load("data/Clinical/TARGET_AML_merged_CDEs_Shareable_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/SWOG_AML_Merged_CDEs_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/TCGA_LAML_ClinicalData_FinalforShiny.RData", .GlobalEnv)
-  # load("data/Clinical/StJude_ALL_ClinicalData_FinalforShiny.RData", .GlobalEnv)
-  stjude_cde <- target_cde
 
   # Misc accessory files
   load("data/ADC_and_CARTcell_Targets_Database_ADCReview_clinicaltrialsGov_FinalforShiny.RData", .GlobalEnv)
@@ -60,6 +53,16 @@ readData <- function(x) {
   deColKey <<- read.csv("data/Limma_Column_Descriptions.csv")
   colMapping <<- read.csv("data/Dataset_Column_Mapping_File.csv", check.names = F, na.strings = "")
   
+  ####### These are TEMPORARY dummy variables ########
+  # Currently, these variables are *required* for some components of the app to function.
+  # I've added error messages to prevent the user from actually plotting these data frames,
+  # which would be confusing and non-representative of real AML data, but some form of placeholder
+  # for the St. Jude data is currently needed to prevent the app from crashing.
+  # Definitely not ideal, but I don't have time to restructure to accomodate it right now.
+  # St. Jude data should be coming soon.
+  stjude_expData <- target_expData38
+  stjude_expData <- target_cde
+  ###################################################
 }
 
 testing <- FALSE

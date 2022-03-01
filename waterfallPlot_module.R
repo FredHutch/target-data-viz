@@ -237,6 +237,10 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   # Transforming the counts into a long-format dataframe (to use with ggplot).
   plotData <- reactive({
     
+      validate(
+        need(dataset() != "StJude", "Expression data is not currently available for this cohort. Please try again later.")
+      )
+    
     validate(
       need(!((dataset() %in% c("BeatAML", "SWOG", "TCGA")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
     
