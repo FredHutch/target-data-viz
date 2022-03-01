@@ -1,31 +1,58 @@
 server <- function(input, output, session) { 
   
+  observeEvent(input$leukemiaSelection, {
+    
+    choices <- switch(input$leukemiaSelection,
+                     "AML" = dataset_choices$aml,
+                     "ALL" = dataset_choices$all) 
+    selected <- switch(input$leukemiaSelection,
+                      "AML" = "TARGET",
+                      "ALL" = "StJude")
+    
+    updateRadioButtons(
+      session = session,
+      inputId = "seqDataCohort", 
+      choices = choices,
+      selected = selected
+    )
+  }, ignoreInit = T, ignoreNULL = T) # ignoreInit parameter is required to work!
+  
+  
+  # Variable representing the *name* of the selected cohort (as a character string)
   cohort <- reactive({
-    input$seqDataCohort
+      input$seqDataCohort
   })
   
+  # Reactive variable that stores the sequencing data matrix for the selected cohort
   seqData <- reactive({
+    
     matrix <- switch(input$seqDataCohort,
                      "SWOG" = swog_expData,
                      "BeatAML" = beatAML_expData,
                      "TARGET" = target_expData38,
-                     "TCGA" = laml_expData)
+                     "TCGA" = laml_expData,
+                     "StJude" = stjude_expData)
     
-    assembly <- if (input$seqDataCohort == "TARGET" ) {
-      switch(input$seqAssembly,
-             "grch37" = target_expData37,
-             "grch38" = target_expData38)
+    # For the TARGET dataset only, we have both GRCh37 & GRCh38-aligned datasets available. 
+    # This will allow the user to select one of those alignments, but ONLY if the TARGET AML dataset has been selected.
+    if (input$seqDataCohort == "TARGET" ) {
+      assembly <- switch(input$seqAssembly,
+                         "grch37" = target_expData37,
+                         "grch38" = target_expData38)
+      return(assembly)
     } else {
-      matrix
+      return(matrix)
     }
   })
   
+  # Reactive variable that stores the clinical data elements for the selected cohort
   studyData <- reactive({
     switch(input$seqDataCohort,
            "SWOG" = swog_cde,
            "BeatAML" = beatAML_cde,
            "TARGET" = target_cde,
-           "TCGA" = laml_cde)
+           "TCGA" = laml_cde,
+           "StJude" = stjude_cde)
   })
   
   # Creating a variable that will be used to reactively pass the gene of interest into each module,
