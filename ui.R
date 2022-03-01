@@ -33,9 +33,18 @@ ui <- dashboardPage(
                                    placement = "right", 
                                    trigger = "hover"),
                 
-                #--------- Cohort selection ---------------------------#
+                #-------- Disease selection -----------------------------#
+                
+                radioGroupButtons("leukemiaSelection", choices = c("AML", "ALL"), 
+                                  status = "primary", label = "Select leukemia", 
+                                  selected = "AML", size = "xs"),
+                
+                #--------- Cohort selection -----------------------------#
+                
+                # This will be updated on the server side to include St. Jude if the user selects the "ALL" option, 
+                # which is defined in the radio buttons above
                 radioButtons("seqDataCohort", choices = c("TARGET", "Beat AML" = "BeatAML", "SWOG", "TGCA LAML" = "TCGA"), 
-                             label = "Select AML cohort", 
+                             label = "Select cohort", 
                              selected = "TARGET"),
                 
                 conditionalPanel("input['seqDataCohort'] == 'TARGET'",

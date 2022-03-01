@@ -440,7 +440,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       paste0(dataset(), "_AML_", gene(), "_", input$grouping_var, "_", input$plot_type, "_generated_", format(Sys.time(), "%m.%d.%Y"), ".png")
     }, 
     content = function(file) {
-      ggsave(filename = file, plot = plotFun(), width = 5, height = 4.5, device = "png", dpi = 250)
+      ggsave(filename = file, plot = plotFun(), width = 6, height = 4.5, device = "png", dpi = 250)
     }
   )
   

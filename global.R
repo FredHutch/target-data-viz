@@ -36,7 +36,12 @@ readData <- function(x) {
     column_to_rownames("geneSymbol")
   swog_expData <<- readRDS("data/mRNA/SWOG_AML_ExpressionData_TPM_GRCh38_FinalforShiny.RDS")
   laml_expData <<- readRDS("data/mRNA/TCGA_LAML_ExpressionData_TPM_FinalforShiny.RDS")
-
+  
+  ###### NOTE #######
+  # Substitute dummy variable until I can get some actual gene-level counts for this cohort
+  stjude_expData <- target_expData38
+  #################
+  
   # miRNA expression matrices (for TARGET dataset only)
   load("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019_FinalforShiny.RData", .GlobalEnv)
   miRmapping <<- read.csv("data/miRNA/hsa_gff3_IDMap.csv")
@@ -46,15 +51,18 @@ readData <- function(x) {
   load("data/Clinical/TARGET_AML_merged_CDEs_Shareable_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/SWOG_AML_Merged_CDEs_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/TCGA_LAML_ClinicalData_FinalforShiny.RData", .GlobalEnv)
+  # load("data/Clinical/StJude_ALL_ClinicalData_FinalforShiny.RData", .GlobalEnv)
+  stjude_cde <- target_cde
 
   # Misc accessory files
   load("data/ADC_and_CARTcell_Targets_Database_ADCReview_clinicaltrialsGov_FinalforShiny.RData", .GlobalEnv)
   load("data/DEGs/TARGET_AML_vs_NBM_and_Others_Ribodepleted_DEGs_per_Group_GRCh37_12.18.2020_FinalforShiny.RData", .GlobalEnv)
   deColKey <<- read.csv("data/Limma_Column_Descriptions.csv")
   colMapping <<- read.csv("data/Dataset_Column_Mapping_File.csv", check.names = F, na.strings = "")
+  
 }
 
-testing <- FALSE
+testing <- TRUE
 
 if (testing == TRUE) {
   print("Testing mode - data already in environment")
@@ -68,3 +76,7 @@ if (testing == TRUE) {
 }
 
 bs <- 16 # Base font size for figures
+dataset_choices <- list(
+  aml = c("TARGET", "Beat AML" = "BeatAML", "SWOG", "TGCA LAML" = "TCGA"),
+  all = c("St. Jude" = "StJude")
+)
