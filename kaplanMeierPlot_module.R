@@ -294,6 +294,11 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
   # Used the info here to figure out how to display multiple plots:
   # https://stackoverflow.com/questions/51302112/create-plots-based-on-check-box-selection-in-r-shiny
   finalPlot <- reactive({
+    
+    validate(
+      need(dataset() != "StJude", "Expression data is not currently available for this cohort. Please try again later.")
+    )
+    
     validate(
       need(input$test_type, "Please select at least one survival metric to analyze.")
     )

@@ -5,13 +5,14 @@ server <- function(input, output, session) {
     choices <- switch(input$leukemiaSelection,
                      "AML" = dataset_choices$aml,
                      "ALL" = dataset_choices$all) 
+    
     selected <- switch(input$leukemiaSelection,
                       "AML" = "TARGET",
                       "ALL" = "StJude")
     
     updateRadioButtons(
       session = session,
-      inputId = "seqDataCohort", 
+      inputId = "expDataCohort", 
       choices = choices,
       selected = selected
     )
@@ -20,13 +21,12 @@ server <- function(input, output, session) {
   
   # Variable representing the *name* of the selected cohort (as a character string)
   cohort <- reactive({
-      input$seqDataCohort
+      input$expDataCohort
   })
   
-  # Reactive variable that stores the sequencing data matrix for the selected cohort
-  seqData <- reactive({
-    
-    matrix <- switch(input$seqDataCohort,
+  # Reactive variable that stores the expression data matrix for the selected cohort
+  expData <- reactive({
+    matrix <- switch(input$expDataCohort,
                      "SWOG" = swog_expData,
                      "BeatAML" = beatAML_expData,
                      "TARGET" = target_expData38,
@@ -35,7 +35,7 @@ server <- function(input, output, session) {
     
     # For the TARGET dataset only, we have both GRCh37 & GRCh38-aligned datasets available. 
     # This will allow the user to select one of those alignments, but ONLY if the TARGET AML dataset has been selected.
-    if (input$seqDataCohort == "TARGET" ) {
+    if (input$expDataCohort == "TARGET" ) {
       assembly <- switch(input$seqAssembly,
                          "grch37" = target_expData37,
                          "grch38" = target_expData38)
@@ -47,7 +47,7 @@ server <- function(input, output, session) {
   
   # Reactive variable that stores the clinical data elements for the selected cohort
   studyData <- reactive({
-    switch(input$seqDataCohort,
+    switch(input$expDataCohort,
            "SWOG" = swog_cde,
            "BeatAML" = beatAML_cde,
            "TARGET" = target_cde,
@@ -72,7 +72,7 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$check, {
-    option <- grep(input$geneInput, rownames(seqData()), value = T, ignore.case = T)
+    option <- grep(input$geneInput, rownames(expData()), value = T, ignore.case = T)
     msg <- if (length(option) == 0) {
       "No alternate names found!"
     } else if (length(option) > 20) {
@@ -112,7 +112,7 @@ server <- function(input, output, session) {
   # Within the modules themselves, these variables are a reactive function!
   callModule(wfPlot, id = "waterfall", 
              clinData = studyData, 
-             expData = seqData, 
+             expData = expData, 
              adc_cart_targetData = adc_cart_targetData,
              gene = target, 
              dataset = cohort,
@@ -122,14 +122,14 @@ server <- function(input, output, session) {
   # Calling the Kaplan-Meier curve module
   callModule(kmPlot, id = "kaplanmeier", 
              clinData = studyData, 
-             expData = seqData, 
+             expData = expData, 
              dataset = cohort,
              gene = target)
   
   # This module is not ready for prime time yet
   # callModule(heatmap, id = "heatmap", 
   #            clinData = studyData, 
-  #            expData = seqData, 
+  #            expData = expData, 
   #            dataset = cohort,
   #            gene = target)
   
@@ -141,7 +141,7 @@ server <- function(input, output, session) {
   # Calling the DEG table module
   callModule(geneExp, id = "exps",
              clinData = studyData, 
-             expData = seqData, 
+             expData = expData, 
              gene = target,
              dataset = cohort)
   

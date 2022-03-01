@@ -43,11 +43,11 @@ ui <- dashboardPage(
                 
                 # This will be updated on the server side to include St. Jude if the user selects the "ALL" option, 
                 # which is defined in the radio buttons above
-                radioButtons("seqDataCohort", choices = c("TARGET", "Beat AML" = "BeatAML", "SWOG", "TGCA LAML" = "TCGA"), 
+                radioButtons("expDataCohort", choices = c("TARGET", "Beat AML" = "BeatAML", "SWOG", "TGCA LAML" = "TCGA"), 
                              label = "Select cohort", 
                              selected = "TARGET"),
                 
-                conditionalPanel("input['seqDataCohort'] == 'TARGET'",
+                conditionalPanel("input['expDataCohort'] == 'TARGET'",
                                  radioGroupButtons("seqAssembly", choices = c("GRCh38" = "grch38", "GRCh37" = "grch37"), 
                                                    status = "primary", label = "Select genome assembly", 
                                                    selected = "grch38", size = "xs")
