@@ -1,6 +1,5 @@
-# build me as dockerimages.fhcrc.org/monitords:latest
 FROM fredhutch/r-shiny-server-base:4.1.1
-RUN apt-get update -y && apt-get install -y pandoc libpq-dev supervisor nginx
+RUN apt-get update -y && apt-get install -y pandoc libpq-dev
 RUN R -q -e 'install.packages(c("shinyalert", "shinydashboard", "shinyjs", "shinyBS", "shinyWidgets", "shinythemes", "survminer", "gtools", "cmprsk", "ggpubr"))'
 RUN R -q -e 'install.packages(c("dplyr"), repos="https://cran.r-project.org")'
 
@@ -9,14 +8,12 @@ ADD *.R /srv/shiny-server/
 
 # adds each subdirectory to the Docker image
 ADD data /srv/shiny-server/data/
-ADD system/. /home/shiny/system/
 ADD www /srv/shiny-server/www/
 
-EXPOSE 8888
+RUN chown -R shiny:shiny /srv/shiny-server/
 
-RUN ln -sf /dev/stdout /var/log/nginx/access.log && ln -sf /dev/stderr /var/log/nginx/error.log
+EXPOSE 3838
 
 WORKDIR /srv/shiny-server
 
-CMD ["/bin/sh", "-c", "/usr/bin/supervisord -c /home/shiny/system/sup.conf"]
-
+CMD /usr/bin/shiny-server

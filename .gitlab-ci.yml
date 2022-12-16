@@ -1,21 +1,32 @@
-
 before_script:
-  - curl -LO https://releases.rancher.com/cli/v0.6.2/rancher-linux-amd64-v0.6.2.tar.gz
-  - tar zxf rancher-linux-amd64-v0.6.2.tar.gz
+  - apk update
+  - apk --no-cache add py3-pip python3 curl
+  - pip3 install pyyaml
+  - curl -O https://raw.githubusercontent.com/FredHutch/swarm-build-helper/main/build_helper.py 
+  # below is from https://stackoverflow.com/a/65810302/470769
+  - mkdir -p $HOME/.docker
+  - echo $DOCKER_AUTH_CONFIG > $HOME/.docker/config.json
+  - set -x
 
-build_test:
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  stage: build
   script:
     - aws s3 cp s3://fh-pi-meshinchi-s-eco-public/Shiny_App/data/ ./data --recursive
-    - docker build -t dockerimages.fhcrc.org/target-data-viz:latest .
-    - |
-        if docker ps -a|tr -s ' '|rev|cut -d ' ' -f 1|rev|grep -q target-data-viz
-        then
-          docker stop target-data-viz && docker rm --force target-data-viz
-        fi
-    - docker run -d --name target-data-viz -p 8888:8888 dockerimages.fhcrc.org/target-data-viz:latest
-    - sleep 120 && curl -u "${TEST_USER}:${TEST_PASSWORD}" -sI  http://localhost:8888  |head -1|grep -q "200 OK"
-    - docker stop target-data-viz && docker rm --force target-data-viz
+    - docker build -t sc-registry.fredhutch.org/target-data-viz:test .
+    - docker push sc-registry.fredhutch.org/target-data-viz:test
 
+test:
+  stage: test
+  services: 
+    - name: sc-registry.fredhutch.org/target-data-viz:test
+      alias: target-data-viz
+  script:
+    - sleep 15 && curl -sI  http://target-data-viz:3838  |head -1|grep -q "200 OK"
 
 deploy:
   stage: deploy
@@ -23,7 +34,9 @@ deploy:
     refs:
         - master
   script:
-    - docker login --username $DOCKERIMAGES_USER --password $DOCKERIMAGES_PASS https://dockerimages.fhcrc.org
-    - docker push dockerimages.fhcrc.org/target-data-viz:latest
+    - docker tag sc-registry.fredhutch.org/target-data-viz:test sc-registry.fredhutch.org/target-data-viz:latest
+    - docker push sc-registry.fredhutch.org/target-data-viz:latest
     - sleep 15
-    - rancher-v0.6.2/rancher --url https://ponderosa.fhcrc.org --access-key $RANCHERAPI_KEY --secret-key $RANCHERAPI_SECRET up -d --pull --force-upgrade --confirm-upgrade --stack target-data-viz --file docker-compose.yml --rancher-file rancher-compose.yml
+    - echo $SC_SWARM_CICD_SSH_KEY | base64 -d > ./sc_swarm_cicd_ssh_key
+    - chmod 0400 ./sc_swarm_cicd_ssh_key
+    - python3 build_helper.py docker-compose.yml | ssh -i ./sc_swarm_cicd_ssh_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@sc-swarm-mgr.fhcrc.org docker stack deploy --with-registry-auth -c - target-data-viz

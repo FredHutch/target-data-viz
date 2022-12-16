@@ -1,9 +1,21 @@
-version: '2'
+version: '3.3'
 services:
   target-data-viz:
-    image: dockerimages.fhcrc.org/target-data-viz:latest
+    image: sc-registry.fredhutch.org/target-data-viz:latest
+    networks:
+      - proxy
+    deploy:
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.target-data-viz.rule=Host(`meshinchi-data-viz.fredhutch.org`)"
+        - "traefik.http.routers.target-data-viz-secured.rule=Host(`meshinchi-data-viz.fredhutch.org`)"
+        - "traefik.http.routers.target-data-viz.entrypoints=web,web-secured"
+        - "traefik.http.services.target-data-viz.loadbalancer.server.port=3838" # it seems you always need to give traefik a port so it 'notices' the service
+        - "traefik.http.routers.target-data-viz.tls=true"
 
-    labels:
-      io.rancher.container.pull_image: always
+networks:
+  proxy:
+    external: true
 
-    restart: always
