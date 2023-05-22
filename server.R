@@ -145,6 +145,9 @@ server <- function(input, output, session) {
              gene = target,
              dataset = cohort)
   
+  callModule(HPAPlot, id = "hpa",
+             gene = target)
+  
   #--------------------- External databases tab --------------------- #
 
   # TO DO: Add a searchable AML-restricted gene list to this tab
