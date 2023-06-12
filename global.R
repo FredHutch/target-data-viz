@@ -60,8 +60,8 @@ readData <- function(x) {
   # for the St. Jude data is currently needed to prevent the app from crashing.
   # Definitely not ideal, but I don't have time to restructure to accomodate it right now.
   # St. Jude data should be coming soon.
-  stjude_expData <- target_expData38
-  stjude_expData <- target_cde
+  stjude_expData <- target_expData37
+  stjude_cde <- target_cde
   ###################################################
 }
 
@@ -81,5 +81,5 @@ if (testing == TRUE) {
 bs <- 16 # Base font size for figures
 dataset_choices <- list(
   aml = c("TARGET", "Beat AML" = "BeatAML", "SWOG", "TGCA LAML" = "TCGA"),
-  all = c("St. Jude" = "StJude")
+  all = c("St. Jude" = "StJude", "TARGET" = "TARGET")
 )
