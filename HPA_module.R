@@ -8,12 +8,12 @@
 #
 
 HPAPlotUI <- function(id, label = "Human Protein Atlas Supporting"){
-
-ns <- NS(id)
   
-############################ ----- UI ----- ################################################################################
-
-# Define UI for application that draws a histogram
+  ns <- NS(id)
+  
+  ############################ ----- UI ----- ################################################################################
+  
+  # Define UI for application that draws a histogram
   tagList(
     fluidPage(
       theme = shinythemes::shinytheme(theme = "paper"), #this is the theme Amanda chose
@@ -70,119 +70,119 @@ ns <- NS(id)
         )
       )
     )
-)
+  )
 }
-    ############################ ----- SERVER ----- ##########################################################################
-    
-    # Define server logic required to draw a histogram
-    HPAPlot <- function(input, output, session, gene) {
-      
-      
-      #makes the shiny app reactive to the gene input and plotting
-      toListen <- reactive({
-        list(input$geneInput, input$Plot, input$table)
-      })
-      
-    
-      
-      observeEvent(toListen(),{
-        
-        filtData <- reactive({
-          
-          immdata <- immdata %>%
-            filter(gene == gene()) %>%
-            mutate(group = factor(group, levels <- c("basophil", "eosinophil", "neutrophil", "classical monocyte",
-                                                         "non-classical monocyte", "intermediate monocyte",
-                                                         "T-reg", "gdT-cell", "MAIT T-cell",
-                                                         "memory CD4 T-cell", "naive CD4 T-cell",
-                                                         "memory CD8 T-cell", "naive CD8 T-cell",
-                                                         "memory B-cell", "naive B-cell", "plasmacytoid DC",
-                                                         "myeloid DC", "NK-cell", "total PBMC")))
-          immdata <- immdata %>%
-            filter(gene == gene()) %>%
-            mutate(celltype = factor(celltype, levels <- c("Granulocytes", "Monocytes", 
-                                                           "T-cells", "B-cells", "Dendritic cells",
-                                                           "NK-cells", "Total PBMC")))
-          
-        })
-        
-      filtProt <- reactive({
-        
-          protein <- protein %>%
-            filter(`Gene name` == gene()) %>%
-            mutate(Level = factor(Level, levels <- c("Low", "Medium", "High")))
-          
-        })
-        
-      filtSub <- reactive({
-        subloc <- subloc[1:6] %>%
-          filter(`Gene name` == gene())
-        })
-        
-        ############################ ----- Plots ----- ###########################################################      
-      plotHist <- reactive({
-        #bar chart for the HPA data
-        
-        HPAplot <- filtData() %>% ggplot(aes(x=group, y=TPM, fill=celltype)) + 
-          scale_fill_viridis(option="viridis", discrete = TRUE, name = "Cell Type") +
-          geom_bar(stat='identity') +
-          theme_classic(base_size = 12) +
-          theme(
-            axis.text.x = element_text(angle = 45, hjust = 1),
-            plot.title = element_text(hjust = 0.5),
-            panel.grid.major = element_line(color = "lightgray", linewidth = 0.5, linetype = 1)) +
-          ggtitle("Immune Cell-Type Expression in Transcripts Per Million") +
-          xlab("") +
-          ylab("TPM")
-        
-      })
-        
-        
-      plotProt <- reactive({ 
-        
-        Protplot <- filtProt() %>% ggplot(aes(x=Tissue, y=Level, fill=Tissue, text = Level)) +
-          scale_fill_viridis(option="viridis", discrete = TRUE) +
-          geom_bar(stat='identity') +
-          theme_classic(base_size = 12) +
-          theme(
-            legend.position="none",
-            axis.text.x = element_text(angle = 45, hjust = 1),
-            plot.title = element_text(hjust = 0.5),
-            panel.grid.major = element_line(color = "lightgray", linewidth = 0.5, linetype = 1)) +
-          ggtitle("Protein Expression Per Tissue Type") +
-          xlab("") +
-          ylab("Protein Expression Score")
-        
-      }) 
-      
-      
-        #creates the dropdown tab for switching between plots    
-        output$Plot1 <- renderPlotly({
-          ggplotly(plotHist(), tooltip = "y", height = 600)})
-        
-        output$Plot2 <- renderPlotly({
-          ggplotly(plotProt(), tooltip = "text", height = 600)})
-        
-        output$mytable <- DT::renderDataTable(
-          filtSub(), 
-          selection = 'none',
-          escape = FALSE,
-          filter = "none",
-          class = "row-border",
-          rownames = FALSE,
-          options = list(
-            paging = FALSE,
-            autowidth = TRUE,
-            searching = FALSE,
-            dom = "t",
-            ordering = FALSE)
-        )
-      })
-    }
-    
-  ############################ ----- RUN ----- ###############################################################################
+############################ ----- SERVER ----- ##########################################################################
+
+# Define server logic required to draw a histogram
+HPAPlot <- function(input, output, session, gene) {
   
-  #Run the application 
-  #shinyApp(ui = ui, server = server)
   
-  ############################################################################################################################
+  #makes the shiny app reactive to the gene input and plotting
+  toListen <- reactive({
+    list(input$geneInput, input$Plot, input$table)
+  })
+  
+  
+  
+  observeEvent(toListen(),{
+    
+    filtData <- reactive({
+      
+      immdata <- immdata %>%
+        filter(gene == gene()) %>%
+        mutate(group = factor(group, levels <- c("basophil", "eosinophil", "neutrophil", "classical monocyte",
+                                                 "non-classical monocyte", "intermediate monocyte",
+                                                 "T-reg", "gdT-cell", "MAIT T-cell",
+                                                 "memory CD4 T-cell", "naive CD4 T-cell",
+                                                 "memory CD8 T-cell", "naive CD8 T-cell",
+                                                 "memory B-cell", "naive B-cell", "plasmacytoid DC",
+                                                 "myeloid DC", "NK-cell", "total PBMC")))
+      immdata <- immdata %>%
+        filter(gene == gene()) %>%
+        mutate(celltype = factor(celltype, levels <- c("Granulocytes", "Monocytes", 
+                                                       "T-cells", "B-cells", "Dendritic cells",
+                                                       "NK-cells", "Total PBMC")))
+      
+    })
+    
+    filtProt <- reactive({
+      
+      protein <- protein %>%
+        filter(`Gene name` == gene()) %>%
+        mutate(Level = factor(Level, levels <- c("Low", "Medium", "High")))
+      
+    })
+    
+    filtSub <- reactive({
+      subloc <- subloc[1:6] %>%
+        filter(`Gene name` == gene())
+    })
+    
+    ############################ ----- Plots ----- ###########################################################      
+    plotHist <- reactive({
+      #bar chart for the HPA data
+      
+      HPAplot <- filtData() %>% ggplot(aes(x=group, y=TPM, fill=celltype)) + 
+        scale_fill_viridis(option="viridis", discrete = TRUE, name = "Cell Type") +
+        geom_bar(stat='identity') +
+        theme_classic(base_size = 12) +
+        theme(
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.title = element_text(hjust = 0.5),
+          panel.grid.major = element_line(color = "lightgray", linewidth = 0.5, linetype = 1)) +
+        ggtitle("Immune Cell-Type Expression in Transcripts Per Million") +
+        xlab("") +
+        ylab("TPM")
+      
+    })
+    
+    
+    plotProt <- reactive({ 
+      
+      Protplot <- filtProt() %>% ggplot(aes(x=Tissue, y=Level, fill=Tissue, text = Level)) +
+        scale_fill_viridis(option="viridis", discrete = TRUE) +
+        geom_bar(stat='identity') +
+        theme_classic(base_size = 12) +
+        theme(
+          legend.position="none",
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.title = element_text(hjust = 0.5),
+          panel.grid.major = element_line(color = "lightgray", linewidth = 0.5, linetype = 1)) +
+        ggtitle("Protein Expression Per Tissue Type") +
+        xlab("") +
+        ylab("Protein Expression Score")
+      
+    }) 
+    
+    
+    #creates the dropdown tab for switching between plots    
+    output$Plot1 <- renderPlotly({
+      ggplotly(plotHist(), tooltip = "y", height = 600)})
+    
+    output$Plot2 <- renderPlotly({
+      ggplotly(plotProt(), tooltip = "text", height = 600)})
+    
+    output$mytable <- DT::renderDataTable(
+      filtSub(), 
+      selection = 'none',
+      escape = FALSE,
+      filter = "none",
+      class = "row-border",
+      rownames = FALSE,
+      options = list(
+        paging = FALSE,
+        autowidth = TRUE,
+        searching = FALSE,
+        dom = "t",
+        ordering = FALSE)
+    )
+  })
+}
+
+############################ ----- RUN ----- ###############################################################################
+
+#Run the application 
+#shinyApp(ui = ui, server = server)
+
+############################################################################################################################
