@@ -1,4 +1,8 @@
 ######### Loading packages
+<<<<<<< HEAD
+
+=======
+>>>>>>> upstream/hpa-data
 library(tidyverse)
 library(shiny)
 library(shinyalert)
@@ -9,6 +13,16 @@ library(shinyjs)
 library(shinyBS)
 library(data.table)
 library(DT)
+<<<<<<< HEAD
+library(viridis)
+library(viridisLite)
+library(ggplot2)
+library(dqshiny)
+library(thematic)
+library(plotly)
+library(fst)
+=======
+>>>>>>> upstream/hpa-data
 
 # https://rstudio.github.io/bslib/articles/bslib.html#bootswatch New themes package to check out
 
@@ -18,6 +32,10 @@ source("kaplanMeierPlot_module.R")
 source("degTable_module.R")
 source("geneExpressors_module.R")
 source("heatmap_module.R")
+<<<<<<< HEAD
+source("HPA_module.R")
+=======
+>>>>>>> upstream/hpa-data
 
 ######### Loading external data
 # PLEASE NOTE: Large expression datasets required for this app to function are *not* stored in the Github repo,
@@ -53,6 +71,14 @@ readData <- function(x) {
   deColKey <<- read.csv("data/Limma_Column_Descriptions.csv")
   colMapping <<- read.csv("data/Dataset_Column_Mapping_File.csv", check.names = F, na.strings = "")
   
+<<<<<<< HEAD
+  immdata <<- read.fst("data/hpa/rna_immune_cell_sample.fst") #the HPA data
+  all_genes <<- readRDS("data/hpa/all_genes.RDS") #a list of genes from both of the datasets for autocorrection
+  subloc <<- read.fst("data/hpa/subcellular_location.fst") 
+  protein <<- read.fst("data/hpa/tissue_data.fst")
+  
+=======
+>>>>>>> upstream/hpa-data
   ####### These are TEMPORARY dummy variables ########
   # Currently, these variables are *required* for some components of the app to function.
   # I've added error messages to prevent the user from actually plotting these data frames,

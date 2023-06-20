@@ -9,6 +9,10 @@
 
 HPAPlotUI <- function(id, label = "Human Protein Atlas Supporting"){
 
+<<<<<<< HEAD
+ns <- NS(id)
+  
+=======
 ############################ ----- PACKAGES ----- ##########################################################################
 
 library(shiny)
@@ -37,6 +41,7 @@ protein <- read.fst("data/tissue_data.fst")
 
 
 
+>>>>>>> upstream/hpa-data
 ############################ ----- UI ----- ################################################################################
 
 # Define UI for application that draws a histogram
@@ -115,7 +120,11 @@ protein <- read.fst("data/tissue_data.fst")
         
         filtData <- reactive({
           
+<<<<<<< HEAD
+          immdata <- immdata %>%
+=======
           data <- data %>%
+>>>>>>> upstream/hpa-data
             filter(gene == gene()) %>%
             mutate(group = factor(group, levels <- c("basophil", "eosinophil", "neutrophil", "classical monocyte",
                                                          "non-classical monocyte", "intermediate monocyte",
@@ -124,7 +133,11 @@ protein <- read.fst("data/tissue_data.fst")
                                                          "memory CD8 T-cell", "naive CD8 T-cell",
                                                          "memory B-cell", "naive B-cell", "plasmacytoid DC",
                                                          "myeloid DC", "NK-cell", "total PBMC")))
+<<<<<<< HEAD
+          immdata <- immdata %>%
+=======
           data <- data %>%
+>>>>>>> upstream/hpa-data
             filter(gene == gene()) %>%
             mutate(celltype = factor(celltype, levels <- c("Granulocytes", "Monocytes", 
                                                            "T-cells", "B-cells", "Dendritic cells",
@@ -141,7 +154,11 @@ protein <- read.fst("data/tissue_data.fst")
         })
         
       filtSub <- reactive({
+<<<<<<< HEAD
+        subloc <- subloc[1:6] %>%
+=======
         sub <- sub[1:6] %>%
+>>>>>>> upstream/hpa-data
           filter(`Gene name` == gene())
         })
         
