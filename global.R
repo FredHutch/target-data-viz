@@ -9,6 +9,13 @@ library(shinyjs)
 library(shinyBS)
 library(data.table)
 library(DT)
+library(viridis)
+library(viridisLite)
+library(ggplot2)
+library(dqshiny)
+library(thematic)
+library(plotly)
+library(fst)
 
 # https://rstudio.github.io/bslib/articles/bslib.html#bootswatch New themes package to check out
 
@@ -18,6 +25,7 @@ source("kaplanMeierPlot_module.R")
 source("degTable_module.R")
 source("geneExpressors_module.R")
 source("heatmap_module.R")
+source("HPA_module.R")
 
 ######### Loading external data
 # PLEASE NOTE: Large expression datasets required for this app to function are *not* stored in the Github repo,
@@ -52,6 +60,11 @@ readData <- function(x) {
   load("data/DEGs/TARGET_AML_vs_NBM_and_Others_Ribodepleted_DEGs_per_Group_GRCh37_12.18.2020_FinalforShiny.RData", .GlobalEnv)
   deColKey <<- read.csv("data/Limma_Column_Descriptions.csv")
   colMapping <<- read.csv("data/Dataset_Column_Mapping_File.csv", check.names = F, na.strings = "")
+  
+  immdata <<- read.fst("data/hpa/rna_immune_cell_sample.fst") #the HPA data
+  all_genes <<- readRDS("data/hpa/all_genes.RDS") #a list of genes from both of the datasets for autocorrection
+  subloc <<- read.fst("data/hpa/subcellular_location.fst") 
+  protein <<- read.fst("data/hpa/tissue_data.fst")
   
   ####### These are TEMPORARY dummy variables ########
   # Currently, these variables are *required* for some components of the app to function.
