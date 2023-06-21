@@ -63,7 +63,8 @@ ui <- dashboardPage(
                 # menuItem("Heatmaps", tabName = "heatmap", icon = icon("th")),
                 menuItem("DE Genes", tabName = "deTable", icon = icon("clipboard-list")),
                 menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
-                menuItem("External databases", tabName = "extData", icon = icon("atlas"))
+                menuItem("External databases", tabName = "extData", icon = icon("atlas")),
+                menuItem("HPA Info", tabName = "HPA", icon = icon("computer"))
     )
   ),  
   
@@ -102,6 +103,10 @@ ui <- dashboardPage(
       # Sourcing the gene expressor module UI component
       tabItem(tabName = "geneExp",
               geneExpUI(id = "exps", label = "Identify gene-positive cases")
+      ), 
+      
+      tabItem(tabName = "HPA",
+              HPAPlotUI(id = "hpa", label = "HPA Supporting Info")
       ), 
       
       # Building the external datasets tab that will contain links to other gene expression or protein databases
