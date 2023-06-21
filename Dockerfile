@@ -1,6 +1,6 @@
 FROM fredhutch/r-shiny-server-base:4.1.1
 RUN apt-get update -y && apt-get install -y pandoc libpq-dev
-RUN R -q -e 'install.packages(c("shinyalert", "shinydashboard", "shinyjs", "shinyBS", "shinyWidgets", "shinythemes", "survminer", "gtools", "cmprsk", "ggpubr"))'
+RUN R -q -e 'install.packages(c("shinyalert", "shinydashboard", "shinyjs", "shinyBS", "shinyWidgets", "shinythemes", "survminer", "gtools", "cmprsk", "ggpubr", "DT", "data.table", "viridis", "viridisLite", "ggplot2", "plotly", "fst"))'
 RUN R -q -e 'install.packages(c("dplyr"), repos="https://cran.r-project.org")'
 
 RUN rm -rf /srv/shiny-server/
