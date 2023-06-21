@@ -242,7 +242,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       # )
       # 
     validate(
-      need(!((dataset() %in% c("BeatAML", "SWOG", "TCGA")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
+      need(!((dataset() %in% c("BeatAML", "SWOG", "TCGA", "StJude")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
     
     plotDF <- geneData() %>%
       pivot_longer(names_to = "PatientID", values_to = "Expression", -Gene) %>%
