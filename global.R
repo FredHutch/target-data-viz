@@ -60,8 +60,9 @@ readData <- function(x) {
   # for the St. Jude data is currently needed to prevent the app from crashing.
   # Definitely not ideal, but I don't have time to restructure to accomodate it right now.
   # St. Jude data should be coming soon.
-  stjude_expData <- target_expData37
-  stjude_cde <- target_cde
+  stjude_expData <<- readRDS("data/mRNA/St_Jude_Expression_Data_TPM_filt4dupGenes_FinalforShiny_1.RDS")
+  #stjude_expData <- read_fst("data/mRNA/St_Jude_Expression_Data_TPM_filt4dupGenes_FinalforShiny.fst")
+  load("data/Clinical/StJude_ALL_ClinicalData_FinalforShiny.RData", .GlobalEnv)
   ###################################################
 }
 
@@ -81,5 +82,5 @@ if (testing == TRUE) {
 bs <- 16 # Base font size for figures
 dataset_choices <- list(
   aml = c("TARGET", "Beat AML" = "BeatAML", "SWOG", "TGCA LAML" = "TCGA"),
-  all = c("St. Jude" = "StJude", "TARGET" = "TARGET")
+  all = c("St. Jude" = "StJude")
 )
