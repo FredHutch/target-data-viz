@@ -12,8 +12,6 @@ library(DT)
 library(viridis)
 library(viridisLite)
 library(ggplot2)
-library(dqshiny)
-library(thematic)
 library(plotly)
 library(fst)
 
