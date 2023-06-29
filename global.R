@@ -71,8 +71,9 @@ readData <- function(x) {
   # for the St. Jude data is currently needed to prevent the app from crashing.
   # Definitely not ideal, but I don't have time to restructure to accomodate it right now.
   # St. Jude data should be coming soon.
-  stjude_expData <- target_expData38
-  stjude_expData <- target_cde
+  stjude_expData <<- readRDS("data/mRNA/St_Jude_Expression_Data_TPM_filt4dupGenes_FinalforShiny_1.RDS")
+  #stjude_expData <- read_fst("data/mRNA/St_Jude_Expression_Data_TPM_filt4dupGenes_FinalforShiny.fst")
+  load("data/Clinical/StJude_ALL_ClinicalData_FinalforShiny.RData", .GlobalEnv)
   ###################################################
 }
 
