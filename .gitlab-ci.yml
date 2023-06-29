@@ -28,6 +28,21 @@ test:
   script:
     - sleep 15 && curl -sI  http://target-data-viz:3838  |head -1|grep -q "200 OK"
 
+
+deploy_preview:
+  stage: deploy
+  only:
+    refs:
+        - Dev
+  script:
+    - docker tag sc-registry.fredhutch.org/target-data-viz:test sc-registry.fredhutch.org/target-data-viz-preview:latest
+    - docker push sc-registry.fredhutch.org/target-data-viz-preview:latest
+    - sleep 15
+    - echo $SC_SWARM_CICD_SSH_KEY | base64 -d > ./sc_swarm_cicd_ssh_key
+    - chmod 0400 ./sc_swarm_cicd_ssh_key
+    - python3 build_helper.py docker-compose-preview.yml | ssh -i ./sc_swarm_cicd_ssh_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@sc-swarm-mgr.fhcrc.org docker stack deploy --with-registry-auth -c - target-data-viz-preview
+
+
 deploy:
   stage: deploy
   only:
