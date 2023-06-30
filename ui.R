@@ -64,7 +64,7 @@ ui <- dashboardPage(
                 menuItem("DE Genes", tabName = "deTable", icon = icon("clipboard-list")),
                 menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
                 menuItem("External databases", tabName = "extData", icon = icon("atlas")),
-                menuItem("HPA Info", tabName = "HPA", icon = icon("computer"))
+                menuItem("HPA Info", tabName = "HPA", icon = icon("desktop"))
     )
   ),  
   
