@@ -164,7 +164,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     # Identifying which event column is needed, 
     # depending on which test type is selected
     validate(
-      need(grepl("EFS\\.ID|OS\\.ID|DFS\\.ID|RR\\.ID", colnames(plotData())), "This type of survival data is not available in this dataset. --LOGAN --10AM --7/12")
+      need(grepl("EFS\\.ID|OS\\.ID|DFS\\.ID|RR\\.ID", colnames(plotData())), "This type of survival data is not available in this dataset.")
     )
     time <- grep(paste0(testType, "\\.Time"), colnames(plotData()), value = T)
     event <- grep(paste0(testType, "\\.ID"), colnames(plotData()), value = T)
@@ -296,7 +296,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
   finalPlot <- reactive({
     
     validate(
-      need(dataset() != "StJude", "Survival data is not currently available for this cohort. Please try again later.")
+      need(dataset() != "StJude", "Survival data is not currently available for this cohort. Please try again later. --Logan --7/12/23, 10:23")
     )
     
     validate(
