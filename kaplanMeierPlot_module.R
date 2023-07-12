@@ -164,7 +164,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     # Identifying which event column is needed, 
     # depending on which test type is selected
     validate(
-      need(grepl("EFS\\.ID|OS\\.ID|DFS\\.ID|RR\\.ID", colnames(plotData())), "This type of survival data is not available in this dataset.")
+      need(grepl("EFS\\.ID|OS\\.ID|DFS\\.ID|RR\\.ID", colnames(plotData())), "This type of survival data is not available in this dataset. --LOGAN --10AM --7/12")
     )
     time <- grep(paste0(testType, "\\.Time"), colnames(plotData()), value = T)
     event <- grep(paste0(testType, "\\.ID"), colnames(plotData()), value = T)
