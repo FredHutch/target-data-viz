@@ -296,7 +296,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
   finalPlot <- reactive({
     
     validate(
-      need(dataset() != "StJude", "Survival data is not currently available for this cohort. Please try again later. --Logan --7/12/23, 10:23")
+      need(dataset() != "StJude", "Survival data is not currently available for this cohort.")
     )
     
     validate(
