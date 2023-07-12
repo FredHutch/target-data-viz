@@ -33,7 +33,7 @@ deploy_preview:
   stage: deploy
   only:
     refs:
-        - Dev
+        - dev
   script:
     - docker tag sc-registry.fredhutch.org/target-data-viz:test sc-registry.fredhutch.org/target-data-viz-preview:latest
     - docker push sc-registry.fredhutch.org/target-data-viz-preview:latest
