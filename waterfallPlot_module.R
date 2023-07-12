@@ -236,13 +236,13 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   
   # Transforming the counts into a long-format dataframe (to use with ggplot).
   plotData <- reactive({
-    
-      validate(
-        need(dataset() != "StJude", "Expression data is not currently available for this cohort. Please try again later.")
-      )
-    
+      # 
+      # validate(
+      #   need(dataset() != "StJude", "Expression data is not currently available for this cohort. Please try again later.")
+      # )
+      # 
     validate(
-      need(!((dataset() %in% c("BeatAML", "SWOG", "TCGA")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
+      need(!((dataset() %in% c("BeatAML", "SWOG", "TCGA", "StJude")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
     
     plotDF <- geneData() %>%
       pivot_longer(names_to = "PatientID", values_to = "Expression", -Gene) %>%
@@ -362,7 +362,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       
       p <- plotData() %>%
         drop_na(input$grouping_var) %>%
-        filter(Disease.Group == "AML") %>%
+        filter(Disease.Group == c("AML")) %>%
         ungroup() %>%
         dplyr::select(PatientID, Gene, Expression, !!sym(input$grouping_var)) %>%
         pivot_wider(names_from = "Gene", values_from = "Expression")
