@@ -362,7 +362,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       
       p <- plotData() %>%
         drop_na(input$grouping_var) %>%
-        filter(Disease.Group == "AML") %>%
+        filter(Disease.Group == c("AML")) %>%
         ungroup() %>%
         dplyr::select(PatientID, Gene, Expression, !!sym(input$grouping_var)) %>%
         pivot_wider(names_from = "Gene", values_from = "Expression")
