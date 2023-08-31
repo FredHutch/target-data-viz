@@ -423,7 +423,9 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
                        Gene = gene(),
                        `Mean (TPM)` = round(mean(Expression, na.rm = T), 2), 
                        `Median (TPM)` = round(median(Expression, na.rm = T), 2), 
-                       `Range (TPM)` = paste0(round(min(Expression), 2), " - ", round(max(Expression), 2)), 
+                       `Range (TPM)` = paste0(round(min(Expression), 2), " - ", round(max(Expression), 2)),
+                       `N >= 5 (TPM)` = sum(Expression >= 5, na.rm = T),
+                       `% >= 5 (TPM)` = round(sum(Expression >= 5, na.rm = T) / n() * 100, 2),
                        .groups = "keep")
   })
   
