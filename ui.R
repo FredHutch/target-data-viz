@@ -29,6 +29,32 @@ ui <- dashboardPage(
                              style = 'padding:2px; font-size:70%', # Extra style CSS makes the button smaller
                              class = "btn-primary"),
                 
+                conditionalPanel(
+                  condition = "!input.geneInput", 
+                  tags$div(style = "margin-left: 13px; margin-top: 16px; color: white; font-size: 12px;", class = "fa fa-question", "  AML-restricted")
+                ), 
+                conditionalPanel(
+                  condition = "input.geneInput && !output.gene_present", 
+                  tags$div(style = "margin-left: 13px; margin-top: 16px; color: #F47174; font-size: 12px;", class = "fa fa-times", "  AML-restricted")
+                ), 
+                conditionalPanel(
+                  condition = "input.geneInput && output.gene_present", 
+                  tags$div(style = "margin-left: 13px; margin-top: 16px; color: #93C54B; font-size: 12px;", class = "fa fa-check", "  AML-restricted")
+                ),
+                conditionalPanel(
+                  condition = "!input.geneInput", 
+                  tags$div(style = "margin-left: 13px; margin-top: 8px; color: white; font-size: 12px;", class = "fa fa-question", "  Transmembrane")
+                ), 
+                conditionalPanel(
+                  condition = "input.geneInput && !output.trmembrane",
+                  tags$div(style = "margin-left: 13px; margin-top: 8px; color: #F47174; font-size: 12px;", class = "fa fa-times", "  Transmembrane")
+                ),
+                conditionalPanel(
+                  condition = "input.geneInput && output.trmembrane",
+                  tags$div(style = "margin-left: 13px; margin-top: 8px; color: #93C54B; font-size: 12px;", class = "fa fa-check", "  Transmembrane")
+                ),
+                
+          
                 shinyBS::bsTooltip("check", title = "Click here for alias suggestions",
                                    placement = "right", 
                                    trigger = "hover"),
@@ -64,7 +90,9 @@ ui <- dashboardPage(
                 menuItem("DE Genes", tabName = "deTable", icon = icon("clipboard-list")),
                 menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
                 menuItem("External databases", tabName = "extData", icon = icon("atlas")),
-                menuItem("HPA Info", tabName = "HPA", icon = icon("dna"))
+                menuItem("HPA Info", tabName = "HPA", icon = icon("computer"))
+                
+                
     )
   ),  
   

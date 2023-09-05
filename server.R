@@ -1,4 +1,19 @@
+
+
 server <- function(input, output, session) { 
+  
+  output$gene_present <- reactive({
+    input$geneInput %in% aml_restricted_genelist$Gene
+  })
+  
+  outputOptions(output, "gene_present", suspendWhenHidden = FALSE)
+  
+  output$trmembrane <- reactive({
+    input$geneInput %in% transmembraneprot$Gene.name
+  })
+  
+  outputOptions(output, "trmembrane", suspendWhenHidden = FALSE)
+  
   
   observeEvent(input$leukemiaSelection, {
     
