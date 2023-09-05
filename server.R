@@ -1,7 +1,7 @@
-
-
 server <- function(input, output, session) { 
   
+  # the following functions are to create checkmarks for whether the input gene is aml-restricted and transmembrane
+  #-------------------------------------------------------------#
   output$gene_present <- reactive({
     input$geneInput %in% aml_restricted_genelist$Gene
   })
@@ -13,7 +13,7 @@ server <- function(input, output, session) {
   })
   
   outputOptions(output, "trmembrane", suspendWhenHidden = FALSE)
-  
+  #-------------------------------------------------------------#
   
   observeEvent(input$leukemiaSelection, {
     
