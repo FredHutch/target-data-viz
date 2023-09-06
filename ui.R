@@ -33,27 +33,33 @@ ui <- dashboardPage(
                 #-------------------------------------------------------------#
                 conditionalPanel(
                   condition = "!input.geneInput", 
-                  tags$div(style = "margin-left: 13px; margin-top: 16px; color: white; font-size: 13px; font-family: sans-serif;", icon("question"), "   AML-restricted")
+                  tags$div(style = "margin-left: 13px; margin-top: 16px; color: white; font-size: 13px; font-family: sans-serif;", 
+                           icon("question", style = "font-size: 10px;"), "   AML-restricted")
                 ), 
                 conditionalPanel(
                   condition = "input.geneInput && !output.gene_present", 
-                  tags$div(style = "margin-left: 13px; margin-top: 16px; color: #F47174; font-size: 13px; font-family: sans-serif;", icon("times"), "   AML-restricted")
+                  tags$div(style = "margin-left: 13px; margin-top: 16px; color: #F47174; font-size: 13px; font-family: sans-serif;", 
+                           icon("times", style = "font-size: 10px;"), "   AML-restricted")
                 ), 
                 conditionalPanel(
                   condition = "input.geneInput && output.gene_present", 
-                  tags$div(style = "margin-left: 13px; margin-top: 16px; color: #93C54B; font-size: 13px; font-family: sans-serif;", icon("check"), "   AML-restricted")
+                  tags$div(style = "margin-left: 13px; margin-top: 16px; color: #93C54B; font-size: 13px; font-family: sans-serif;", 
+                           icon("check", style = "font-size: 10px;"), "   AML-restricted")
                 ),
                 conditionalPanel(
                   condition = "!input.geneInput", 
-                  tags$div(style = "margin-left: 13px; margin-top: 1px; color: white; font-size: 13px; font-family: sans-serif;", icon("question"), "   Transmembrane")
+                  tags$div(style = "margin-left: 13px; margin-top: 1px; color: white; font-size: 13px; font-family: sans-serif;", 
+                           icon("question", style = "font-size: 10px;"), "   Transmembrane")
                 ), 
                 conditionalPanel(
                   condition = "input.geneInput && !output.trmembrane",
-                  tags$div(style = "margin-left: 13px; margin-top: 1px; color: #F47174; font-size: 13px; font-family: sans-serif;", icon("times"), "   Transmembrane")
+                  tags$div(style = "margin-left: 13px; margin-top: 1px; color: #F47174; font-size: 13px; font-family: sans-serif;", 
+                           icon("times", style = "font-size: 10px;"), "   Transmembrane")
                 ),
                 conditionalPanel(
                   condition = "input.geneInput && output.trmembrane",
-                  tags$div(style = "margin-left: 13px; margin-top: 1px; color: #93C54B; font-size: 13px; font-family: sans-serif;", icon("check"), "   Transmembrane")
+                  tags$div(style = "margin-left: 13px; margin-top: 1px; color: #93C54B; font-size: 13px; font-family: sans-serif;", 
+                           icon("check", style = "font-size: 10px;"), "   Transmembrane")
                 ),
                 #-------------------------------------------------------------#
                 
