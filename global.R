@@ -60,6 +60,8 @@ readData <- function(x) {
   load("data/DEGs/TARGET_AML_vs_NBM_and_Others_Ribodepleted_DEGs_per_Group_GRCh37_12.18.2020_FinalforShiny.RData", .GlobalEnv)
   deColKey <<- read.csv("data/Limma_Column_Descriptions.csv")
   colMapping <<- read.csv("data/Dataset_Column_Mapping_File.csv", check.names = F, na.strings = "")
+  aml_restricted_genelist <<- read.csv("data/aml_restricted_genelist.csv")
+  transmembrane_genelist <<- read.csv("data/transmembraneprot.csv")
   
   immdata <<- read.fst("data/hpa/rna_immune_cell_sample.fst") #the HPA data
   all_genes <<- readRDS("data/hpa/all_genes.RDS") #a list of genes from both of the datasets for autocorrection

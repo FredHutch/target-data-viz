@@ -29,6 +29,40 @@ ui <- dashboardPage(
                              style = 'padding:2px; font-size:70%', # Extra style CSS makes the button smaller
                              class = "btn-primary"),
                 
+                # the following functions are to create checkmarks for whether the input gene is aml-restricted and transmembrane
+                #-------------------------------------------------------------#
+                conditionalPanel(
+                  condition = "!input.geneInput", #if there is no gene inputted
+                  tags$div(style = "margin-left: 13px; margin-top: 16px; color: white; font-size: 14px; font-family: sans-serif;", 
+                           icon("question", style = "font-size: 12px;"), "   AML-restricted")
+                ), 
+                conditionalPanel(
+                  condition = "input.geneInput && !output.gene_present", #if there is a gene inputted but it is not found in the aml-restricted list
+                  tags$div(style = "margin-left: 13px; margin-top: 16px; color: #F47174; font-size: 14px; font-family: sans-serif;", 
+                           icon("times", style = "font-size: 12px;"), "   AML-restricted")
+                ), 
+                conditionalPanel(
+                  condition = "input.geneInput && output.gene_present", #if there is a gene inputted and it is found in the aml-restricted list
+                  tags$div(style = "margin-left: 13px; margin-top: 16px; color: #93C54B; font-size: 14px; font-family: sans-serif;", 
+                           icon("check", style = "font-size: 12px;"), "   AML-restricted")
+                ),
+                conditionalPanel(
+                  condition = "!input.geneInput", 
+                  tags$div(style = "margin-left: 13px; margin-top: 1px; color: white; font-size: 14px; font-family: sans-serif;", 
+                           icon("question", style = "font-size: 12px;"), "   Transmembrane")
+                ), 
+                conditionalPanel(
+                  condition = "input.geneInput && !output.trmembrane",
+                  tags$div(style = "margin-left: 13px; margin-top: 1px; color: #F47174; font-size: 14px; font-family: sans-serif;", 
+                           icon("times", style = "font-size: 12px;"), "   Transmembrane")
+                ),
+                conditionalPanel(
+                  condition = "input.geneInput && output.trmembrane",
+                  tags$div(style = "margin-left: 13px; margin-top: 1px; color: #93C54B; font-size: 14px; font-family: sans-serif;", 
+                           icon("check", style = "font-size: 12px;"), "   Transmembrane")
+                ),
+                #-------------------------------------------------------------#
+                
                 shinyBS::bsTooltip("check", title = "Click here for alias suggestions",
                                    placement = "right", 
                                    trigger = "hover"),
