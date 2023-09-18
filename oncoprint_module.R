@@ -1,12 +1,6 @@
 # UI function for the waterfall plot module
 oncoprintUI <- function(id, label = "oncoprint"){
   
-  library(DT)
-  library(shinyjs)
-  library(shinyWidgets)
-  library(tidyverse)
-  library(ComplexHeatmap) 
-  
   ns <- NS(id) # Setting a unique namespace for this module
   
   fluidPage(
