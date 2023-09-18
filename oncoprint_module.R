@@ -8,8 +8,9 @@ oncoprintUI <- function(id, label = "oncoprint"){
       position = "left", 
       sidebarPanel(
         helpText("Upload a CSV file with a single column of gene symbols. Do not include a column title or header. 
-                            Do not inclue any rows/columns other than 1 single column of gene symbols. The file MUST be a CSV. 
-                            If the gene list is > 30, only the first 30 will be taken."),
+                            Do not inclue any rows/columns other than 1 single column of gene symbols.
+                            If the gene list is > 30, only the first 30 will be taken. At this moment in time, the 
+                            TARGET dataset has the most functionality."),
         
         br(),
         
