@@ -49,17 +49,17 @@ oncoprintUI <- function(id, label = "oncoprint"){
         shinyBS::bsTooltip(ns("plot_download"), 
                           title = "Click here to download a copy of the plot",
                           placement = "right", 
-                          trigger = "hover")),
+                          trigger = "hover"), width = 3, height = 800),
       
       #|---------------------------------------------------------------------------------------------------------------------------|#
       
-      mainPanel(position = "right", 
+      mainPanel(width = 9, height = 900, position = "right", 
         tabsetPanel(
           tabPanel("Figures",
           br(),
             fluidRow(
               column(10, offset = 0, align = "left",        
-                plotOutput(ns("plot"), width = "100%")
+                plotOutput(ns("plot"), height = 600)
               )
             )
           )
