@@ -206,10 +206,13 @@ oncoprint <- function(input, output, session, clinData, expData, gene, dataset) 
   # Adding a download button widget for the plot
   output$plot_download <- downloadHandler(
     filename = function() {
-      paste0("oncoprint", "_", format(Sys.time(), "%m.%d.%Y"), ".png")
+      paste0("oncoprint_", format(Sys.time(), "%m.%d.%Y"), ".pdf")
     }, 
     content = function(file) {
-      ggsave(filename = file, plot = plotOncoprint(), width = 6, height = 4.5, device = "png", dpi = 300)
+      pdf(file = file, width = 10, height = 8)
+      d1 <- plotOncoprint()
+      print(d1)
+      dev.off()
     }
   )
   
