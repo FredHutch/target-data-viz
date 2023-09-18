@@ -142,11 +142,17 @@ server <- function(input, output, session) {
              gene = target)
   
   # This module is not ready for prime time yet
-  # callModule(heatmap, id = "heatmap", 
-  #            clinData = studyData, 
-  #            expData = expData, 
+  # callModule(heatmap, id = "heatmap",
+  #            clinData = studyData,
+  #            expData = expData,
   #            dataset = cohort,
   #            gene = target)
+  
+  callModule(oncoprint, id = "oncoprint",
+             clinData = studyData,
+             expData = expData,
+             dataset = cohort,
+             gene = target)
   
   # Calling the DEG table module
   callModule(deTable, id = "degs",
