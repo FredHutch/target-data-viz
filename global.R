@@ -14,6 +14,7 @@ library(viridisLite)
 library(ggplot2)
 library(plotly)
 library(fst)
+library(ComplexHeatmap)
 
 # https://rstudio.github.io/bslib/articles/bslib.html#bootswatch New themes package to check out
 
@@ -22,7 +23,7 @@ source("waterfallPlot_module.R")
 source("kaplanMeierPlot_module.R")
 source("degTable_module.R")
 source("geneExpressors_module.R")
-source("heatmap_module.R")
+#source("heatmap_module.R")
 source("HPA_module.R")
 source("oncoprint_module.R")
 
