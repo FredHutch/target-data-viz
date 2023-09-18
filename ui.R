@@ -94,6 +94,7 @@ ui <- dashboardPage(
                 menuItem("Gene expressors", tabName = "geneExp", icon = icon("chart-pie")),
                 menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical")),
                 # menuItem("Cox models", tabName = "coxPH"),
+                menuItem("Oncoprints", tabName = "oncoprint", icon = icon("stream")),
                 # menuItem("Heatmaps", tabName = "heatmap", icon = icon("th")),
                 menuItem("DE Genes", tabName = "deTable", icon = icon("clipboard-list")),
                 menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
@@ -122,11 +123,15 @@ ui <- dashboardPage(
               kmPlotUI(id = "kaplanmeier", label = "Kaplan-Meier plot generation")
       ),
       
+      tabItem(tabName = "oncoprint",
+              oncoprintUI(id = "oncoprint", label = "Oncoprint generation")
+      ), 
+      
       # Sourcing the waterfall plot module UI component
       # This module is not ready for prime time yet
       # tabItem(tabName = "heatmap",
-      # Calling the user interface module of the Waterfall Plot app
-      # heatmapUI(id = "heatmap", label = "Heatmap generation")
+      # #Calling the user interface module of the Waterfall Plot app
+      #         heatmapUI(id = "heatmap", label = "Heatmap generation")
       # ),
       
       # Sourcing the waterfall plot module UI component

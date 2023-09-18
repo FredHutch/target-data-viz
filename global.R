@@ -24,6 +24,7 @@ source("degTable_module.R")
 source("geneExpressors_module.R")
 source("heatmap_module.R")
 source("HPA_module.R")
+source("oncoprint_module.R")
 
 ######### Loading external data
 # PLEASE NOTE: Large expression datasets required for this app to function are *not* stored in the Github repo,
