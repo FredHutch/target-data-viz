@@ -189,8 +189,6 @@ oncoprint <- function(input, output, session, clinData, expData, gene, dataset) 
     
     d1 <- draw(d1, merge_legend = TRUE) # this keeps the legends clean
     
-    return(d1)
-    
   })
   
   
