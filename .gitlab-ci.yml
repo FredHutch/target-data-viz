@@ -1,3 +1,6 @@
+variables:
+  CI_DEBUG_SERVICES: "true"
+
 before_script:
   - apk update
   - apk --no-cache add py3-pip python3 curl
@@ -17,16 +20,31 @@ build:
   stage: build
   script:
     - aws s3 cp s3://fh-pi-meshinchi-s-eco-public/Shiny_App/data/ ./data --recursive
-    - docker build -t sc-registry.fredhutch.org/target-data-viz:test .
-    - docker push sc-registry.fredhutch.org/target-data-viz:test
+    - docker build -t sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test .
+    - docker push sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test
 
 test:
   stage: test
   services: 
-    - name: sc-registry.fredhutch.org/target-data-viz:test
+    - name: sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test
       alias: target-data-viz
   script:
     - sleep 15 && curl -sI  http://target-data-viz:3838  |head -1|grep -q "200 OK"
+
+
+deploy_preview:
+  stage: deploy
+  only:
+    refs:
+        - dev
+  script:
+    - docker tag sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test sc-registry.fredhutch.org/target-data-viz-preview:latest
+    - docker push sc-registry.fredhutch.org/target-data-viz-preview:latest
+    - sleep 15
+    - echo $SC_SWARM_CICD_SSH_KEY | base64 -d > ./sc_swarm_cicd_ssh_key
+    - chmod 0400 ./sc_swarm_cicd_ssh_key
+    - python3 build_helper.py docker-compose-preview.yml | ssh -i ./sc_swarm_cicd_ssh_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@sc-swarm-mgr.fhcrc.org docker stack deploy --with-registry-auth -c - target-data-viz-preview
+
 
 deploy:
   stage: deploy
@@ -34,7 +52,7 @@ deploy:
     refs:
         - master
   script:
-    - docker tag sc-registry.fredhutch.org/target-data-viz:test sc-registry.fredhutch.org/target-data-viz:latest
+    - docker tag sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test sc-registry.fredhutch.org/target-data-viz:latest
     - docker push sc-registry.fredhutch.org/target-data-viz:latest
     - sleep 15
     - echo $SC_SWARM_CICD_SSH_KEY | base64 -d > ./sc_swarm_cicd_ssh_key

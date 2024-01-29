@@ -29,6 +29,40 @@ ui <- dashboardPage(
                              style = 'padding:2px; font-size:70%', # Extra style CSS makes the button smaller
                              class = "btn-primary"),
                 
+                # the following functions are to create checkmarks for whether the input gene is aml-restricted and transmembrane
+                #-------------------------------------------------------------#
+                conditionalPanel(
+                  condition = "!input.geneInput", #if there is no gene inputted
+                  tags$div(style = "margin-left: 13px; margin-top: 16px; color: white; font-size: 14px; font-family: sans-serif;", 
+                           icon("question", style = "font-size: 12px;"), "   AML-restricted")
+                ), 
+                conditionalPanel(
+                  condition = "input.geneInput && !output.gene_present", #if there is a gene inputted but it is not found in the aml-restricted list
+                  tags$div(style = "margin-left: 13px; margin-top: 16px; color: #F47174; font-size: 14px; font-family: sans-serif;", 
+                           icon("times", style = "font-size: 12px;"), "   AML-restricted")
+                ), 
+                conditionalPanel(
+                  condition = "input.geneInput && output.gene_present", #if there is a gene inputted and it is found in the aml-restricted list
+                  tags$div(style = "margin-left: 13px; margin-top: 16px; color: #93C54B; font-size: 14px; font-family: sans-serif;", 
+                           icon("check", style = "font-size: 12px;"), "   AML-restricted")
+                ),
+                conditionalPanel(
+                  condition = "!input.geneInput", 
+                  tags$div(style = "margin-left: 13px; margin-top: 1px; color: white; font-size: 14px; font-family: sans-serif;", 
+                           icon("question", style = "font-size: 12px;"), "   Transmembrane")
+                ), 
+                conditionalPanel(
+                  condition = "input.geneInput && !output.trmembrane",
+                  tags$div(style = "margin-left: 13px; margin-top: 1px; color: #F47174; font-size: 14px; font-family: sans-serif;", 
+                           icon("times", style = "font-size: 12px;"), "   Transmembrane")
+                ),
+                conditionalPanel(
+                  condition = "input.geneInput && output.trmembrane",
+                  tags$div(style = "margin-left: 13px; margin-top: 1px; color: #93C54B; font-size: 14px; font-family: sans-serif;", 
+                           icon("check", style = "font-size: 12px;"), "   Transmembrane")
+                ),
+                #-------------------------------------------------------------#
+                
                 shinyBS::bsTooltip("check", title = "Click here for alias suggestions",
                                    placement = "right", 
                                    trigger = "hover"),
@@ -60,11 +94,13 @@ ui <- dashboardPage(
                 menuItem("Gene expressors", tabName = "geneExp", icon = icon("chart-pie")),
                 menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical")),
                 # menuItem("Cox models", tabName = "coxPH"),
+                menuItem("Oncoprints", tabName = "oncoprint", icon = icon("stream")),
+                menuItem("Risk Classification", tabName = "Classi", icon = icon("circle-exclamation")),
                 # menuItem("Heatmaps", tabName = "heatmap", icon = icon("th")),
                 menuItem("DE Genes", tabName = "deTable", icon = icon("clipboard-list")),
                 menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
                 menuItem("External databases", tabName = "extData", icon = icon("atlas")),
-                menuItem("HPA Info", tabName = "HPA", icon = icon("computer"))
+                menuItem("HPA Info", tabName = "HPA", icon = icon("dna"))
     )
   ),  
   
@@ -88,11 +124,15 @@ ui <- dashboardPage(
               kmPlotUI(id = "kaplanmeier", label = "Kaplan-Meier plot generation")
       ),
       
+      tabItem(tabName = "oncoprint",
+              oncoprintUI(id = "oncoprint", label = "Oncoprint generation")
+      ), 
+      
       # Sourcing the waterfall plot module UI component
       # This module is not ready for prime time yet
       # tabItem(tabName = "heatmap",
-      # Calling the user interface module of the Waterfall Plot app
-      # heatmapUI(id = "heatmap", label = "Heatmap generation")
+      # #Calling the user interface module of the Waterfall Plot app
+      #         heatmapUI(id = "heatmap", label = "Heatmap generation")
       # ),
       
       # Sourcing the waterfall plot module UI component
@@ -107,6 +147,10 @@ ui <- dashboardPage(
       
       tabItem(tabName = "HPA",
               HPAPlotUI(id = "hpa", label = "HPA Supporting Info")
+      ), 
+      
+      tabItem(tabName = "Classi",
+              ClassiPlotUI(id = "Classi", label = "Risk Classification")
       ), 
       
       # Building the external datasets tab that will contain links to other gene expression or protein databases

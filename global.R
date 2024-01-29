@@ -14,6 +14,11 @@ library(viridisLite)
 library(ggplot2)
 library(plotly)
 library(fst)
+library(ComplexHeatmap)
+library(survival)
+library(survminer)
+library(SummarizedExperiment)
+library(ggsurvfit)
 
 # https://rstudio.github.io/bslib/articles/bslib.html#bootswatch New themes package to check out
 
@@ -22,8 +27,10 @@ source("waterfallPlot_module.R")
 source("kaplanMeierPlot_module.R")
 source("degTable_module.R")
 source("geneExpressors_module.R")
-source("heatmap_module.R")
+#source("heatmap_module.R")
 source("HPA_module.R")
+source("oncoprint_module.R")
+source("classification_module.R")
 
 ######### Loading external data
 # PLEASE NOTE: Large expression datasets required for this app to function are *not* stored in the Github repo,
@@ -42,6 +49,7 @@ readData <- function(x) {
     column_to_rownames("geneSymbol")
   swog_expData <<- readRDS("data/mRNA/SWOG_AML_ExpressionData_TPM_GRCh38_FinalforShiny.RDS")
   laml_expData <<- readRDS("data/mRNA/TCGA_LAML_ExpressionData_TPM_FinalforShiny.RDS")
+  stjude_expData <<- readRDS("data/mRNA/St_Jude_Expression_Data_TPM_filt4dupGenes_FinalforShiny_1.RDS")
   
   # miRNA expression matrices (for TARGET dataset only)
   load("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019_FinalforShiny.RData", .GlobalEnv)
@@ -52,17 +60,24 @@ readData <- function(x) {
   load("data/Clinical/TARGET_AML_merged_CDEs_Shareable_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/SWOG_AML_Merged_CDEs_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/TCGA_LAML_ClinicalData_FinalforShiny.RData", .GlobalEnv)
-
+  load("data/Clinical/StJude_ALL_ClinicalData_FinalforShiny.RData", .GlobalEnv)
+  
   # Misc accessory files
   load("data/ADC_and_CARTcell_Targets_Database_ADCReview_clinicaltrialsGov_FinalforShiny.RData", .GlobalEnv)
   load("data/DEGs/TARGET_AML_vs_NBM_and_Others_Ribodepleted_DEGs_per_Group_GRCh37_12.18.2020_FinalforShiny.RData", .GlobalEnv)
   deColKey <<- read.csv("data/Limma_Column_Descriptions.csv")
   colMapping <<- read.csv("data/Dataset_Column_Mapping_File.csv", check.names = F, na.strings = "")
+  aml_restricted_genelist <<- read.csv("data/aml_restricted_genelist.csv")
+  transmembrane_genelist <<- read.csv("data/transmembraneprot.csv")
   
   immdata <<- read.fst("data/hpa/rna_immune_cell_sample.fst") #the HPA data
   all_genes <<- readRDS("data/hpa/all_genes.RDS") #a list of genes from both of the datasets for autocorrection
   subloc <<- read.fst("data/hpa/subcellular_location.fst") 
   protein <<- read.fst("data/hpa/tissue_data.fst")
+  
+  # for the classification module
+  classification <<- read.csv("data/classification.csv")
+  km_cde <<- read.csv("data/km_updated_1_29_24.csv")
   
   ####### These are TEMPORARY dummy variables ########
   # Currently, these variables are *required* for some components of the app to function.
@@ -71,10 +86,6 @@ readData <- function(x) {
   # for the St. Jude data is currently needed to prevent the app from crashing.
   # Definitely not ideal, but I don't have time to restructure to accomodate it right now.
   # St. Jude data should be coming soon.
-  stjude_expData <<- readRDS("data/mRNA/St_Jude_Expression_Data_TPM_filt4dupGenes_FinalforShiny_1.RDS")
-  #stjude_expData <- read_fst("data/mRNA/St_Jude_Expression_Data_TPM_filt4dupGenes_FinalforShiny.fst")
-  load("data/Clinical/StJude_ALL_ClinicalData_FinalforShiny.RData", .GlobalEnv)  
-  ###################################################
 }
 
 testing <- FALSE

@@ -242,7 +242,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       # )
       # 
     validate(
-      need(!((dataset() %in% c("BeatAML", "SWOG", "TCGA", "Stjude")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
+      need(!((dataset() %in% c("BeatAML", "SWOG", "TCGA", "StJude")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
     
     plotDF <- geneData() %>%
       pivot_longer(names_to = "PatientID", values_to = "Expression", -Gene) %>%
@@ -362,7 +362,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       
       p <- plotData() %>%
         drop_na(input$grouping_var) %>%
-        filter(Disease.Group == "AML") %>%
+        filter(Disease.Group == c("AML")) %>%
         ungroup() %>%
         dplyr::select(PatientID, Gene, Expression, !!sym(input$grouping_var)) %>%
         pivot_wider(names_from = "Gene", values_from = "Expression")
@@ -423,7 +423,9 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
                        Gene = gene(),
                        `Mean (TPM)` = round(mean(Expression, na.rm = T), 2), 
                        `Median (TPM)` = round(median(Expression, na.rm = T), 2), 
-                       `Range (TPM)` = paste0(round(min(Expression), 2), " - ", round(max(Expression), 2)), 
+                       `Range (TPM)` = paste0(round(min(Expression), 2), " - ", round(max(Expression), 2)),
+                       `N >= 5 (TPM)` = sum(Expression >= 5, na.rm = T),
+                       `% >= 5 (TPM)` = round(sum(Expression >= 5, na.rm = T) / n() * 100, 2),  
                        .groups = "keep")
   })
   
