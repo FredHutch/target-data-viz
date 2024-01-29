@@ -342,9 +342,6 @@ ClassiPlot <- function(input, output, session) {
     }
   }, height = 250)
   
-  library(viridis)
-  library(viridisLite)
-  
   output$age_hist <- renderPlotly({
     combined_data <- bind_data()
     sample_size_selected <- sum(combined_data$Risk == "Selected")
@@ -405,9 +402,6 @@ ClassiPlot <- function(input, output, session) {
       DT::formatStyle(columns = c(1, 2, 3), fontSize = "100%")  # Apply formatting to all three columns
   })
   
-  
-  
-  
   #################################################################
   #-------------------- FINAL MODULE OUTPUTS ---------------------#
   #################################################################
@@ -420,16 +414,4 @@ ClassiPlot <- function(input, output, session) {
     plotKM(efs_plot)
   })
   
-  # Adding a download button widget for the plot
-  output$plot_download <- downloadHandler(
-    filename = function() {
-      paste0("km_", format(Sys.time(), "%m.%d.%Y"), ".pdf")
-    },
-    content = function(file) {
-      pdf(file = file, width = 10, height = 8)
-      os <- plotKM()
-      print(os)
-      dev.off()
-    }
-  )
 }
