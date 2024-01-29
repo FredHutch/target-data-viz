@@ -1,5 +1,20 @@
 server <- function(input, output, session) { 
   
+  # the following functions are to create checkmarks for whether the input gene is aml-restricted and transmembrane
+  #-------------------------------------------------------------#
+  output$gene_present <- reactive({
+    tolower(input$geneInput) %in% tolower(aml_restricted_genelist$Gene)
+  })
+  
+  outputOptions(output, "gene_present", suspendWhenHidden = FALSE)
+  
+  output$trmembrane <- reactive({
+    tolower(input$geneInput) %in% tolower(transmembrane_genelist$Gene.name)
+  })
+  
+  outputOptions(output, "trmembrane", suspendWhenHidden = FALSE)
+  #-------------------------------------------------------------#
+  
   observeEvent(input$leukemiaSelection, {
     
     choices <- switch(input$leukemiaSelection,
@@ -127,11 +142,17 @@ server <- function(input, output, session) {
              gene = target)
   
   # This module is not ready for prime time yet
-  # callModule(heatmap, id = "heatmap", 
-  #            clinData = studyData, 
-  #            expData = expData, 
+  # callModule(heatmap, id = "heatmap",
+  #            clinData = studyData,
+  #            expData = expData,
   #            dataset = cohort,
   #            gene = target)
+  
+  callModule(oncoprint, id = "oncoprint",
+             clinData = studyData,
+             expData = expData,
+             dataset = cohort,
+             gene = target)
   
   # Calling the DEG table module
   callModule(deTable, id = "degs",
