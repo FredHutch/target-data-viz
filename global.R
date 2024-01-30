@@ -15,6 +15,9 @@ library(ggplot2)
 library(plotly)
 library(fst)
 library(ComplexHeatmap)
+library(survival)
+library(survminer)
+library(ggsurvfit)
 
 # https://rstudio.github.io/bslib/articles/bslib.html#bootswatch New themes package to check out
 
@@ -26,6 +29,7 @@ source("geneExpressors_module.R")
 #source("heatmap_module.R")
 source("HPA_module.R")
 source("oncoprint_module.R")
+source("classification_module.R")
 
 ######### Loading external data
 # PLEASE NOTE: Large expression datasets required for this app to function are *not* stored in the Github repo,
@@ -70,6 +74,10 @@ readData <- function(x) {
   subloc <<- read.fst("data/hpa/subcellular_location.fst") 
   protein <<- read.fst("data/hpa/tissue_data.fst")
   
+  # for the classification module
+  classification <<- read.csv("data/classification.csv")
+  km_cde <<- read.csv("data/km_updated_1_29_24.csv")
+  
   ####### These are TEMPORARY dummy variables ########
   # Currently, these variables are *required* for some components of the app to function.
   # I've added error messages to prevent the user from actually plotting these data frames,
@@ -77,7 +85,6 @@ readData <- function(x) {
   # for the St. Jude data is currently needed to prevent the app from crashing.
   # Definitely not ideal, but I don't have time to restructure to accomodate it right now.
   # St. Jude data should be coming soon.
-  ###################################################
 }
 
 testing <- FALSE

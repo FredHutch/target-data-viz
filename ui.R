@@ -95,6 +95,7 @@ ui <- dashboardPage(
                 menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical")),
                 # menuItem("Cox models", tabName = "coxPH"),
                 menuItem("Oncoprints", tabName = "oncoprint", icon = icon("stream")),
+                menuItem("Risk Classification", tabName = "Classi", icon = icon("exclamation-circle")),
                 # menuItem("Heatmaps", tabName = "heatmap", icon = icon("th")),
                 menuItem("DE Genes", tabName = "deTable", icon = icon("clipboard-list")),
                 menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
@@ -146,6 +147,10 @@ ui <- dashboardPage(
       
       tabItem(tabName = "HPA",
               HPAPlotUI(id = "hpa", label = "HPA Supporting Info")
+      ), 
+      
+      tabItem(tabName = "Classi",
+              ClassiPlotUI(id = "Classi", label = "Risk Classification")
       ), 
       
       # Building the external datasets tab that will contain links to other gene expression or protein databases
