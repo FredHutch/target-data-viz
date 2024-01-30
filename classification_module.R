@@ -97,7 +97,7 @@ ClassiPlotUI <- function(id, label = "Risk Classification") {
                     width = 4,
                     height = 350,
                     title = tags$h5("Event Type", style = "color: #3c8dbc; margin-top: -15px;"),
-                    plotlyOutput(ns("event_bar"))
+                    plotlyOutput(ns("event_pie"))
                   ),
                   
                   # column 3 row 2 is for the event-free survival kaplan-meier curve. See above.
@@ -342,9 +342,6 @@ ClassiPlot <- function(input, output, session) {
     }
   }, height = 250)
   
-  library(viridis)
-  library(viridisLite)
-  
   output$age_hist <- renderPlotly({
     combined_data <- bind_data()
     sample_size_selected <- sum(combined_data$Risk == "Selected")
@@ -361,24 +358,37 @@ ClassiPlot <- function(input, output, session) {
     }
   })
   
-  output$event_bar <- renderPlotly({
+  output$event_pie <- renderPlotly({
     combined_data <- bind_data()
     sample_size_selected <- sum(combined_data$Risk == "Selected")
     
     if (sample_size_selected == 0) {
       return(NULL)
-      } 
-    else {
+    } else {
       combined_data <- filter(combined_data, combined_data$Risk == "Selected")
       combined_data$EFS.eventID <- ifelse(combined_data$EFS.eventID == "Death without remission", "Death w/o remis", combined_data$EFS.eventID)
+      
+      # Factorize and sort the EventID
+      combined_data$EFS.eventID <- factor(combined_data$EFS.eventID, levels = sort(unique(combined_data$EFS.eventID)))
+      
       event_type_counts <- table(combined_data$EFS.eventID)
       
-      # Create a bar plot using plot_ly
+      m = list(
+        l = 40,
+        r = 40,
+        b = 50,
+        t = 50,
+        pad = 0
+      )
+      
+      # Create a pie chart using plot_ly
       plot_ly(data = data.frame(EventID = names(event_type_counts), Count = as.numeric(event_type_counts)),
-              x = ~EventID, y = ~Count, type = "bar", marker = list(color = viridis(5)), height = 250) %>%
-        layout(title = list(text = NULL), xaxis = list(title = "", tickangle = 45, tickfont = list(size = 9)), yaxis = list(title = "Count"), showlegend = FALSE)
+              labels = ~EventID, values = ~Count, type = "pie", marker = list(colors = viridis(length(levels(combined_data$EFS.eventID)))), sort = FALSE, height = 250) %>%
+        layout(title = list(text = NULL), showlegend = TRUE, margin = m)
     }
   })
+  
+  
   
   
   output$usi_table <- DT::renderDataTable({
@@ -396,8 +406,8 @@ ClassiPlot <- function(input, output, session) {
     
     DT::datatable(t, 
                   class = "compact nowrap hover row-border order-column", # Defines the CSS formatting of the final table, can string multiple options together
-                  options = list(scrollY = "70vh",
-                                 dom = 'frt',  # 'f' for filter/search, 'r' for processing info, 't' for table
+                  options = list(
+                                 dom = 'frtip',  # 'f' for filter/search, 'r' for processing info, 't' for table
                                  scrollY = TRUE,
                                  searchHighlight = TRUE,
                                  pageLength = 50), 
@@ -420,16 +430,4 @@ ClassiPlot <- function(input, output, session) {
     plotKM(efs_plot)
   })
   
-  # Adding a download button widget for the plot
-  output$plot_download <- downloadHandler(
-    filename = function() {
-      paste0("km_", format(Sys.time(), "%m.%d.%Y"), ".pdf")
-    },
-    content = function(file) {
-      pdf(file = file, width = 10, height = 8)
-      os <- plotKM()
-      print(os)
-      dev.off()
-    }
-  )
 }
