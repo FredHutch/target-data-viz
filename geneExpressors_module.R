@@ -269,7 +269,7 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
   # https://glin.github.io/reactable/articles/examples.html#conditional-styling
   output$rankedTable <- DT::renderDataTable({
     t <- makeTable() %>% 
-      filter(grepl("[\\+|\\-]", Filter.Category))
+      filter(grepl("\\+", Filter.Category))
     
     DT::datatable(t, 
                   class = "compact nowrap hover row-border order-column", # Defines the CSS formatting of the final table, can string multiple options together
