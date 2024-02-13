@@ -86,7 +86,6 @@ ClassiPlotUI <- function(id, label = "Risk Classification") {
                     ),
                     #checkboxInput(ns("efsRT"), "Show Risk Table", value = FALSE),
                     plotOutput(ns("efscurves"))
-                  )
                 ),
                 
                 fluidRow(
