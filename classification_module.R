@@ -86,7 +86,7 @@ ClassiPlotUI <- function(id, label = "Risk Classification") {
                     ),
                     #checkboxInput(ns("efsRT"), "Show Risk Table", value = FALSE),
                     plotOutput(ns("efscurves"))
-                ),
+                )),
                 
                 fluidRow(
                   # column 1 row 2 is for outputting the risk classification text which is based parsing a dataframe of fusions (column 1), mutations (column 2:17), and the risk column (18). 
