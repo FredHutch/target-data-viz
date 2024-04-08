@@ -22,12 +22,12 @@ ClassiPlotUI <- function(id, label = "Risk Classification") {
                     p("The upper-middle box contains a dropdown menu for structural alterations
                       which are mostly mutually exclusive. The upper-right box contains checkboxes for various mutations. Multiple mutations
                       can be chosen."),
-                    p("The boxes on the lower row are the results of the chosen combinations. The lower-left box outputs the 'canonical'
+                    p("The boxes in the middle row are the results of the chosen combinations. The lower-left box outputs the 'canonical'
                       risk classification based on a combination of Children's Oncology Group and Meshinchi Lab knowledge. The lower-middle 
                       and lower-right boxes show survival curves for overall survival and event-free survival respectively, which display 
-                      current risk classifications in red, orange, and green as well as a reactive curve in blue that represents the 
-                      chosen combination of alteration and mutation(s)."),
-                    p("The remaining boxes contain additional statistics for the selected combination.")),
+                      current risk classifications in red, orange, and green as well as a reactive curve in dark blue that represents the 
+                      chosen combination of alteration and mutation(s) and a light blue curve that represents the selected structural alteration 
+                      but opposite mutations (ie. if 'None' fusion and NPM1, the light blue will be 'None' fusion and no NPM1).")),
                   
                   box(
                     width = 4, # this is half of the main panel width
@@ -66,17 +66,27 @@ ClassiPlotUI <- function(id, label = "Risk Classification") {
                     width = 4,
                     height = 350,
                     title = tags$h5("Survival Curves: Overall Survival", style = "color: #3c8dbc; margin-top: -15px;"),
+                    div(
+                      checkboxInput(ns("osCI"), "Confidence Intervals", value = FALSE),
+                      style = "margin-top: -25px;"
+                    ),
+                    #checkboxInput(ns("osRT"), "Show Risk Table", value = FALSE),
                     plotOutput(ns("oscurves"))
                   ),
+                  
                   
                   # column 3 row 2 is for the event-free survival kaplan-meier curve. See above.
                   box(
                     width = 4,
                     height = 350,
                     title = tags$h5("Survival Curves: Event-Free Survival", style = "color: #3c8dbc; margin-top: -15px;"),
+                    div(
+                      checkboxInput(ns("efsCI"), "Confidence Intervals", value = FALSE),
+                      style = "margin-top: -25px;"
+                    ),
+                    #checkboxInput(ns("efsRT"), "Show Risk Table", value = FALSE),
                     plotOutput(ns("efscurves"))
-                  )
-                ),
+                )),
                 
                 fluidRow(
                   # column 1 row 2 is for outputting the risk classification text which is based parsing a dataframe of fusions (column 1), mutations (column 2:17), and the risk column (18). 
@@ -166,6 +176,8 @@ ClassiPlot <- function(input, output, session) {
     return(filter_data)  # return the filtered data based on user input
 })
   
+  
+  
   # render UI for displaying the risk classification result text
   output$styledResultText <- renderUI({
     
@@ -199,44 +211,46 @@ ClassiPlot <- function(input, output, session) {
     }
   })
   
-  # define a reactive function to bind and preprocess data for plots
   bind_data <- reactive({
     fusion_selection <- input$fusion
     mutations_selection <- input$mutations
+    inverse_subset_data <- data.frame()  # Initialize an empty data frame for inverse data
+    
+    # Create a copy of km_cde and add a 'type' column
+    km_cde_copy <- km_cde
+    km_cde_copy$type <- "original"
     
     if (fusion_selection == "None" && length(mutations_selection) == 0) {
-      # filter data for 'None' fusions if no mutations are selected
-      subset_data <- km_cde %>%
+      subset_data <- km_cde_copy %>%
         filter(Fusion == "None")
-    }
-
-    
-      else if (fusion_selection == "None") {
-      # filter data based on mutations if no fusion is selected
-      subset_data <- km_cde %>%
+    } else if (fusion_selection == "None") {
+      subset_data <- km_cde_copy %>%
         filter(rowSums(select(., mutations_selection) == 1) == length(mutations_selection))
-      }
-      
-     else {
-      # filter data based on both fusion and mutations if a fusion is selected
-      subset_data <- km_cde %>%
+    } else {
+      subset_data <- km_cde_copy %>%
         filter(Fusion == fusion_selection, rowSums(select(., mutations_selection) == 1) == length(mutations_selection))
     }
     
+    if (length(mutations_selection) > 0) {
+      inverse_subset_data <- km_cde_copy %>%
+        filter(Fusion == fusion_selection) %>%
+        filter(rowSums(select(., mutations_selection) == 1) == 0)
+      inverse_subset_data$Risk <- "Inverse"
+    }
+    
     if (nrow(subset_data) > 0) {
-      # add a 'Selected' risk level and type information to the subset data
       subset_data$Risk <- "Selected"
-      km_cde$type <- "original"
       subset_data$type <- "selected"
+      combined_data <- rbind(km_cde_copy, subset_data)
       
-      # combine the original and subset data
-      combined_data <- rbind(km_cde, subset_data)
-      #print(table(combined_data$Risk))
-      return(combined_data)
+      if (nrow(inverse_subset_data) > 0) {
+        combined_data <- rbind(combined_data, inverse_subset_data)
+      }
+    } else {
+      combined_data <- km_cde_copy
     }
-    else {
-      return(km_cde)
-    }
+    
+    return(combined_data)
   })
   
   # render plot for Overall Survival (OS)
@@ -244,13 +258,21 @@ ClassiPlot <- function(input, output, session) {
     
     # get the combined data for OS plots
     combined_data <- bind_data()
-    #print(combined_data)
     
     combined_data$OS.Years <- as.numeric(combined_data$OS.Years)
     combined_data$OS.codeID <- as.numeric(combined_data$OS.codeID)
-    combined_data$Risk <- factor(combined_data$Risk, levels = c("Low", "Standard", "High", "Selected"))
+    
+    if (length(table(combined_data$Risk)) > 4){
+      combined_data$Risk <- factor(combined_data$Risk, levels = c("Low", "Standard", "High", "Selected", "Inverse"))
+    }
+    else {
+      combined_data$Risk <- factor(combined_data$Risk, levels = c("Low", "Standard", "High", "Selected"))
+    }
     
     sample_size_selected <- sum(combined_data$Risk == "Selected")
+    
+    conf.int <- input$osCI
+    #risk.table <- input$osRT
     
     # Check if sample_size_selected is 0 and display a warning message if true
     if (sample_size_selected == 0) {
@@ -266,14 +288,14 @@ ClassiPlot <- function(input, output, session) {
         pval = FALSE,
         pval.coord = c(1,0.05),
         pval.size = 4.5,
-        conf.int = FALSE,
+        conf.int = conf.int,
         risk.table = FALSE,
         xlim = c(0,10),
         xlab = "Years",
         ylab = "Overall survival probability",
         break.time.by = 1,
-        palette = c("#008001", "#ffa500", "#ff0000", "#1b4dab"),
-        linetype = c("dotdash", "dotdash", "dotdash", "solid"),
+        palette = c("#008001", "#ffa500", "#ff0000", "#1b4dab", "#aec6f2"),
+        linetype = c("dotted", "dotted", "dotted", "solid", "longdash"),
         censor = FALSE,
         ggtheme = theme_minimal(),
         legend = "right",
@@ -286,7 +308,7 @@ ClassiPlot <- function(input, output, session) {
                        font.caption = 12, 
                        font.legend = 12, 
                        font.tickslab = 12)
-      
+
       return(os_plot)
     }
   }, height = 250)
@@ -299,9 +321,18 @@ ClassiPlot <- function(input, output, session) {
     
     combined_data$EFS.Years <- as.numeric(combined_data$EFS.Years)
     combined_data$EFS.codeID <- as.numeric(combined_data$EFS.codeID)
-    combined_data$Risk <- factor(combined_data$Risk, levels = c("Low", "Standard", "High", "Selected"))
+    
+    if (length(table(combined_data$Risk)) > 4){
+      combined_data$Risk <- factor(combined_data$Risk, levels = c("Low", "Standard", "High", "Selected", "Inverse"))
+    }
+    else {
+      combined_data$Risk <- factor(combined_data$Risk, levels = c("Low", "Standard", "High", "Selected"))
+    }
     
     sample_size_selected <- sum(combined_data$Risk == "Selected")
+    
+    conf.int <- input$efsCI
+    #risk.table <- input$efsRT
     
     # Check if sample_size_selected is 0 and display a warning message if true
     if (sample_size_selected == 0) {
@@ -317,14 +348,14 @@ ClassiPlot <- function(input, output, session) {
         pval = FALSE,
         pval.coord = c(1,0.05),
         pval.size = 4.5,
-        conf.int = FALSE,
+        conf.int = conf.int,
         risk.table = FALSE,
         xlab = "Years",
         ylab = "Event-Free survival probability",
         break.time.by = 1,
         xlim = c(0,10),
-        palette = c("#008001", "#ffa500", "#ff0000", "#1b4dab"),
-        linetype = c("dotdash", "dotdash", "dotdash", "solid"),
+        palette = c("#008001", "#ffa500", "#ff0000", "#1b4dab", "#aec6f2"),
+        linetype = c("dotted", "dotted", "dotted", "solid", "longdash"),
         censor = FALSE,
         ggtheme = theme_minimal(),
         legend = "right",

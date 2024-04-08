@@ -168,6 +168,9 @@ server <- function(input, output, session) {
   
   callModule(HPAPlot, id = "hpa",
              gene = target)
+
+  # Calling the HPA module
+  callModule(ClassiPlot, id = "Classi")
   
   #--------------------- External databases tab --------------------- #
 

@@ -17,7 +17,6 @@ library(fst)
 library(ComplexHeatmap)
 library(survival)
 library(survminer)
-library(SummarizedExperiment)
 library(ggsurvfit)
 
 # https://rstudio.github.io/bslib/articles/bslib.html#bootswatch New themes package to check out
