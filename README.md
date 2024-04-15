@@ -1,8 +1,7 @@
-# TARGET Data Visualization Tools
+# Meshinchi Lab Data Visualization App
 
-This directory contains the necessary code to visualize gene expression and outcome data from various Children's Oncology Group (COG) pediatric AML cohorts, by way of an R Shiny app (please see [here](https://shiny.rstudio.com/) for more info about Shiny, if you aren't familiar). 
+Welcome to the Meshinchi Lab's Shiny Application. Here, you can interactively explore gene expression data for thousands of individual samples all in one place and create visualizations on-the-fly. 
 
-These data can be explored interactively with the Shiny app. 
 
 =================================================
 
@@ -10,23 +9,30 @@ These data can be explored interactively with the Shiny app.
 
 =================================================
 
-## Access
-
-*Please Note*: The app is password protected - contact the app creator (aleonti@fredhutch.org) to be granted access.
 
 ## The data
 
-All mRNA gene expression values are in transcripts per million (TPM). All miRNA expression values are in reads per million mapped reads (RPM) and were annotated using miRbase v21 annotations. These data are only available for the TARGET AML cohort. 
+The main data for the application includes paired gene expression, mutation and survival data.  
 
 Please see the respective publications for each dataset for more information:
 
-- TARGET 
+- [TARGET](https://www.cancer.gov/ccg/research/genome-sequencing/target/studied-cancers/acute-myeloid-leukemia)
 - [Beat AML Master Trial](https://pubmed.ncbi.nlm.nih.gov/30333627/)
 - [Southwest Oncology Group (SWOG)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3682338/)
 - [TCGA LAML](https://www.nejm.org/doi/full/10.1056/NEJMoa1301689)
 
-## Problems?
+*All mRNA gene expression values are in transcripts per million (TPM). All miRNA expression values are in reads per million mapped reads (RPM) and were annotated using miRbase v21 annotations. These data are only available for the TARGET AML cohort.*
 
-Please file an issue if you encounter any problems, bugs, or have suggestions for improving the app. We'd love to hear your feedback!
+### Access
 
-The scripts & app are created and maintained by Amanda Leonti in Soheil Meshinchi's lab. 
+The app is password protected - to be granted access please submit 
+
+
+### Creation
+
+This app was created by Amanda Leonti and is maintained by Jack Peplinski and Logan Wallace. 
+
+
+### Issues
+
+Please file an issue if you encounter a bug or have suggestions for improving the app. 
