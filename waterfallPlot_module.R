@@ -226,8 +226,6 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       gene()
     }
 
-    genes2keep <- toupper(genes2keep)
-
     df <- expData() %>%
       rownames_to_column("Gene") %>%
       filter(Gene %in% genes2keep) %>%
