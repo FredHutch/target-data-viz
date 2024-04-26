@@ -26,7 +26,7 @@ build:
   script:
     - aws s3 cp s3://fh-pi-meshinchi-s-eco-public/Shiny_App/data/ ./data --recursive
     - docker info
-    - docker build --no-cache -t sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test .
+    - docker build -t sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test .
     - docker push sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test
 
 test:
