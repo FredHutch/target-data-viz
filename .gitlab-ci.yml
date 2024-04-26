@@ -20,7 +20,8 @@ build:
   stage: build
   timeout: 4 hours
   script:
-    - aws s3 cp s3://fh-pi-meshinchi-s-eco-public/Shiny_App/data/ ./data --recursive
+    #    - aws s3 cp s3://fh-pi-meshinchi-s-eco-public/Shiny_App/data/ ./data --recursive
+    - mkdir -p data
     - docker build --no-cache -t sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test .
     - docker push sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test
 
