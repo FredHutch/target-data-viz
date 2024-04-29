@@ -1,4 +1,4 @@
-FROM fredhutch/r-shiny-server-base:4.3.2
+FROM fredhutch/r-shiny-server-base:4.3.0
 RUN apt-get update -y && apt-get install -y pandoc libpq-dev
 RUN R -q -e 'install.packages(c("shinyalert", "shinydashboard", "shinyjs", "shinyBS", "shinyWidgets", "shinythemes", "survminer", "survival", "gtools", "cmprsk", "ggpubr", "DT", "data.table", "viridis", "viridisLite", "ggplot2", "plotly", "fst", "BiocManager", "ggsurvfit", "openxlsx"))'
 RUN R -q -e 'install.packages(c("dplyr"), repos="https://cran.r-project.org")'
