@@ -2,6 +2,8 @@ version: '3.3'
 services:
   target-data-viz:
     image: sc-registry.fredhutch.org/target-data-viz-preview:latest
+    environment:
+      - SHINY_LOG_STDERR=1
     networks:
       - proxy
     deploy:

@@ -4,7 +4,7 @@ variables:
 before_script:
   - apk update
   - apk --no-cache add py3-pip python3 curl
-  - pip3 install pyyaml awscli --break-system-packages
+  - pip3 install pyyaml awscli
   - curl -O https://raw.githubusercontent.com/FredHutch/swarm-build-helper/main/build_helper.py 
   # below is from https://stackoverflow.com/a/65810302/470769
   - mkdir -p $HOME/.docker
@@ -18,8 +18,13 @@ stages:
 
 build:
   stage: build
+  image: docker:19.03.12
+  services:
+    - name: docker:19.03.12-dind
+      command: ["--storage-driver=overlay2"]
   script:
     - aws s3 cp s3://fh-pi-meshinchi-s-eco-public/Shiny_App/data/ ./data --recursive
+    - docker info
     - docker build -t sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test .
     - docker push sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test
 
@@ -43,7 +48,7 @@ deploy_preview:
     - sleep 15
     - echo $SC_SWARM_CICD_SSH_KEY | base64 -d > ./sc_swarm_cicd_ssh_key
     - chmod 0400 ./sc_swarm_cicd_ssh_key
-    - python3 build_helper.py docker-compose-preview.yml | ssh -i ./sc_swarm_cicd_ssh_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@sc-swarm-mgr.fhcrc.org docker stack deploy --with-registry-auth -c - target-data-viz-preview
+    - python3 build_helper.py --fluentd-logging docker-compose-preview.yml | ssh -i ./sc_swarm_cicd_ssh_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@sc-swarm-mgr.fhcrc.org docker stack deploy --with-registry-auth -c - target-data-viz-preview
 
 
 deploy:
@@ -57,4 +62,4 @@ deploy:
     - sleep 15
     - echo $SC_SWARM_CICD_SSH_KEY | base64 -d > ./sc_swarm_cicd_ssh_key
     - chmod 0400 ./sc_swarm_cicd_ssh_key
-    - python3 build_helper.py docker-compose.yml | ssh -i ./sc_swarm_cicd_ssh_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@sc-swarm-mgr.fhcrc.org docker stack deploy --with-registry-auth -c - target-data-viz
+    - python3 build_helper.py --fluentd-logging docker-compose.yml | ssh -i ./sc_swarm_cicd_ssh_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@sc-swarm-mgr.fhcrc.org docker stack deploy --with-registry-auth -c - target-data-viz
