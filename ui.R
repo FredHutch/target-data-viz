@@ -100,7 +100,8 @@ ui <- dashboardPage(
                 menuItem("DE Genes", tabName = "deTable", icon = icon("clipboard-list")),
                 menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
                 menuItem("External databases", tabName = "extData", icon = icon("atlas")),
-                menuItem("HPA Info", tabName = "HPA", icon = icon("dna"))
+                menuItem("HPA Info", tabName = "HPA", icon = icon("dna")),
+                menuItem("Other Cancers", tabName = "cancertype", icon = icon("droplet"))
     )
   ),  
   
@@ -152,6 +153,10 @@ ui <- dashboardPage(
       tabItem(tabName = "Classi",
               ClassiPlotUI(id = "Classi", label = "Risk Classification")
       ), 
+
+      tabItem(tabName = "cancertype",
+              CancerPlotUI(id = "cancertype", label = "Cancer Type")
+      ),
       
       # Building the external datasets tab that will contain links to other gene expression or protein databases
       tabItem(tabName = "extData",
