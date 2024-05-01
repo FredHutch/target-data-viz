@@ -30,6 +30,7 @@ source("geneExpressors_module.R")
 source("HPA_module.R")
 source("oncoprint_module.R")
 source("classification_module.R")
+source("cancerModule.R")
 
 ######### Loading external data
 # PLEASE NOTE: Large expression datasets required for this app to function are *not* stored in the Github repo,
@@ -77,6 +78,9 @@ readData <- function(x) {
   # for the classification module
   classification <<- read.csv("data/classification.csv")
   km_cde <<- read.csv("data/km_updated_1_29_24.csv")
+
+  tcga_cancer <<- readRDS("data/concat_gtex_tcga_data.RDS")
+  tcga_csv <<- read.csv("data/listforcancers_bothlocat_10in90_final.csv")
   
   ####### These are TEMPORARY dummy variables ########
   # Currently, these variables are *required* for some components of the app to function.
