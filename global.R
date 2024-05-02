@@ -81,6 +81,7 @@ readData <- function(x) {
 
   tcga_cancer <<- readRDS("data/concat_gtex_tcga_data.RDS")
   tcga_csv <<- read.csv("data/listforcancers_bothlocat_10in90_final.csv")
+  gtex_tcga_combined <<- readRDS("data/concatenated_for_comparison_tcga_gtex.RDS")
   
   ####### These are TEMPORARY dummy variables ########
   # Currently, these variables are *required* for some components of the app to function.
