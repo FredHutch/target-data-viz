@@ -34,7 +34,9 @@ test:
     - name: sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test
       alias: target-data-viz
   script:
-    - sleep 120 && curl -sI  http://target-data-viz:3838  |head -1|grep -q "200 OK"
+    - sleep 60
+    - curl -sI http://target-data-viz:3838
+    - sleep 60 && curl -sI  http://target-data-viz:3838  |head -1|grep -q "200 OK"
 
 
 deploy_preview:
