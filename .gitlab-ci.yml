@@ -35,7 +35,7 @@ test:
       alias: target-data-viz
   script:
     - sleep 60
-    - curl -sI http://target-data-viz:3838
+    - curl -sI --connect-timeout 120 http://target-data-viz:3838 || true
     - sleep 60 && curl -sI  http://target-data-viz:3838  |head -1|grep -q "200 OK"
 
 
