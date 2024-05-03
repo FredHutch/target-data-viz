@@ -22,4 +22,4 @@ RUN R -f /tmp/check.R --args shinyalert shinydashboard shinyjs shinyBS shinyWidg
 
 RUN rm /tmp/check.R
 
-CMD /usr/bin/shiny-server
+CMD R -q -f start.R
