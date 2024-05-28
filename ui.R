@@ -161,11 +161,13 @@ ui <- dashboardPage(
       # Building the external datasets tab that will contain links to other gene expression or protein databases
       tabItem(tabName = "extData",
               mainPanel(
+                width = 12,
                 position = "center",
                 fluidRow(
-                  valueBoxOutput("protAtlas", width = 3),
-                  valueBoxOutput("gtex", width = 3),
-                  valueBoxOutput("protPaint", width = 3)
+                  valueBoxOutput("protAtlas"),
+                  valueBoxOutput("gtex"),
+                  valueBoxOutput("protPaint"),
+                  uiOutput("tmhmm")
                 ),
                 br(), # Linebreaks to center the table on the page
                 fluidRow(
