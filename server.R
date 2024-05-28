@@ -211,6 +211,86 @@ server <- function(input, output, session) {
              icon = icon("prescription-bottle"), 
              href = paste0("https://proteinpaint.stjude.org/?genome=hg19&gene=", target(), "&dataset=pediatric"))
   })
+
+output$tmhmm <- renderUI({
+    validate(
+      need(target(), "Please enter a gene symbol in the text box.")
+    )
+    
+    actionButton("start_rselenium", 
+                 label = div(
+                   "DeepTMHMM",
+                   div("Protein Localization, Note: Needs Firefox to Run", style = "text-transform: none; color: white; font-size: 15px; font-weight: normal; margin-top:20px; margin-bottom:20px;") # Additional white text below the label
+                 ),
+                 style = "text-transform: none; background-color: #3c8dbc; box-shadow: none; text-align: left; margin-left: 15px; margin-right: 20px; font-size: 21px; font-weight: bold; height: 110px; width: 31%; padding: 10px;",
+                 class = "btn-box"
+    )
+  })
+  
+  observeEvent(input$start_rselenium, {
+    ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+    
+    # Retrieve all amino acid sequences for a given gene
+    gene_name <- target()
+    sequences <- getSequence(id = gene_name, type = "hgnc_symbol", seqType = "peptide", mart = ensembl)
+    
+    # Function to find and keep only the longest sequence
+    get_longest_sequence <- function(sequences) {
+      # Compute lengths of all sequences
+      sequence_lengths <- nchar(sequences$peptide)
+      
+      # Identify the maximum length
+      max_length <- max(sequence_lengths)
+      
+      # Get indices of sequences with the maximum length
+      longest_indices <- which(sequence_lengths == max_length)
+      
+      # Keep only the first longest sequence in case of a tie
+      longest_sequence <- sequences$peptide[longest_indices[1]]
+      
+      return(longest_sequence)
+    }
+    
+    # Get the longest sequence
+    longest_sequence <- get_longest_sequence(sequences)
+    
+    # Remove the asterisk at the end if present
+    remove_asterisk <- function(sequence) {
+      if (substr(sequence, nchar(sequence), nchar(sequence)) == "*") {
+        sequence <- substr(sequence, 1, nchar(sequence) - 1)
+      }
+      return(sequence)
+    }
+    
+    cleaned_sequence <- remove_asterisk(longest_sequence)
+    
+    # Print the cleaned sequence
+    print(cleaned_sequence)
+    
+    # Dynamically assign a new port for each RSelenium session
+    rD <- rsDriver(browser = "firefox", port = free_port(), check = TRUE)
+    remDr <- rD[["client"]]
+    
+    # Navigate to the DeepTMHMM website
+    deep_tmhmm_url <- "https://dtu.biolib.com/DeepTMHMM"
+    remDr$navigate(deep_tmhmm_url)
+    
+    # Wait for the page to load
+    Sys.sleep(5)
+    
+    # Find the text box element and enter the sequence
+    text_box <- remDr$findElement(using = "css selector", value = "textarea")
+    text_box$sendKeysToElement(list(cleaned_sequence))
+    
+    # Wait for the sequence to be entered
+    Sys.sleep(2)
+    
+    # Find and click the run button
+    run_button <- remDr$findElement(using = "css selector", value = ".bp4-popover-target")
+    run_button$clickElement()
+    
+    
+  })
   
   output$therapyTable <- DT::renderDataTable({
     validate(
