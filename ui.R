@@ -95,7 +95,7 @@ ui <- dashboardPage(
                 menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical")),
                 # menuItem("Cox models", tabName = "coxPH"),
                 menuItem("Oncoprints", tabName = "oncoprint", icon = icon("stream")),
-                menuItem("Risk Classification", tabName = "Classi", icon = icon("exclamation-circle")),
+                #menuItem("Risk Classification", tabName = "Classi", icon = icon("exclamation-circle")),
                 # menuItem("Heatmaps", tabName = "heatmap", icon = icon("th")),
                 menuItem("DE Genes", tabName = "deTable", icon = icon("clipboard-list")),
                 menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
