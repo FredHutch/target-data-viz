@@ -220,7 +220,7 @@ output$tmhmm <- renderUI({
     actionButton("start_rselenium", 
                  label = div(
                    "DeepTMHMM",
-                   div("Protein Localization, Note: Needs Firefox to Run", style = "text-transform: none; color: white; font-size: 15px; font-weight: normal; margin-top:20px; margin-bottom:20px;") # Additional white text below the label
+                   div("Protein localization, Note: Needs Firefox to Run", style = "text-transform: none; color: white; font-size: 15px; font-weight: normal; margin-top:20px; margin-bottom:20px;") # Additional white text below the label
                  ),
                  style = "text-transform: none; background-color: #3c8dbc; box-shadow: none; text-align: left; margin-left: 15px; margin-right: 20px; font-size: 21px; font-weight: bold; height: 110px; width: 33%; padding: 10px;",
                  class = "btn-box"
