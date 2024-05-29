@@ -17,6 +17,13 @@ services:
         - "traefik.http.services.target-data-viz.loadbalancer.server.port=3838" # it seems you always need to give traefik a port so it 'notices' the service
         - "traefik.http.routers.target-data-viz.tls=true"
 
+  selenium:
+    image: selenium/standalone-firefox:latest
+    ports:
+      - "4444:4444"
+    networks:
+      - proxy
+
 networks:
   proxy:
     external: true
