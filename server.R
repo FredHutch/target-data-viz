@@ -247,14 +247,32 @@ server <- function(input, output, session) {
         if (length(start_idx) > 0) {
           if (length(end_idx) > 0) {
             output <- full_output[start_idx:end_idx]
-            output_completed(TRUE)  # update the reactive value when the task is completed
+            output_completed(TRUE) # update the reactive value when the task is completed
           } else {
             output <- full_output[start_idx:length(full_output)]
           }
           # filter out empty and NULL lines
           output <- output[output != "" & !is.null(output)]
         }
+      } else {
+        # this is what the app actually runs on when it's being hosted because it doesn't 
+        # use the rstudio api
+        if (file.exists("output_log.txt")) {
+          full_output <- readLines("output_log.txt")
+          start_idx <- grep("^Running DeepTMHMM...", full_output)
+          end_idx <- grep("^Step 4/4", full_output)
+          if (length(start_idx) > 0) {
+            if (length(end_idx) > 0) {
+              output <- full_output[start_idx:end_idx]
+              output_completed(TRUE)
+            } else {
+              output <- full_output[start_idx:length(full_output)]
+            }
+            output <- output[output != "" & !is.null(output)]
+          }
+        }
       }
+      
       if (is.null(output)) {
         output <- character(0)
       }
@@ -262,12 +280,13 @@ server <- function(input, output, session) {
     }
   }
   
-  # when the action button is pushed, we're starting the deeptmhmm code
+  # when the action button is pushed, we're starting the DeepTMHMM code
   observeEvent(input$start_deeptmhmm, {
     
-    if (dir.exists("biolib_results")) {
-      unlink("biolib_results", recursive = TRUE)
-    }
+    # Doesn't work right now, idk how to fix this
+    # if (dir.exists("biolib_results")) {
+    #   unlink("biolib_results", recursive = TRUE)
+    # }
     
     # the goal of this is to take the gene name and find the longest peptide sequence (using that as canonical for now)
     ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
@@ -296,11 +315,8 @@ server <- function(input, output, session) {
     
     cleaned_sequence <- remove_asterisk(longest_sequence)
     
-    
     # create a temporary fasta file
     temp_fasta <- tempfile(fileext = ".fasta")
-    
-    # construct the file
     writeLines(paste0(">header\n", cleaned_sequence), con = temp_fasta)
     
     # now we run the python biolib package inside a terminal we've opened up in R :D
@@ -310,7 +326,7 @@ server <- function(input, output, session) {
       tmhmm <- paste("biolib run DTU/DeepTMHMM --fasta", temp_fasta)
       rstudioapi::terminalSend(myTerm, paste0(tmhmm, "\n"))
     } else {
-      system(paste("biolib run DTU/DeepTMHMM --fasta", temp_fasta))
+      system(paste("biolib run DTU/DeepTMHMM --fasta", temp_fasta, "> output_log.txt 2>&1 &"))
     }
     
     # this is a reactive function that will write the terminal output as it goes
