@@ -354,29 +354,40 @@ server <- function(input, output, session) {
     })
   })
   
-  # this gets the file path for the result image and will paste it in shiny
-  observeEvent(output_completed(), {
+# This gets the file path for the result image and will paste it in shiny
+observeEvent(output_completed(), {
+  
+  # Set the working directory to temp_dir
+  setwd(temp_dir)
+  
+  # Print out the files inside temp_dir to the console
+  print(list.files())
+  
+  # Check if the output_completed event is triggered
+  if (output_completed()) {
     
-    setwd(temp_dir)
-    
-    if (output_completed()) {
+    # Render the image in the UI
+    output$tmhmm_plot <- renderImage({
       
-      output$tmhmm_plot <- renderImage({
+      # Normalize the path for the result image
+      filename <- normalizePath(file.path(temp_dir, 'biolib_results', 'plot.png'))
+      
+      # If the file does not exist, stop and print the list of files
+      if (!file.exists(filename)) {
+        stop("File does not exist: ", filename, "\nFiles in directory: ", paste(list.files(), collapse = ", "))
+      }
+      
+      # Return a list containing the image information for rendering
+      list(
+        src = filename,
+        alt = "TMHMM Plot",
+        width = "80%",
+        height = "auto"
+      )
+    }, deleteFile = FALSE)
+  }
+})
 
-        filename <- normalizePath(file.path(temp_dir, 'biolib_results', 'plot.png'))
-        
-        if (!file.exists(filename)) {
-          stop("File does not exist: ", filename, getwd(), list.files())
-        }
-        
-        list(
-          src = filename,
-          alt = "TMHMM Plot",
-          width = "80%",
-          height = "auto"
-        )
-      }, deleteFile = FALSE)
-    }
     
     setwd(current_dir)
     
