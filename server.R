@@ -352,7 +352,7 @@ server <- function(input, output, session) {
         filename <- normalizePath(file.path('biolib_results', 'plot.png'))
         
         if (!file.exists(filename)) {
-          stop("File does not exist: ", filename)
+          stop("File does not exist: ", filename, getwd(), list.files())
         }
         
         list(
