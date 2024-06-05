@@ -161,13 +161,27 @@ ui <- dashboardPage(
       # Building the external datasets tab that will contain links to other gene expression or protein databases
       tabItem(tabName = "extData",
               mainPanel(
+                width = 12,
                 position = "center",
                 fluidRow(
-                  valueBoxOutput("protAtlas", width = 3),
-                  valueBoxOutput("gtex", width = 3),
-                  valueBoxOutput("protPaint", width = 3)
+                  valueBoxOutput("protAtlas"),
+                  valueBoxOutput("gtex"),
+                  valueBoxOutput("protPaint")
                 ),
-                br(), # Linebreaks to center the table on the page
+                fluidRow(
+                  column(width = 4,
+                      uiOutput("tmhmm")
+                  ),
+                  column(width = 4,
+                      verbatimTextOutput("terminal_output")
+                  ),
+                  column(width = 4,
+                     div(
+                       style = "overflow-y: scroll; text-align: center;",
+                       imageOutput("tmhmm_plot")
+                     )
+                  )
+                ), # Linebreaks to center the table on the page
                 fluidRow(
                   # https://renkun-ken.github.io/formattable/ <- Really interesting package for making tables prettier
                   # https://www.displayr.com/formattable/ <- Diff vignette, same package

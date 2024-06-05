@@ -125,11 +125,11 @@ server <- function(input, output, session) {
   # IMPORTANT NOTE: the "target" & "cohort" variables are actually a reactive function, and would usually be called by target() & cohort(), 
   # but when passing a reactive value into a module, you *must* pull off the parentheses and pass the naked variable name as an argument.
   # Within the modules themselves, these variables are a reactive function!
-  callModule(wfPlot, id = "waterfall", 
-             clinData = studyData, 
-             expData = expData, 
+  callModule(wfPlot, id = "waterfall",
+             clinData = studyData,
+             expData = expData,
              adc_cart_targetData = adc_cart_targetData,
-             gene = target, 
+             gene = target,
              dataset = cohort,
              parent = session) # See https://stackoverflow.com/questions/51708815/accessing-parent-namespace-inside-a-shiny-module
                                # for an explanation of the 'parent' parameter
@@ -192,7 +192,7 @@ server <- function(input, output, session) {
   
   output$gtex <- renderValueBox({
     validate(
-      need(target(), "Please enter a gene symbol in the text box."))
+      need(target(), FALSE))
     
     valueBox(value = tags$p("GTEx", style = "font-size: 60%"),
              subtitle = "Normal tissue expression",
@@ -203,7 +203,7 @@ server <- function(input, output, session) {
   
   output$protPaint <- renderValueBox({
     validate(
-      need(target(), "Please enter a gene symbol in the text box."))
+      need(target(), FALSE))
     
     valueBox(value = tags$p("ProteinPaint", style = "font-size: 60%"),
              subtitle = "St. Jude PeCan visualization",
@@ -211,6 +211,177 @@ server <- function(input, output, session) {
              icon = icon("prescription-bottle"), 
              href = paste0("https://proteinpaint.stjude.org/?genome=hg19&gene=", target(), "&dataset=pediatric"))
   })
+  
+  
+  # function for creating the action button for embedding DeepTMHMM
+  output$tmhmm <- renderUI({
+    validate(
+      need(target(), FALSE)
+    )
+    
+    actionButton("start_deeptmhmm", 
+                 label = div(
+                   "DeepTMHMM",
+                   div("Protein localization", style = "text-transform: none; color: white; font-size: 15px; font-weight: normal; margin-top:20px; margin-bottom:20px;") # Additional white text below the label
+                 ),
+                 style = "text-transform: none; background-color: #3c8dbc; box-shadow: none; text-align: left; font-size: 21px; font-weight: bold; height: 110px; width: 100%; padding: 10px;",
+                 class = "btn-box"
+    )
+  })
+  
+  current_dir <- getwd()
+  temp_dir <- tempdir()
+  setwd(temp_dir)
+  
+  # creating a reactive value that will change once the output is finished
+  output_completed <- reactiveVal(FALSE)
+  
+  # this is the function for outputting the terminal and cleaning it up
+  poll_terminal_output <- function(myTerm) {
+    function() {
+      
+      setwd(temp_dir)
+      output <- NULL
+      
+      # this is a weird workaround, you can't use the system() function if it's inside of RSTUDIO for some reason
+      # instead you have to use this rstudioapi package to create a new terminal
+      if (Sys.getenv("RSTUDIO") == "1") { 
+        full_output <- rstudioapi::terminalBuffer(myTerm)
+        # extract lines starting from "Running DeepTMHMM..." and ending with "Step 4/4"
+        start_idx <- grep("^Running DeepTMHMM...", full_output)
+        end_idx <- grep("^Step 4/4", full_output)
+        if (length(start_idx) > 0) {
+          if (length(end_idx) > 0) {
+            output <- full_output[start_idx:end_idx]
+            output_completed(TRUE) # update the reactive value when the task is completed
+          } else {
+            output <- full_output[start_idx:length(full_output)]
+          }
+          # filter out empty and NULL lines
+          output <- output[output != "" & !is.null(output)]
+        }
+      } else {
+        # this is what the app actually runs on when it's being hosted because it doesn't 
+        # use the rstudio api
+        if (file.exists("output_log.txt")) {
+          full_output <- readLines("output_log.txt")
+          start_idx <- grep("^Running DeepTMHMM...", full_output)
+          end_idx <- grep("^Step 4/4", full_output)
+          
+          if (length(start_idx) > 0 && !is.na(start_idx[1])) {
+            if (length(end_idx) > 0 && !is.na(end_idx[1])) {
+              output <- full_output[start_idx[1]:end_idx[1]]
+              output_completed(TRUE)
+            } else {
+              output <- full_output[start_idx[1]:length(full_output)]
+            }
+            output <- output[output != "" & !is.null(output)]
+          }
+        }
+        
+      }
+      
+      if (is.null(output)) {
+        output <- character(0)
+      }
+      output
+    }
+  }
+  
+  # when the action button is pushed, we're starting the DeepTMHMM code
+  observeEvent(input$start_deeptmhmm, {
+    
+    setwd(temp_dir)
+    
+    # Doesn't work right now, idk how to fix this
+    # if (dir.exists("biolib_results")) {
+    #   unlink("biolib_results", recursive = TRUE)
+    # }
+    
+    # the goal of this is to take the gene name and find the longest peptide sequence (using that as canonical for now)
+    ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+    gene_name <- target()
+    sequences <- getSequence(id = gene_name, type = "hgnc_symbol", seqType = "peptide", mart = ensembl)
+    
+    # this is the longest sequence function 
+    get_longest_sequence <- function(sequences) {
+      sequence_lengths <- nchar(sequences$peptide)
+      max_length <- max(sequence_lengths)
+      longest_indices <- which(sequence_lengths == max_length)
+      longest_sequence <- sequences$peptide[longest_indices[1]]
+      return(longest_sequence)
+    }
+    
+    longest_sequence <- get_longest_sequence(sequences)
+    
+    # the asterisk indicates a stop codon, I'm pretty sure this doesn't matter whether we remove this or not
+    # but for now, I'm keeping it in
+    remove_asterisk <- function(sequence) {
+      if (substr(sequence, nchar(sequence), nchar(sequence)) == "*") {
+        sequence <- substr(sequence, 1, nchar(sequence) - 1)
+      }
+      return(sequence)
+    }
+    
+    cleaned_sequence <- remove_asterisk(longest_sequence)
+    
+    # create a temporary fasta file
+    temp_fasta <- tempfile(fileext = ".fasta")
+    writeLines(paste0(">header\n", cleaned_sequence), con = temp_fasta)
+    
+    # now we run the python biolib package inside a terminal we've opened up in R :D
+    myTerm <- NULL
+    if (Sys.getenv("RSTUDIO") == "1") { 
+      myTerm <- rstudioapi::terminalCreate(show = FALSE)
+      tmhmm <- paste("biolib run DTU/DeepTMHMM --fasta", temp_fasta)
+      rstudioapi::terminalSend(myTerm, paste0(tmhmm, "\n"))
+    } else {
+      setwd(temp_dir)
+      system(paste("biolib run DTU/DeepTMHMM --fasta", temp_fasta, "> output_log.txt 2>&1 &"))
+    }
+    
+    # this is a reactive function that will write the terminal output as it goes
+    terminal_output <- reactivePoll(1000, session, checkFunc = poll_terminal_output(myTerm), valueFunc = poll_terminal_output(myTerm))
+    
+    # this gives a little loading text before the output starts
+    output$terminal_output <- renderText({
+      output <- terminal_output()
+      if (length(output) == 0) {
+        "Waiting for DeepTMHMM to start, this may take a few seconds... \n"
+      } else {
+        paste(output, collapse = "\n")
+      }
+    })
+  })
+  
+  # this gets the file path for the result image and will paste it in shiny
+  observeEvent(output_completed(), {
+    
+    setwd(temp_dir)
+    
+    if (output_completed()) {
+      
+      output$tmhmm_plot <- renderImage({
+
+        filename <- normalizePath(file.path(temp_dir, 'biolib_results', 'plot.png'))
+        
+        if (!file.exists(filename)) {
+          stop("File does not exist: ", filename, getwd(), list.files())
+        }
+        
+        list(
+          src = filename,
+          alt = "TMHMM Plot",
+          width = "80%",
+          height = "auto"
+        )
+      }, deleteFile = FALSE)
+    }
+    
+    setwd(current_dir)
+    
+  })
+  
   
   output$therapyTable <- DT::renderDataTable({
     validate(
@@ -221,7 +392,7 @@ server <- function(input, output, session) {
       filter(`Gene target` == target()) 
     
     DT::datatable(table, 
-                  options = list(scrollY = "50vh",
+                  options = list(scrollY = "25vh",
                                  pageLength = 25,
                                  searchHighlight = TRUE), 
                   escape = F)
