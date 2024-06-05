@@ -229,12 +229,18 @@ server <- function(input, output, session) {
     )
   })
   
+  current_dir <- getwd()
+  temp_dir <- tempdir()
+  setwd(temp_dir)
+  
   # creating a reactive value that will change once the output is finished
   output_completed <- reactiveVal(FALSE)
   
   # this is the function for outputting the terminal and cleaning it up
   poll_terminal_output <- function(myTerm) {
     function() {
+      
+      setwd(temp_dir)
       output <- NULL
       
       # this is a weird workaround, you can't use the system() function if it's inside of RSTUDIO for some reason
@@ -285,6 +291,8 @@ server <- function(input, output, session) {
   # when the action button is pushed, we're starting the DeepTMHMM code
   observeEvent(input$start_deeptmhmm, {
     
+    setwd(temp_dir)
+    
     # Doesn't work right now, idk how to fix this
     # if (dir.exists("biolib_results")) {
     #   unlink("biolib_results", recursive = TRUE)
@@ -328,6 +336,7 @@ server <- function(input, output, session) {
       tmhmm <- paste("biolib run DTU/DeepTMHMM --fasta", temp_fasta)
       rstudioapi::terminalSend(myTerm, paste0(tmhmm, "\n"))
     } else {
+      setwd(temp_dir)
       system(paste("biolib run DTU/DeepTMHMM --fasta", temp_fasta, "> output_log.txt 2>&1 &"))
     }
     
@@ -347,9 +356,14 @@ server <- function(input, output, session) {
   
   # this gets the file path for the result image and will paste it in shiny
   observeEvent(output_completed(), {
+    
+    setwd(temp_dir)
+    
     if (output_completed()) {
+      
       output$tmhmm_plot <- renderImage({
-        filename <- normalizePath(file.path('biolib_results', 'plot.png'))
+
+        filename <- normalizePath(file.path(temp_dir, 'biolib_results', 'plot.png'))
         
         if (!file.exists(filename)) {
           stop("File does not exist: ", filename, getwd(), list.files())
@@ -363,6 +377,9 @@ server <- function(input, output, session) {
         )
       }, deleteFile = FALSE)
     }
+    
+    setwd(current_dir)
+    
   })
   
   
