@@ -261,16 +261,18 @@ server <- function(input, output, session) {
           full_output <- readLines("output_log.txt")
           start_idx <- grep("^Running DeepTMHMM...", full_output)
           end_idx <- grep("^Step 4/4", full_output)
-          if (length(start_idx) > 0) {
-            if (length(end_idx) > 0) {
-              output <- full_output[start_idx:end_idx]
+          
+          if (length(start_idx) > 0 && !is.na(start_idx[1])) {
+            if (length(end_idx) > 0 && !is.na(end_idx[1])) {
+              output <- full_output[start_idx[1]:end_idx[1]]
               output_completed(TRUE)
             } else {
-              output <- full_output[start_idx:length(full_output)]
+              output <- full_output[start_idx[1]:length(full_output)]
             }
             output <- output[output != "" & !is.null(output)]
           }
         }
+        
       }
       
       if (is.null(output)) {
