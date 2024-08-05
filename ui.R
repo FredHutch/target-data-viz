@@ -69,7 +69,7 @@ ui <- dashboardPage(
                 
                 #-------- Disease selection -----------------------------#
                 
-                radioGroupButtons("leukemiaSelection", choices = c("AML", "ALL"), 
+                radioGroupButtons("leukemiaSelection", choices = c("AML", "ALL", "TALL"), 
                                   status = "primary", label = "Select leukemia", 
                                   selected = "AML", size = "xs"),
                 
@@ -77,6 +77,7 @@ ui <- dashboardPage(
                 
                 # This will be updated on the server side to include St. Jude if the user selects the "ALL" option, 
                 # which is defined in the radio buttons above
+                # We've also added a button for TALL and will likely be adding one for Cell Line Data as well. 
                 radioButtons("expDataCohort", choices = c("TARGET", "Beat AML" = "BeatAML", "SWOG", "TGCA LAML" = "TCGA"), 
                              label = "Select cohort", 
                              selected = "TARGET"),
@@ -95,13 +96,12 @@ ui <- dashboardPage(
                 menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical")),
                 # menuItem("Cox models", tabName = "coxPH"),
                 menuItem("Oncoprints", tabName = "oncoprint", icon = icon("stream")),
-                #menuItem("Risk Classification", tabName = "Classi", icon = icon("exclamation-circle")),
+                menuItem("Risk Classification", tabName = "Classi", icon = icon("exclamation-circle")),
                 # menuItem("Heatmaps", tabName = "heatmap", icon = icon("th")),
                 menuItem("DE Genes", tabName = "deTable", icon = icon("clipboard-list")),
                 menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
                 menuItem("External databases", tabName = "extData", icon = icon("atlas")),
-                menuItem("HPA Info", tabName = "HPA", icon = icon("dna")),
-                menuItem("Other Cancers", tabName = "cancertype", icon = icon("droplet"))
+                menuItem("HPA Info", tabName = "HPA", icon = icon("dna"))
     )
   ),  
   
@@ -153,35 +153,17 @@ ui <- dashboardPage(
       tabItem(tabName = "Classi",
               ClassiPlotUI(id = "Classi", label = "Risk Classification")
       ), 
-
-      tabItem(tabName = "cancertype",
-              CancerPlotUI(id = "cancertype", label = "Cancer Type")
-      ),
       
       # Building the external datasets tab that will contain links to other gene expression or protein databases
       tabItem(tabName = "extData",
               mainPanel(
-                width = 12,
                 position = "center",
                 fluidRow(
-                  valueBoxOutput("protAtlas"),
-                  valueBoxOutput("gtex"),
-                  valueBoxOutput("protPaint")
+                  valueBoxOutput("protAtlas", width = 3),
+                  valueBoxOutput("gtex", width = 3),
+                  valueBoxOutput("protPaint", width = 3)
                 ),
-                fluidRow(
-                  column(width = 4,
-                      uiOutput("tmhmm")
-                  ),
-                  column(width = 4,
-                      verbatimTextOutput("terminal_output")
-                  ),
-                  column(width = 4,
-                     div(
-                       style = "overflow-y: scroll; text-align: center;",
-                       imageOutput("tmhmm_plot")
-                     )
-                  )
-                ), # Linebreaks to center the table on the page
+                br(), # Linebreaks to center the table on the page
                 fluidRow(
                   # https://renkun-ken.github.io/formattable/ <- Really interesting package for making tables prettier
                   # https://www.displayr.com/formattable/ <- Diff vignette, same package

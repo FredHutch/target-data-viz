@@ -1,10 +1,13 @@
 variables:
   CI_DEBUG_SERVICES: "true"
 
+
 before_script:
   - apk update
   - apk --no-cache add py3-pip python3 curl
-  - pip3 install pyyaml awscli
+  - python3 -m venv $HOME/.venv
+  - export PATH=$HOME/.venv/bin:$PATH
+  - python3 -m pip install pyyaml awscli
   - curl -O https://raw.githubusercontent.com/FredHutch/swarm-build-helper/main/build_helper.py 
   # below is from https://stackoverflow.com/a/65810302/470769
   - mkdir -p $HOME/.docker
@@ -34,10 +37,7 @@ test:
     - name: sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test
       alias: target-data-viz
   script:
-    - echo hello
-    - sleep 60
-    - curl -sI --connect-timeout 120 http://target-data-viz:3838 || true
-    - sleep 60 && curl -sI  http://target-data-viz:3838  |head -1|grep -q "200 OK"
+    - sleep 15 && curl -sI  http://target-data-viz:3838  |head -1|grep -q "200 OK"
 
 
 deploy_preview:
@@ -51,7 +51,7 @@ deploy_preview:
     - sleep 15
     - echo $SC_SWARM_CICD_SSH_KEY | base64 -d > ./sc_swarm_cicd_ssh_key
     - chmod 0400 ./sc_swarm_cicd_ssh_key
-    - python3 build_helper.py --fluentd-logging docker-compose-preview.yml | ssh -i ./sc_swarm_cicd_ssh_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@sc-swarm-mgr.fhcrc.org docker stack deploy --with-registry-auth -c - target-data-viz-preview
+    - python3 build_helper.py docker-compose-preview.yml | ssh -i ./sc_swarm_cicd_ssh_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@sc-swarm-mgr.fhcrc.org docker stack deploy --with-registry-auth -c - target-data-viz-preview
 
 
 deploy:
@@ -65,4 +65,4 @@ deploy:
     - sleep 15
     - echo $SC_SWARM_CICD_SSH_KEY | base64 -d > ./sc_swarm_cicd_ssh_key
     - chmod 0400 ./sc_swarm_cicd_ssh_key
-    - python3 build_helper.py --fluentd-logging docker-compose.yml | ssh -i ./sc_swarm_cicd_ssh_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@sc-swarm-mgr.fhcrc.org docker stack deploy --with-registry-auth -c - target-data-viz
+    - python3 build_helper.py docker-compose.yml | ssh -i ./sc_swarm_cicd_ssh_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@sc-swarm-mgr.fhcrc.org docker stack deploy --with-registry-auth -c - target-data-viz
