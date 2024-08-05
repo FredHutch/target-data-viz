@@ -1,6 +1,8 @@
 variables:
   CI_DEBUG_SERVICES: "true"
 
+image: alpine:3.20.2
+
 before_script:
   - apk update
   - apk --no-cache add py3-pip python3 curl
