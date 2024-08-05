@@ -300,6 +300,10 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     )
     
     validate(
+      need(dataset() != "GMKF", "Survival data is not currently available for this cohort.")
+    )
+    
+    validate(
       need(input$test_type, "Please select at least one survival metric to analyze.")
     )
     if (length(input$test_type) == 1) {

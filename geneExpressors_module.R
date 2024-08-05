@@ -98,10 +98,6 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
       need(gene(), "Please enter a gene symbol or miRNA in the text box to the left.")
     )
     
-    # validate(
-    #   need(dataset() != "StJude", "Expression data is not currently available for this cohort. Please try again later.")
-    # )
-    
     if (input$tpm_cutoff == "" & input$other_cutoff == FALSE) {
       validate("No cutoff criteria has been selected. Please choose a cutoff value OR choose a diff selection type.")
     }
@@ -115,7 +111,7 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
       filter(!is.na(Expression)) %>%
       mutate(Alterations = clinData()$Filter.Code[match(Sample.ID, clinData()$PatientID)],
              AML.Sample = clinData()$AML.Sample[match(Sample.ID, clinData()$PatientID)]) %>%
-      filter(AML.Sample == c("AML", "ALL"))
+      filter(AML.Sample == c("AML", "ALL", "TALL"))
     
     # Filtering table if the user wants to restrict the analysis to a single AML subset
     if (input$filter_cohort == "yes") {

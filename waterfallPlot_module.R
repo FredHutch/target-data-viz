@@ -209,7 +209,11 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       need(gene(), "Please enter a gene symbol or miRNA in the text box to the left.") %then%
         need(gene() %in% rownames(expData()), paste0(gene(), " does not exist in the counts data!\nDouble-check the symbol or ID, or try an alias/synonym."))
       )
-
+  
+    # Removing AML if input$grouping_var is "Cell Line" to aid visualization
+    print(input$grouping_var)
+    #if (input$grouping_var == "Cell Line")
+    
     # Requests entry of another gene symbol ONLY when the input plot type is a scatter plot
     if (input$plot_type == "sctr" && input$gene2 == "") {
       validate("Please enter a 2nd gene symbol or miRNA in the new text box.")
@@ -242,7 +246,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       # )
       #
     validate(
-      need(!((dataset() %in% c("BeatAML", "SWOG", "TCGA", "StJude")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
+      need(!((dataset() %in% c("BeatAML", "SWOG", "TCGA", "StJude", "GMKF")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
 
     plotDF <- geneData() %>%
       pivot_longer(names_to = "PatientID", values_to = "Expression", -Gene) %>%
