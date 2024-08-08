@@ -1,85 +1,94 @@
-server <- function(input, output, session) { 
-  
+source("global.R")
+
+server <- function(input, output, session) {
   # the following functions are to create checkmarks for whether the input gene is aml-restricted and transmembrane
   #-------------------------------------------------------------#
   output$gene_present <- reactive({
     tolower(input$geneInput) %in% tolower(aml_restricted_genelist$Gene)
   })
-  
+
   outputOptions(output, "gene_present", suspendWhenHidden = FALSE)
-  
+
   output$trmembrane <- reactive({
     tolower(input$geneInput) %in% tolower(transmembrane_genelist$Gene.name)
   })
-  
+
   outputOptions(output, "trmembrane", suspendWhenHidden = FALSE)
   #-------------------------------------------------------------#
-  
-  observeEvent(input$leukemiaSelection, {
-    
-    choices <- switch(input$leukemiaSelection,
-                     "AML" = dataset_choices$aml,
-                     "ALL" = dataset_choices$all, 
-                     "TALL" = dataset_choices$tall,
-                     "CCLE" = dataset_choices$ccle) 
-    
-    selected <- switch(input$leukemiaSelection,
-                      "AML" = "TARGET",
-                      "ALL" = "StJude",
-                      "TALL" = "GMKF",
-                      "CCLE" = "CCLE")
-    
-    updateRadioButtons(
-      session = session,
-      inputId = "expDataCohort", 
-      choices = choices,
-      selected = selected
-    )
-  }, ignoreInit = T, ignoreNULL = T) # ignoreInit parameter is required to work!
-  
-  
+
+  observeEvent(input$leukemiaSelection,
+    {
+      choices <- switch(input$leukemiaSelection,
+        "AML" = dataset_choices$aml,
+        "ALL" = dataset_choices$all,
+        "TALL" = dataset_choices$tall,
+        "CCLE" = dataset_choices$ccle
+      )
+
+      selected <- switch(input$leukemiaSelection,
+        "AML" = "TARGET",
+        "ALL" = "StJude",
+        "TALL" = "GMKF",
+        "CCLE" = "CCLE"
+      )
+
+      updateRadioButtons(
+        session = session,
+        inputId = "expDataCohort",
+        choices = choices,
+        selected = selected
+      )
+    },
+    ignoreInit = T,
+    ignoreNULL = T
+  ) # ignoreInit parameter is required to work!
+
+
   # Variable representing the *name* of the selected cohort (as a character string)
   cohort <- reactive({
-      input$expDataCohort
+    input$expDataCohort
   })
-  
+
   # Reactive variable that stores the expression data matrix for the selected cohort
   expData <- reactive({
     matrix <- switch(input$expDataCohort,
-                     "SWOG" = swog_expData,
-                     "BeatAML" = beatAML_expData,
-                     "TARGET" = target_expData38,
-                     "TCGA" = laml_expData,
-                     "StJude" = stjude_expData,
-                     "GMKF" = gmkf_expData,
-                     "CCLE" = ccle_expData)
-    
-    # For the TARGET dataset only, we have both GRCh37 & GRCh38-aligned datasets available. 
+      "SWOG" = swog_expData,
+      "BeatAML" = beatAML_expData,
+      "TARGET" = target_expData38,
+      "TCGA" = laml_expData,
+      "StJude" = stjude_expData,
+      "GMKF" = gmkf_expData,
+      "CCLE" = ccle_expData
+    )
+
+    # For the TARGET dataset only, we have both GRCh37 & GRCh38-aligned datasets available.
     # This will allow the user to select one of those alignments, but ONLY if the TARGET AML dataset has been selected.
-    if (input$expDataCohort == "TARGET" ) {
+    if (input$expDataCohort == "TARGET") {
       assembly <- switch(input$seqAssembly,
-                         "grch37" = target_expData37,
-                         "grch38" = target_expData38)
+        "grch37" = target_expData37,
+        "grch38" = target_expData38
+      )
       return(assembly)
     } else {
       return(matrix)
     }
   })
-  
+
   # Reactive variable that stores the clinical data elements for the selected cohort
   studyData <- reactive({
     switch(input$expDataCohort,
-           "SWOG" = swog_cde,
-           "BeatAML" = beatAML_cde,
-           "TARGET" = target_cde,
-           "TCGA" = laml_cde,
-           "StJude" = stjude_cde,
-           "GMKF" = gmkf_cde,
-           "CCLE" = ccle_cde)
+      "SWOG" = swog_cde,
+      "BeatAML" = beatAML_cde,
+      "TARGET" = target_cde,
+      "TCGA" = laml_cde,
+      "StJude" = stjude_cde,
+      "GMKF" = gmkf_cde,
+      "CCLE" = ccle_cde
+    )
   })
-  
+
   # Creating a variable that will be used to reactively pass the gene of interest into each module,
-  # See https://tbradley1013.github.io/2018/07/20/r-shiny-modules--using-global-inputs/ for more  
+  # See https://tbradley1013.github.io/2018/07/20/r-shiny-modules--using-global-inputs/ for more
   # info on passing global Shiny variables into a module
   target <- reactive({
     if (grepl("^hsa\\-mir*|mir\\-*", input$geneInput, ignore.case = T)) {
@@ -93,7 +102,7 @@ server <- function(input, output, session) {
     }
     return(symbol)
   })
-  
+
   observeEvent(input$check, {
     option <- grep(input$geneInput, rownames(expData()), value = T, ignore.case = T)
     msg <- if (length(option) == 0) {
@@ -103,7 +112,7 @@ server <- function(input, output, session) {
     } else {
       paste0(paste0(option, collapse = "  or\n"), "?")
     }
-    
+
     # Check if miRNA name exists in the miRbase21 miRNA-seq data
     shinyalert(
       title = "Did you mean...",
@@ -122,121 +131,147 @@ server <- function(input, output, session) {
       timer = 0,
       imageUrl = "",
       animation = TRUE,
-      callbackR = function(x){
+      callbackR = function(x) {
         if (!is.null(x)) updateTextInput(session, "geneInput", label = NULL, value = input$shinyalert)
-      })
+      }
+    )
   })
-  
+
   #--------------------- WF plot & KM plot tabs --------------------- #
-  
+
   # Calling the waterfall plot module
-  # IMPORTANT NOTE: the "target" & "cohort" variables are actually a reactive function, and would usually be called by target() & cohort(), 
+  # IMPORTANT NOTE: the "target" & "cohort" variables are actually a reactive function, and would usually be called by target() & cohort(),
   # but when passing a reactive value into a module, you *must* pull off the parentheses and pass the naked variable name as an argument.
   # Within the modules themselves, these variables are a reactive function!
-  callModule(wfPlot, id = "waterfall", 
-             clinData = studyData, 
-             expData = expData, 
-             adc_cart_targetData = adc_cart_targetData,
-             gene = target, 
-             dataset = cohort,
-             parent = session) # See https://stackoverflow.com/questions/51708815/accessing-parent-namespace-inside-a-shiny-module
-                               # for an explanation of the 'parent' parameter
-  
+  callModule(wfPlot,
+    id = "waterfall",
+    clinData = studyData,
+    expData = expData,
+    adc_cart_targetData = adc_cart_targetData,
+    gene = target,
+    dataset = cohort,
+    parent = session
+  ) # See https://stackoverflow.com/questions/51708815/accessing-parent-namespace-inside-a-shiny-module
+  # for an explanation of the 'parent' parameter
+
   # Calling the Kaplan-Meier curve module
-  callModule(kmPlot, id = "kaplanmeier", 
-             clinData = studyData, 
-             expData = expData, 
-             dataset = cohort,
-             gene = target)
-  
+  callModule(kmPlot,
+    id = "kaplanmeier",
+    clinData = studyData,
+    expData = expData,
+    dataset = cohort,
+    gene = target
+  )
+
   # This module is not ready for prime time yet
   # callModule(heatmap, id = "heatmap",
   #            clinData = studyData,
   #            expData = expData,
   #            dataset = cohort,
   #            gene = target)
-  
-  callModule(oncoprint, id = "oncoprint",
-             clinData = studyData,
-             expData = expData,
-             dataset = cohort,
-             gene = target)
-  
+
+  callModule(oncoprint,
+    id = "oncoprint",
+    clinData = studyData,
+    expData = expData,
+    dataset = cohort,
+    gene = target
+  )
+
   # Calling the DEG table module
-  callModule(deTable, id = "degs",
-             table = degTables37,
-             gene = target)
-  
+  callModule(deTable,
+    id = "degs",
+    table = degTables37,
+    gene = target
+  )
+
   # Calling the DEG table module
-  callModule(geneExp, id = "exps",
-             clinData = studyData, 
-             expData = expData, 
-             gene = target,
-             dataset = cohort)
-  
-  callModule(HPAPlot, id = "hpa",
-             gene = target)
+  callModule(geneExp,
+    id = "exps",
+    clinData = studyData,
+    expData = expData,
+    gene = target,
+    dataset = cohort
+  )
+
+  callModule(HPAPlot,
+    id = "hpa",
+    gene = target
+  )
 
   # Calling the HPA module
   callModule(ClassiPlot, id = "Classi")
-  
+
   #--------------------- External databases tab --------------------- #
 
   # TO DO: Add a searchable AML-restricted gene list to this tab
-  
+
   output$protAtlas <- renderValueBox({
     validate(
-      need(target(), "Please enter a gene symbol in the text box."))
-    
-        valueBox(value = tags$p("Human Protein\nAtlas", style = "font-size: 60%"),
-                 subtitle = "Protein expression", 
-                 color = "light-blue", 
-                 icon = icon("prescription-bottle"),
-                 href = paste0("https://www.proteinatlas.org/search/", target()))
+      need(target(), "Please enter a gene symbol in the text box.")
+    )
+
+    valueBox(
+      value = tags$p("Human Protein\nAtlas", style = "font-size: 60%"),
+      subtitle = "Protein expression",
+      color = "light-blue",
+      icon = icon("prescription-bottle"),
+      href = paste0("https://www.proteinatlas.org/search/", target())
+    )
   })
-  
+
   output$gtex <- renderValueBox({
     validate(
-      need(target(), "Please enter a gene symbol in the text box."))
-    
-    valueBox(value = tags$p("GTEx", style = "font-size: 60%"),
-             subtitle = "Normal tissue expression",
-             color = "light-blue",
-             icon = icon("prescription-bottle"),
-             href = paste0("https://gtexportal.org/home/gene/", target(), "#geneExpression"))
+      need(target(), "Please enter a gene symbol in the text box.")
+    )
+
+    valueBox(
+      value = tags$p("GTEx", style = "font-size: 60%"),
+      subtitle = "Normal tissue expression",
+      color = "light-blue",
+      icon = icon("prescription-bottle"),
+      href = paste0("https://gtexportal.org/home/gene/", target(), "#geneExpression")
+    )
   })
-  
+
   output$protPaint <- renderValueBox({
     validate(
-      need(target(), "Please enter a gene symbol in the text box."))
-    
-    valueBox(value = tags$p("ProteinPaint", style = "font-size: 60%"),
-             subtitle = "St. Jude PeCan visualization",
-             color = "light-blue",
-             icon = icon("prescription-bottle"), 
-             href = paste0("https://proteinpaint.stjude.org/?genome=hg19&gene=", target(), "&dataset=pediatric"))
+      need(target(), "Please enter a gene symbol in the text box.")
+    )
+
+    valueBox(
+      value = tags$p("ProteinPaint", style = "font-size: 60%"),
+      subtitle = "St. Jude PeCan visualization",
+      color = "light-blue",
+      icon = icon("prescription-bottle"),
+      href = paste0("https://proteinpaint.stjude.org/?genome=hg19&gene=", target(), "&dataset=pediatric")
+    )
   })
-  
+
   output$therapyTable <- DT::renderDataTable({
     validate(
       need(target(), "Please enter a gene symbol in the text box.") %then%
-        need(target() %in% adc_cart_targetData$`Gene target`, paste0("We do not have record of ", target(), " being targeted\n by ADC or CAR T-cell therapies.")))
-    
+        need(target() %in% adc_cart_targetData$`Gene target`, paste0("We do not have record of ", target(), " being targeted\n by ADC or CAR T-cell therapies."))
+    )
+
     table <- adc_cart_targetData %>%
-      filter(`Gene target` == target()) 
-    
-    DT::datatable(table, 
-                  options = list(scrollY = "50vh",
-                                 pageLength = 25,
-                                 searchHighlight = TRUE), 
-                  escape = F)
+      filter(`Gene target` == target())
+
+    DT::datatable(table,
+      options = list(
+        scrollY = "50vh",
+        pageLength = 25,
+        searchHighlight = TRUE
+      ),
+      escape = F
+    )
   })
 
-  
+
   #--------------------- Protein Paint tab --------------------- #
-  
+
   # UPDATE: Moved this entire section to the "External Databases" tab, this was extremely finicky and I had trouble getting it to work.
-  
+
   # Can't figure out a way to reactively update the HTML embedding to
   # reflect the user-specified gene (in the Shiny app text box).
   # I would need to update the "positionbygene" parameter in the actual HTML file to do this,
@@ -246,11 +281,11 @@ server <- function(input, output, session) {
   #   final <- isolate(paste0("https://proteinpaint.stjude.org/?genome=hg19&gene=", target(), "&dataset=pediatric"))
   #   return(final)
   # })
-  
+
   # output$htmlDisplay <- renderUI({
   #   # validate( # This validate statement will only be needed when the embedded HTML is synced w/ the user-specified gene entry.
   #     # need(target(), "Please enter a gene symbol in the text box."))
-  #   
+  #
   #   tags$iframe(style = "border-width: 0;",
   #               width = 1300,
   #               height = 800,
@@ -258,27 +293,26 @@ server <- function(input, output, session) {
   #               # src = "https://proteinpaint.stjude.org/?genome=hg19&gene=MSLN&dataset=pediatric")
   #               # src = "Protein_Paint/embed_StJude_ProteinPaint.html") # src param must be a filename in the www folder,
   # })                                                                  # don't include the "www/" prefix or it won't work!
-  
+
   # Trying to write out a modified version of the ProteinPaint HTML file whenever the target() reactive variable is changed.
   # This modified HTML file could then be supplied to the 'src' parameter in the iframe.
   # This would automatically update the HTML embedding to reflect the user-supplied gene.
-  # I'm having issues getting this to work, though, so it will be commented out for now. 
+  # I'm having issues getting this to work, though, so it will be commented out for now.
   # Hopefully will have more time to work this out in the future - I think I may need to add an "Update"
   # action button
   # writeFile <- reactive({
   #   protPaint_html_mod <- gsub("(?<=positionbygene\\:\\').+(?=\\')", target(), protPaint_html, perl = T)
-  #   write_file(protPaint_html_mod, "www/Protein_Paint/embed_StJude_ProteinPaint_writeTest.html")   
+  #   write_file(protPaint_html_mod, "www/Protein_Paint/embed_StJude_ProteinPaint_writeTest.html")
   # })
-   # writeFile()
-  
+  # writeFile()
+
   #--------------------- UMAP tab --------------------- #
-  
+
   # Following this post, but it doesn't work: https://stackoverflow.com/questions/24875943/display-html-file-in-shiny-app
   # This person is having the same issue I am:
   # https://stackoverflow.com/questions/56064805/displaying-html-file-using-includehtml-in-shiny-is-not-working-with-renderui
-  
-  output$umapEmbedding <- renderUI({
 
+  output$umapEmbedding <- renderUI({
     ########### Method 1 ##############
     # includeHTML() is designed to work with HTML fragments, so a "self contained" HTML file is needed,
     # aka only the <body> section with an <html> </html> tag layer outside of it
@@ -295,10 +329,11 @@ server <- function(input, output, session) {
     # NOTE: Don't include 'www/' in filepath, see
     # https://stackoverflow.com/questions/41784631/include-link-to-local-html-file-in-datatable-in-shiny
     # for an explanation.
-    tags$iframe(seamless = "seamless",
-                style = "border-width: 0;",
-                src = "UMAP/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html",
-                height = 700, width = 1300, scrolling = "yes")
+    tags$iframe(
+      seamless = "seamless",
+      style = "border-width: 0;",
+      src = "UMAP/TARGET_AML_sg7655_blackBackground_clusters2_k31_PCAselect.html",
+      height = 700, width = 1300, scrolling = "yes"
+    )
   })
-  
 }
