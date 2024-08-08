@@ -146,13 +146,8 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   dropdown_choices <- filter(colMapping, Module_Code != "Mutation" & !is.na(Final_Column_Label))$Final_Column_Name
   names(dropdown_choices) <- filter(colMapping, Module_Code != "Mutation" & !is.na(Final_Column_Label))$Final_Column_Label
 
-  # The above isn't doing anything to change the dropdown choices based on the dataset selected by the user. So we need to 
-  # either hard code the available choices for each cohort or define them dynamically based on the dataset chosen.
-  # I think what's broken is that however Amanda wrote the filter() statement isn't actually pulling out those rows. 
-  
   # Some dropdown choices are not available for all datasets - this function will filter the options
   # depending on which dataset the user has selected.
-  # NOTE: This isn't working the way I had hoped, but it'll do for now (doesn't change for each dataset)
   disabled_choices <- reactive({
     x <- filter(colMapping, Module_Code != "Mutation" & is.na(!!sym(dataset())))$Final_Column_Name
     names(x) <- filter(colMapping, Module_Code != "Mutation" & is.na(!!sym(dataset())))$Final_Column_Label
@@ -170,20 +165,12 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
                              choices = x)
   })
 
-  # Updating plot dropdown options based on the dataset selected by the user.
+  # Updating plot dropdown options based on the dataset selected by the user
   observeEvent(dataset(), {
-    if (dataset() == "TARGET") {
-      updatePickerInput(
-        session = session,
-        inputId = "grouping_var",
-        choices = dropdown_choices)
-    } else {
-      updatePickerInput(
+      updateSelectInput(
         session = session,
         inputId = "grouping_var",
         choices = dropdown_choices[!dropdown_choices %in% disabled_choices()])
-      print(choices)
-    }
     }, ignoreInit = T)
 
   #################################################################
@@ -245,9 +232,10 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
 
   # Transforming the counts into a long-format dataframe (to use with ggplot).
   plotData <- reactive({
-
+  
+      # Should prevent the user from selecting "Malignancy" or "Tissue" as the grouping variable for the initialized TARGET dataset 
       validate(
-      need(!((dataset() %in% c("BeatAML", "SWOG", "TCGA", "StJude", "GMKF", "CCLE")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
+      need(!((dataset() == "TARGET") && (input$grouping_var %in% c("Malignancy", "Tissue"))), "That grouping option is not available for this dataset.\nPlease select another option."))
 
     plotDF <- geneData() %>%
       pivot_longer(names_to = "PatientID", values_to = "Expression", -Gene) %>%
