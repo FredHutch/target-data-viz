@@ -50,6 +50,7 @@ readData <- function(x) {
   laml_expData <<- readRDS("data/mRNA/TCGA_LAML_ExpressionData_TPM_FinalforShiny.RDS")
   stjude_expData <<- readRDS("data/mRNA/St_Jude_Expression_Data_TPM_filt4dupGenes_FinalforShiny_1.RDS")
   gmkf_expData <<- readRDS("data/mRNA/GMKF_TALL_TPM_Expression.RDS")
+  ccle_expData <<- readRDS("data/mRNA/CCLE_TPM_Expression.RDS")
   
   # miRNA expression matrices (for TARGET dataset only)
   load("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019_FinalforShiny.RData", .GlobalEnv)
@@ -62,6 +63,7 @@ readData <- function(x) {
   load("data/Clinical/TCGA_LAML_ClinicalData_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/StJude_ALL_ClinicalData_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/GMKF_TALL_Clinical.RData", .GlobalEnv)
+  load("data/Clinical/CCLE_Clinical_Data.RData", .GlobalEnv)
   
   # Misc accessory files
   load("data/ADC_and_CARTcell_Targets_Database_ADCReview_clinicaltrialsGov_FinalforShiny.RData", .GlobalEnv)
@@ -82,7 +84,7 @@ readData <- function(x) {
   
 }
 
-testing <- FALSE
+testing <- TRUE
 
 if (testing == TRUE) {
   print("Testing mode - data already in environment")
@@ -99,5 +101,6 @@ bs <- 16 # Base font size for figures
 dataset_choices <- list(
   aml = c("TARGET", "Beat AML" = "BeatAML", "SWOG", "TGCA LAML" = "TCGA"),
   all = c("St. Jude" = "StJude"),
-  tall = c("GMKF" = "GMKF")
+  tall = c("GMKF" = "GMKF"),
+  ccle = c("CCLE" = "CCLE")
 )

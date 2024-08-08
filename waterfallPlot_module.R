@@ -2,11 +2,11 @@
 wfPlotUI <- function(id, label = "Gene expression plot parameters"){
 
   ns <- NS(id) # Setting a unique namespace for this module
-
+  
   # Creating a list of dropdown choices for the plot type selection
   choices <- as.list(filter(colMapping, Module_Code != "Mutation" & !is.na(Final_Column_Label))$Final_Column_Name)
   names(choices) <- filter(colMapping, Module_Code != "Mutation" & !is.na(Final_Column_Label))$Final_Column_Label
-
+  
   # Using tagList() instead of fluidPage() to allow for the ADC/CAR T-cell therapy button to change the tab
   tagList(
     useShinyjs(),
@@ -24,8 +24,8 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
 
                 # Dropdown menu to select variable to use for arranging/grouping patients in waterfall plot
                 selectInput(ns("grouping_var"),
-                            label = "Select a grouping variable",             # The name of each list item is what is shown in the box;
-                            choices = choices),                               # the value corresponds to a column of the CDEs
+                            label = "Select Grouping Variable",               # The name of each list item is what is shown in the box;
+                            choices = choices),                               # the value corresponds to a column of the CDEs. Want to add a check here for which disease group to all for different grouping variables for each cohort
 
                 radioButtons(ns("plot_type"),
                              label = "Select a type of plot to generate",
@@ -146,6 +146,10 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   dropdown_choices <- filter(colMapping, Module_Code != "Mutation" & !is.na(Final_Column_Label))$Final_Column_Name
   names(dropdown_choices) <- filter(colMapping, Module_Code != "Mutation" & !is.na(Final_Column_Label))$Final_Column_Label
 
+  # The above isn't doing anything to change the dropdown choices based on the dataset selected by the user. So we need to 
+  # either hard code the available choices for each cohort or define them dynamically based on the dataset chosen.
+  # I think what's broken is that however Amanda wrote the filter() statement isn't actually pulling out those rows. 
+  
   # Some dropdown choices are not available for all datasets - this function will filter the options
   # depending on which dataset the user has selected.
   # NOTE: This isn't working the way I had hoped, but it'll do for now (doesn't change for each dataset)
@@ -178,8 +182,9 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
         session = session,
         inputId = "grouping_var",
         choices = dropdown_choices[!dropdown_choices %in% disabled_choices()])
+      print(choices)
     }
-  }, ignoreInit = T)
+    }, ignoreInit = T)
 
   #################################################################
   #------------------------- FUNCTIONS ---------------------------#
@@ -240,13 +245,9 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
 
   # Transforming the counts into a long-format dataframe (to use with ggplot).
   plotData <- reactive({
-      #
-      # validate(
-      #   need(dataset() != "StJude", "Expression data is not currently available for this cohort. Please try again later.")
-      # )
-      #
-    validate(
-      need(!((dataset() %in% c("BeatAML", "SWOG", "TCGA", "StJude", "GMKF")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
+
+      validate(
+      need(!((dataset() %in% c("BeatAML", "SWOG", "TCGA", "StJude", "GMKF", "CCLE")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
 
     plotDF <- geneData() %>%
       pivot_longer(names_to = "PatientID", values_to = "Expression", -Gene) %>%
