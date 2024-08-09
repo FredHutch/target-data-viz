@@ -22,4 +22,6 @@ RUN R -f /tmp/check.R --args shinyalert shinydashboard shinyjs shinyBS shinyWidg
 
 RUN rm /tmp/check.R
 
+ENV SHINY_LOG_STDERR=1
+
 CMD /usr/bin/shiny-server
