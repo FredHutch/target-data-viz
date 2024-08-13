@@ -18,12 +18,16 @@ server <- function(input, output, session) {
   observeEvent(input$leukemiaSelection, {
     
     choices <- switch(input$leukemiaSelection,
-                     "AML" = dataset_choices$aml,
-                     "ALL" = dataset_choices$all) 
+                      "AML" = dataset_choices$aml,
+                      "ALL" = dataset_choices$all, 
+                      "TALL" = dataset_choices$tall,
+                      "CCLE" = dataset_choices$ccle) 
     
     selected <- switch(input$leukemiaSelection,
-                      "AML" = "TARGET",
-                      "ALL" = "StJude")
+                       "AML" = "TARGET",
+                       "ALL" = "StJude",
+                       "TALL" = "GMKF",
+                       "CCLE" = "CCLE")
     
     updateRadioButtons(
       session = session,
@@ -46,7 +50,9 @@ server <- function(input, output, session) {
                      "BeatAML" = beatAML_expData,
                      "TARGET" = target_expData38,
                      "TCGA" = laml_expData,
-                     "StJude" = stjude_expData)
+                     "StJude" = stjude_expData,
+                     "GMKF" = gmkf_expData,
+                     "CCLE" = ccle_expData)
     
     # For the TARGET dataset only, we have both GRCh37 & GRCh38-aligned datasets available. 
     # This will allow the user to select one of those alignments, but ONLY if the TARGET AML dataset has been selected.
@@ -67,7 +73,9 @@ server <- function(input, output, session) {
            "BeatAML" = beatAML_cde,
            "TARGET" = target_cde,
            "TCGA" = laml_cde,
-           "StJude" = stjude_cde)
+           "StJude" = stjude_cde,
+           "GMKF" = gmkf_cde,
+           "CCLE" = ccle_cde)
   })
   
   # Creating a variable that will be used to reactively pass the gene of interest into each module,
@@ -386,8 +394,6 @@ observeEvent(output_completed(), {
       )
     }, deleteFile = FALSE)
   }
-})
-
     
     setwd(current_dir)
     

@@ -49,11 +49,12 @@ readData <- function(x) {
   # Gene-level expression matrices
   target_expData38 <<- readRDS("data/mRNA/TARGET_RBD_Dx_AML_ExpressionData_TPM_filt4dupGenes_with_cellLines_CD34posNBM_DSAML_MPN_GRCh38_12.17.2020_FinalforShiny.RDS")
   target_expData37 <<- readRDS("data/mRNA/TARGET_RBD_Dx_AML_ExpressionData_TPM_filt4dupGenes_with_cellLines_CD34posNBM_DSAML_MPN_GRCh37_10.16.2020_FinalforShiny.RDS")
-  beatAML_expData <<- readRDS("data/mRNA/BeatAML_Supplementary_Tables_TPM_Linear_Scale.RDS") %>%
-    column_to_rownames("geneSymbol")
+  beatAML_expData <<- readRDS("data/mRNA/BeatAML_Supplementary_Tables_TPM_Linear_Scale.RDS")
   swog_expData <<- readRDS("data/mRNA/SWOG_AML_ExpressionData_TPM_GRCh38_FinalforShiny.RDS")
   laml_expData <<- readRDS("data/mRNA/TCGA_LAML_ExpressionData_TPM_FinalforShiny.RDS")
   stjude_expData <<- readRDS("data/mRNA/St_Jude_Expression_Data_TPM_filt4dupGenes_FinalforShiny_1.RDS")
+  gmkf_expData <<- readRDS("data/mRNA/GMKF_TALL_TPM_Expression.RDS")
+  ccle_expData <<- readRDS("data/mRNA/CCLE_TPM_Expression.RDS")
   
   # miRNA expression matrices (for TARGET dataset only)
   load("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019_FinalforShiny.RData", .GlobalEnv)
@@ -65,6 +66,8 @@ readData <- function(x) {
   load("data/Clinical/SWOG_AML_Merged_CDEs_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/TCGA_LAML_ClinicalData_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/StJude_ALL_ClinicalData_FinalforShiny.RData", .GlobalEnv)
+  load("data/Clinical/GMKF_TALL_Clinical.RData", .GlobalEnv)
+  load("data/Clinical/CCLE_Clinical_Data.RData", .GlobalEnv)
   
   # Misc accessory files
   load("data/ADC_and_CARTcell_Targets_Database_ADCReview_clinicaltrialsGov_FinalforShiny.RData", .GlobalEnv)
@@ -87,16 +90,9 @@ readData <- function(x) {
   tcga_csv <<- read.csv("data/listforcancers_bothlocat_10in90_final.csv")
   gtex_tcga_combined <<- readRDS("data/concatenated_for_comparison_tcga_gtex.RDS")
   
-  ####### These are TEMPORARY dummy variables ########
-  # Currently, these variables are *required* for some components of the app to function.
-  # I've added error messages to prevent the user from actually plotting these data frames,
-  # which would be confusing and non-representative of real AML data, but some form of placeholder
-  # for the St. Jude data is currently needed to prevent the app from crashing.
-  # Definitely not ideal, but I don't have time to restructure to accomodate it right now.
-  # St. Jude data should be coming soon.
 }
 
-testing <- FALSE
+testing <- TRUE
 
 if (testing == TRUE) {
   print("Testing mode - data already in environment")
@@ -112,5 +108,7 @@ if (testing == TRUE) {
 bs <- 16 # Base font size for figures
 dataset_choices <- list(
   aml = c("TARGET", "Beat AML" = "BeatAML", "SWOG", "TGCA LAML" = "TCGA"),
-  all = c("St. Jude" = "StJude")
+  all = c("St. Jude" = "StJude"),
+  tall = c("GMKF" = "GMKF"),
+  ccle = c("CCLE" = "CCLE")
 )
