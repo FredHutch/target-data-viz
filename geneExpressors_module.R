@@ -115,7 +115,7 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
       filter(!is.na(Expression)) %>%
       mutate(Alterations = clinData()$Filter.Code[match(Sample.ID, clinData()$PatientID)],
              AML.Sample = clinData()$AML.Sample[match(Sample.ID, clinData()$PatientID)]) %>%
-      filter(AML.Sample == c("AML", "ALL"))
+      filter(AML.Sample == c("AML", "ALL", "TALL", "CCLE"))
     
     # Filtering table if the user wants to restrict the analysis to a single AML subset
     if (input$filter_cohort == "yes") {
