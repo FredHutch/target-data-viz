@@ -1,6 +1,6 @@
 # Meshinchi Lab Data Visualization App
 
-Welcome to the Meshinchi Lab's Shiny Application. Here, you can interactively explore gene expression data for thousands of individual samples all in one place and create visualizations on-the-fly. 
+Welcome to the Meshinchi Lab's Shiny Application. With our app, you can interactively explore gene expression data for thousands of individual AML, ALL, T-ALL and Cell Line samples all in one place and create visualizations on-the-fly. 
 
 
 =================================================
