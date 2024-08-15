@@ -133,11 +133,11 @@ server <- function(input, output, session) {
   # IMPORTANT NOTE: the "target" & "cohort" variables are actually a reactive function, and would usually be called by target() & cohort(), 
   # but when passing a reactive value into a module, you *must* pull off the parentheses and pass the naked variable name as an argument.
   # Within the modules themselves, these variables are a reactive function!
-  callModule(wfPlot, id = "waterfall",
-             clinData = studyData,
-             expData = expData,
+  callModule(wfPlot, id = "waterfall", 
+             clinData = studyData, 
+             expData = expData, 
              adc_cart_targetData = adc_cart_targetData,
-             gene = target,
+             gene = target, 
              dataset = cohort,
              parent = session) # See https://stackoverflow.com/questions/51708815/accessing-parent-namespace-inside-a-shiny-module
                                # for an explanation of the 'parent' parameter
@@ -179,9 +179,6 @@ server <- function(input, output, session) {
 
   # Calling the HPA module
   callModule(ClassiPlot, id = "Classi")
-
-  callModule(CancerPlot, id = "cancertype",
-             gene = target)
   
   #--------------------- External databases tab --------------------- #
 
@@ -200,7 +197,7 @@ server <- function(input, output, session) {
   
   output$gtex <- renderValueBox({
     validate(
-      need(target(), FALSE))
+      need(target(), "Please enter a gene symbol in the text box."))
     
     valueBox(value = tags$p("GTEx", style = "font-size: 60%"),
              subtitle = "Normal tissue expression",
@@ -211,7 +208,7 @@ server <- function(input, output, session) {
   
   output$protPaint <- renderValueBox({
     validate(
-      need(target(), FALSE))
+      need(target(), "Please enter a gene symbol in the text box."))
     
     valueBox(value = tags$p("ProteinPaint", style = "font-size: 60%"),
              subtitle = "St. Jude PeCan visualization",
@@ -409,7 +406,7 @@ observeEvent(output_completed(), {
       filter(`Gene target` == target()) 
     
     DT::datatable(table, 
-                  options = list(scrollY = "25vh",
+                  options = list(scrollY = "50vh",
                                  pageLength = 25,
                                  searchHighlight = TRUE), 
                   escape = F)

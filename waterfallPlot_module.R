@@ -201,7 +201,11 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       need(gene(), "Please enter a gene symbol or miRNA in the text box to the left.") %then%
         need(gene() %in% rownames(expData()), paste0(gene(), " does not exist in the counts data!\nDouble-check the symbol or ID, or try an alias/synonym."))
       )
-
+  
+    # Removing AML if input$grouping_var is "Cell Line" to aid visualization
+    print(input$grouping_var)
+    #if (input$grouping_var == "Cell Line")
+    
     # Requests entry of another gene symbol ONLY when the input plot type is a scatter plot
     if (input$plot_type == "sctr" && input$gene2 == "") {
       validate("Please enter a 2nd gene symbol or miRNA in the new text box.")
