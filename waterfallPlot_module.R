@@ -148,7 +148,6 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
 
   # Some dropdown choices are not available for all datasets - this function will filter the options
   # depending on which dataset the user has selected.
-  # NOTE: This isn't working the way I had hoped, but it'll do for now (doesn't change for each dataset)
   disabled_choices <- reactive({
     x <- filter(colMapping, Module_Code != "Mutation" & is.na(!!sym(dataset())))$Final_Column_Name
     names(x) <- filter(colMapping, Module_Code != "Mutation" & is.na(!!sym(dataset())))$Final_Column_Label
@@ -166,19 +165,12 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
                              choices = x)
   })
 
-  # Updating plot dropdown options based on the dataset selected by the user.
+  # Updating plot dropdown options based on the dataset selected by the user
   observeEvent(dataset(), {
-    if (dataset() == "TARGET") {
-      updatePickerInput(
-        session = session,
-        inputId = "grouping_var",
-        choices = dropdown_choices)
-    } else {
-      updatePickerInput(
-        session = session,
-        inputId = "grouping_var",
-        choices = dropdown_choices[!dropdown_choices %in% disabled_choices()])
-    }
+    updateSelectInput(
+      session = session,
+      inputId = "grouping_var",
+      choices = dropdown_choices[!dropdown_choices %in% disabled_choices()])
   }, ignoreInit = T)
 
   #################################################################
@@ -240,14 +232,13 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
 
   # Transforming the counts into a long-format dataframe (to use with ggplot).
   plotData <- reactive({
-      #
-      # validate(
-      #   need(dataset() != "StJude", "Expression data is not currently available for this cohort. Please try again later.")
-      # )
-      #
+    
+    # Should prevent the user from selecting "Malignancy" or "Tissue" as the grouping variable for the initialized TARGET dataset 
+    # Needed to add in some additional checks as it is the case that when the user has a selected filter and then switches datasets
+    # it might not be available for the new dataset
     validate(
-      need(!((dataset() %in% c("BeatAML", "SWOG", "TCGA", "StJude", "GMKF")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
-
+      need(!((dataset() %in% c("TARGET", "BeatAML", "SWOG", "TCGA", "StJude", "GMKF", "CCLE")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
+    
     plotDF <- geneData() %>%
       pivot_longer(names_to = "PatientID", values_to = "Expression", -Gene) %>%
       drop_na(Expression) %>% # Removing samples without expression data from the dataset

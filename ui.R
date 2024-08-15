@@ -69,17 +69,14 @@ ui <- dashboardPage(
                 
                 #-------- Disease selection -----------------------------#
                 
-                radioGroupButtons("leukemiaSelection", choices = c("AML", "ALL", "TALL"), 
-                                  status = "primary", label = "Select leukemia", 
+                radioGroupButtons("leukemiaSelection", choices = c("AML", "ALL", "TALL", "CCLE"), 
+                                  status = "primary", label = "Select Leukemia", 
                                   selected = "AML", size = "xs"),
                 
                 #--------- Cohort selection -----------------------------#
                 
-                # This will be updated on the server side to include St. Jude if the user selects the "ALL" option, 
-                # which is defined in the radio buttons above
-                # We've also added a button for TALL and will likely be adding one for Cell Line Data as well. 
                 radioButtons("expDataCohort", choices = c("TARGET", "Beat AML" = "BeatAML", "SWOG", "TGCA LAML" = "TCGA"), 
-                             label = "Select cohort", 
+                             label = "Select Cohort", 
                              selected = "TARGET"),
                 
                 conditionalPanel("input['expDataCohort'] == 'TARGET'",
