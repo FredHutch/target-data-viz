@@ -21,5 +21,5 @@ WORKDIR /srv/shiny-server
 RUN R -f /tmp/check.R --args shinyalert shinydashboard shinyjs shinyBS shinyWidgets shinythemes survminer gtools cmprsk ggpubr DT data.table viridis viridisLite ggplot2 plotly fst BiocManager dplyr ComplexHeatmap survival ggsurvfit
 
 RUN rm /tmp/check.R
-
+ENV SHINY_LOG_STDERR=1
 CMD /usr/bin/shiny-server
