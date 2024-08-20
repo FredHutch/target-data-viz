@@ -250,9 +250,11 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
                          ggtheme = theme_classic(base_size = bs) + theme(plot.title = element_text(hjust = 0.5, size = bs + 2),
                                                                          axis.text.x = element_text(size = bs + 1)),
                          legend = "bottom",
-                         title = title) +
+                         title = title) 
+      
+      plot$plot <- plot$plot + 
         guides(fill = guide_legend(title = NULL, nrow = nstrata), 
-               color = guide_legend(title = NULL, nrow = nstrata)) +
+               color = guide_legend(title = NULL, nrow = nstrata)) + 
         labs(x = paste0("Time (", input$time_type, ")"))
       
       # Adding gene name as a text annotation layer (to the ggsurvplot object), 
