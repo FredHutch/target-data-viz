@@ -175,6 +175,9 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     if (input$time_type == "years") {
       time <- as.numeric(time)/365
     }
+    else{
+      time <- as.numeric(time)
+    }
     
     # Creating the survival objects for EFS, DFS, and OS.
     if (testType != "RR" ) { 
