@@ -173,7 +173,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     
     # Converting the time from days -> years, if requested by the user.
     if (input$time_type == "years") {
-      time <- time/365
+      time <- as.numeric(time)/365
     }
     
     # Creating the survival objects for EFS, DFS, and OS.
