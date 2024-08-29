@@ -107,8 +107,8 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                            br(),
                            br(),             # Linebreaks to help center the plot on the page
                            fluidRow(
-                             column(12, offset = 0, align = "left",                   # This will be a reactive object that is linked to an item in the
-                                    plotOutput(ns("plot"), width = "600px")           # output list, created in the "server" script
+                             column(11, offset = 0, align = "left",                   # This will be a reactive object that is linked to an item in the
+                                    plotOutput(ns("plot"))           # output list, created in the "server" script
                                     )
                            )
                   ),
