@@ -118,7 +118,6 @@ ui <- dashboardPage(
               wfPlotUI(id = "waterfall", label = "Waterfall plot generation") 
       ),
       
-      # Sourcing the waterfall plot module UI component
       tabItem(tabName = "kmPlot",
               kmPlotUI(id = "kaplanmeier", label = "Kaplan-Meier plot generation")
       ),
@@ -127,14 +126,12 @@ ui <- dashboardPage(
               oncoprintUI(id = "oncoprint", label = "Oncoprint generation")
       ), 
       
-      # Sourcing the waterfall plot module UI component
       # This module is not ready for prime time yet
       # tabItem(tabName = "heatmap",
       # #Calling the user interface module of the Waterfall Plot app
       #         heatmapUI(id = "heatmap", label = "Heatmap generation")
       # ),
       
-      # Sourcing the waterfall plot module UI component
       tabItem(tabName = "deTable",
               deTableUI(id = "degs", label = "Differentially expressed gene table")
       ), 

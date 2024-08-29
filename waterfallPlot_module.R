@@ -44,35 +44,35 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                   checkboxInput(ns("labels"),
                                 label = "Add x-axis labels",
                                 value = FALSE)),
-
+                
                 conditionalPanel(
                   condition = paste0("input['", ns("plot_type"), "'] == 'bx' || input['", ns("plot_type"), "'] == 'str' || input['", ns("plot_type"), "'] == 'sctr'"),
                   checkboxInput(ns("log"),
                             label = "Log2 transform the data",
                             value = FALSE)),
-
+                
                 conditionalPanel(
                   condition = paste0("input['", ns("plot_type"), "'] == 'bx' || input['", ns("plot_type"), "'] == 'str'"),
                   checkboxInput(ns("test"),
                                 label = "Perform significance tests",
                                 value = FALSE)),
-
+                
                 conditionalPanel(
                   condition = paste0("input['", ns("test"), "'] == 1"),
                   checkboxGroupInput(ns("comparisons"),
                                 label = "Select 2 groups to compare",
                                 choices = c("A", "B", "C", "D"))), # These are just placeholders and will be replaced
                                                                    # on the server side with the appropriate categories
-
+                
                 helpText("The grouping variable will be used to arrange patients along the x axis (for waterfall plots)
                           or to group patients together (for box and violin plots) based on a common clinical characteristic
                           to help highlight expression patterns within the groups."),
-
+                
                 helpText("NOTE: If cell lines is selected, please reference the 'Summary Stats' tab for expression data,
                          as only one sample is available for most cell lines."),
-
+                
                 br(),
-
+                
                 # http://timelyportfolio.github.io/buildingwidgets/week25/sweetalert_examples.html <- Alert to notify
                 # user that they're switching tabs
                 shinyjs::hidden(
@@ -86,14 +86,29 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                 downloadButton(ns("plot_download"),
                                label = "plot",
                                class = "plotdwnld"),
-
+                
                 shinyBS::bsTooltip(ns("plot_download"),
                                    title = "Click here to download a copy of the plot",
                                    placement = "right",
-                                   trigger = "hover")
+                                   trigger = "hover"),
+              
+              br(),
+              br(),
+              
+              # Adds a help button to identify acronyms for disease types in cohorts
+              actionButton(ns("key_button"),
+                           label = "Sample Key",
+                           icon = icon("info-circle"),
+                           class = "btn-primary",
+                           disabled = FALSE),
+              
+              shinyBS::bsTooltip(ns("key_button"),
+                                 title = "Click for a Sample Type Key",
+                                 placement = "right",
+                                 trigger = "hover")
+              
               ),
-
-
+              
               ###############################################################
               #----------------------- MAIN PLOT PANEL ---------------------#
               ###############################################################
@@ -138,6 +153,8 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
 
   # bs <- 17 # Base font size for figures
 
+  
+  
   #################################################################
   #-------------------- DATA PREPARATION -------------------------#
   #################################################################
@@ -172,6 +189,27 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       inputId = "grouping_var",
       choices = dropdown_choices[!dropdown_choices %in% disabled_choices()])
   }, ignoreInit = T)
+  
+  observeEvent(input$key_button, {
+    showModal(
+      modalDialog(
+        title = "Sample Type Key",
+        HTML(
+          paste(
+          "AML: Acute Myeloid Leukemia",
+          "CB: Cord Blood",
+          "CD34+ PB: CD34+ Peripheral Blood",
+          "DS: Down Syndrome AML",
+          "MPN: Myeloproliferative Neoplasm",
+          "NBM: Normal Bone Marrow",
+          "NBM Lymph Neg: Myeloid Sorted Normal Bone Marrow",
+          "NBM Lymph Pos: Lymphoid Sorted Normal Bone Marrow",
+          "TMD: Transient Myeloproliferative Disorder",
+          sep = "<br>")
+        ),
+          easyClose = TRUE)
+    )
+  })
 
   #################################################################
   #------------------------- FUNCTIONS ---------------------------#
@@ -201,32 +239,28 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       need(gene(), "Please enter a gene symbol or miRNA in the text box to the left.") %then%
         need(gene() %in% rownames(expData()), paste0(gene(), " does not exist in the counts data!\nDouble-check the symbol or ID, or try an alias/synonym."))
       )
-  
-    # Removing AML if input$grouping_var is "Cell Line" to aid visualization
-    print(input$grouping_var)
-    #if (input$grouping_var == "Cell Line")
     
     # Requests entry of another gene symbol ONLY when the input plot type is a scatter plot
     if (input$plot_type == "sctr" && input$gene2 == "") {
       validate("Please enter a 2nd gene symbol or miRNA in the new text box.")
     }
-
+    
     if (input$gene2 == gene()) {
       validate("Please enter a different 2nd gene symbol.")
     }
-
+    
     # The default value for an empty text entry box = ""
     genes2keep <- if (input$plot_type == "sctr" & input$gene2 != "") {
       c(gene(), input$gene2)
     } else if (input$plot_type != "sctr") {
       gene()
     }
-
+    
     df <- expData() %>%
       rownames_to_column("Gene") %>%
       filter(Gene %in% genes2keep) %>%
       dplyr::select(Gene, any_of(intersect(clinData()$PatientID, colnames(expData()))))
-
+    
         return(df)
   })
 
@@ -312,7 +346,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
     }
 
     # Specifying location of the plot legend
-    plotLegend <- ifelse(input$labels == TRUE, "none", "bottom")
+    plotLegend <- ifelse(input$labels == TRUE, "none", "right")
 
     if (input$plot_type == "bx") { # Generating box plots
       p <- plotData() %>%
@@ -455,7 +489,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       ggsave(filename = file, plot = plotFun(), width = 6, height = 4.5, device = "png", dpi = 250)
     }
   )
-
+  
   output$ggplot_download <- downloadHandler(
     filename = function() {
       paste0(dataset(), "_AML_", gene(), "_", input$grouping_var, "_ggplotObject_generated_", format(Sys.time(), "%m.%d.%Y"), ".RDS")
@@ -505,6 +539,5 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
     newval <- "extData"
     updateTabItems(session = parent, "sdbr", selected = newval)
   })
-
 
 }
