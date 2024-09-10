@@ -221,7 +221,18 @@ server <- function(input, output, session) {
   })
   
   
-  # function for creating the action button for embedding DeepTMHMM
+ ## This is the code for the DeepTMHMM Button ###################################################
+  ## Here's the order of operations:
+  ## 1. Press Button
+  ## 2. Clear the temporary directory and the output plot.png
+  ## 3. Set a "waiting for..." message
+  ## 4. Translate the gene name into a fasta sequence
+  ## 5. Write the fasta sequence to a fasta file
+  ## 6. Run the biolib DeepTMHMM function
+  ## 7. Print the cleaned terminal output 
+  ## 8. Output the plot.png
+  
+  # function for creating the action button for embedding DeepTMHMM ###############################
   output$tmhmm <- renderUI({
     validate(
       need(target(), FALSE)
@@ -237,81 +248,83 @@ server <- function(input, output, session) {
     )
   })
   
-  current_dir <- getwd()
-  temp_dir <- tempdir()
-  setwd(temp_dir)
-  
   # creating a reactive value that will change once the output is finished
   output_completed <- reactiveVal(FALSE)
   
-  # this is the function for outputting the terminal and cleaning it up
   poll_terminal_output <- function(myTerm) {
     function() {
-      
       setwd(temp_dir)
       output <- NULL
       
-      # this is a weird workaround, you can't use the system() function if it's inside of RSTUDIO for some reason
-      # instead you have to use this rstudioapi package to create a new terminal
-      if (Sys.getenv("RSTUDIO") == "1") { 
+      # Check if running inside RStudio
+      if (Sys.getenv("RSTUDIO") == "1") {  
         full_output <- rstudioapi::terminalBuffer(myTerm)
-        # extract lines starting from "Running DeepTMHMM..." and ending with "Step 4/4"
-        start_idx <- grep("^Running DeepTMHMM...", full_output)
-        end_idx <- grep("^Step 4/4", full_output)
-        if (length(start_idx) > 0) {
-          if (length(end_idx) > 0) {
-            output <- full_output[start_idx:end_idx]
-            output_completed(TRUE) # update the reactive value when the task is completed
-          } else {
-            output <- full_output[start_idx:length(full_output)]
-          }
-          # filter out empty and NULL lines
-          output <- output[output != "" & !is.null(output)]
+        
+        # Check if "Done" is in the terminal output
+        if (any(grepl("Done", full_output))) {
+          Sys.sleep(10)  # Wait for 10 seconds
+          output_completed(TRUE)  # Mark the output as completed
+        } else {
+          output_completed(FALSE)
         }
-      } else {
-        # this is what the app actually runs on when it's being hosted because it doesn't 
-        # use the rstudio api
+      } 
+      else {
+        # Check if output_log.txt exists outside RStudio
         if (file.exists("output_log.txt")) {
           full_output <- readLines("output_log.txt")
-          start_idx <- grep("^Running DeepTMHMM...", full_output)
-          end_idx <- grep("^Step 4/4", full_output)
+          print(full_output)
           
-          if (length(start_idx) > 0 && !is.na(start_idx[1])) {
-            if (length(end_idx) > 0 && !is.na(end_idx[1])) {
-              output <- full_output[start_idx[1]:end_idx[1]]
-              output_completed(TRUE)
-            } else {
-              output <- full_output[start_idx[1]:length(full_output)]
-            }
-            output <- output[output != "" & !is.null(output)]
+          # Check if "Done" is in the file output
+          if (any(grepl("Done", full_output))) {
+            Sys.sleep(10)  # Wait for 10 seconds
+            output_completed(TRUE)  # Mark the output as completed
+          } else {
+            output_completed(FALSE)
           }
+        } else {
+          # If output_log.txt doesn't exist
+          output <- output[output != "" & !is.null(output)]
+          output_completed(FALSE)
         }
-        
       }
-      
-      if (is.null(output)) {
-        output <- character(0)
-      }
-      output
+      return(output)  # Return the output if any
     }
   }
   
-  # when the action button is pushed, we're starting the DeepTMHMM code
+  
+  # when the action button is pushed, we're starting the DeepTMHMM code ###########################
   observeEvent(input$start_deeptmhmm, {
     
+    output_completed(FALSE)
+    
+    output$tmhmm_plot <- renderImage({
+      filename <- normalizePath(file.path(current_dir, 'data', 'loading.png'))
+      
+      list(
+        src = filename,
+        alt = "Loading...",
+        width = "80%",
+        height = "auto"
+      )
+    }, deleteFile = FALSE)
+    
+    # cleaning the temporary directory
+    unlink(file.path(temp_dir, "*"), recursive = TRUE)
+    
+    # setting the temporary directory
     setwd(temp_dir)
     
-    # Doesn't work right now, idk how to fix this
-    # if (dir.exists("biolib_results")) {
-    #   unlink("biolib_results", recursive = TRUE)
-    # }
+    # this gives a little loading text before the output starts
+    output$terminal_output <- renderText({
+        "Waiting for DeepTMHMM to start, this may take a few seconds... \n"
+    })
     
-    # the goal of this is to take the gene name and find the longest peptide sequence (using that as canonical for now)
+    # the goal of this is to take the gene name and find the longest peptide sequence
     ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
     gene_name <- target()
     sequences <- getSequence(id = gene_name, type = "hgnc_symbol", seqType = "peptide", mart = ensembl)
     
-    # this is the longest sequence function 
+    # longest sequence function
     get_longest_sequence <- function(sequences) {
       sequence_lengths <- nchar(sequences$peptide)
       max_length <- max(sequence_lengths)
@@ -320,82 +333,60 @@ server <- function(input, output, session) {
       return(longest_sequence)
     }
     
+    # finding the longest sequence
     longest_sequence <- get_longest_sequence(sequences)
-    
-    # the asterisk indicates a stop codon, I'm pretty sure this doesn't matter whether we remove this or not
-    # but for now, I'm keeping it in
-    remove_asterisk <- function(sequence) {
-      if (substr(sequence, nchar(sequence), nchar(sequence)) == "*") {
-        sequence <- substr(sequence, 1, nchar(sequence) - 1)
-      }
-      return(sequence)
-    }
-    
-    cleaned_sequence <- remove_asterisk(longest_sequence)
     
     # create a temporary fasta file
     temp_fasta <- tempfile(fileext = ".fasta")
-    writeLines(paste0(">header\n", cleaned_sequence), con = temp_fasta)
+    writeLines(paste0(">header\n", longest_sequence), con = temp_fasta)
     
-    # now we run the python biolib package inside a terminal we've opened up in R :D
+    # now we run the python biolib package inside a terminal
     myTerm <- NULL
     if (Sys.getenv("RSTUDIO") == "1") { 
       myTerm <- rstudioapi::terminalCreate(show = FALSE)
       tmhmm <- paste("biolib run DTU/DeepTMHMM --fasta", temp_fasta)
       rstudioapi::terminalSend(myTerm, paste0(tmhmm, "\n"))
     } else {
-      setwd(temp_dir)
       system(paste("biolib run DTU/DeepTMHMM --fasta", temp_fasta, "> output_log.txt 2>&1 &"))
     }
     
-    # this is a reactive function that will write the terminal output as it goes
+    # reactive function to monitor terminal output
     terminal_output <- reactivePoll(1000, session, checkFunc = poll_terminal_output(myTerm), valueFunc = poll_terminal_output(myTerm))
     
-    # this gives a little loading text before the output starts
-    output$terminal_output <- renderText({
-      output <- terminal_output()
-      if (length(output) == 0) {
-        "Waiting for DeepTMHMM to start, this may take a few seconds... \n"
+    observe({
+      # Check the value of output_completed reactively
+      if (output_completed() == TRUE) {
+        
+        # Set the working directory to temp_dir
+        setwd(temp_dir)
+        
+        # Render the image when it's available
+        output$tmhmm_plot <- renderImage({
+        
+          filename <- normalizePath(file.path(temp_dir, 'biolib_results', 'plot.png'))
+
+          list(
+            src = filename,
+            alt = "TMHMM Plot",
+            width = "80%",
+            height = "auto"
+          )
+        }, deleteFile = TRUE)
+        
       } else {
-        paste(output, collapse = "\n")
+        # Render the placeholder/loading image
+        output$tmhmm_plot <- renderImage({
+          filename <- normalizePath(file.path(current_dir, 'data', 'loading.png'))
+          
+          list(
+            src = filename,
+            alt = "Loading...",
+            width = "80%",
+            height = "auto"
+          )
+        }, deleteFile = FALSE)
       }
     })
-  })
-  
-# This gets the file path for the result image and will paste it in shiny
-observeEvent(output_completed(), {
-  
-  # Set the working directory to temp_dir
-  setwd(temp_dir)
-  
-  # Print out the files inside temp_dir to the console
-  print(list.files())
-  
-  # Check if the output_completed event is triggered
-  if (output_completed()) {
-    
-    # Render the image in the UI
-    output$tmhmm_plot <- renderImage({
-      
-      # Normalize the path for the result image
-      filename <- normalizePath(file.path(temp_dir, 'biolib_results', 'plot.png'))
-      
-      # If the file does not exist, stop and print the list of files
-      if (!file.exists(filename)) {
-        stop("File does not exist: ", filename, "\nFiles in directory: ", paste(list.files(), collapse = ", "))
-      }
-      
-      # Return a list containing the image information for rendering
-      list(
-        src = filename,
-        alt = "TMHMM Plot",
-        width = "80%",
-        height = "auto"
-      )
-    }, deleteFile = FALSE)
-  }
-    
-    setwd(current_dir)
     
   })
   
