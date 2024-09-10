@@ -1,6 +1,6 @@
 server <- function(input, output, session) { 
 
-  ## build the temporary directory
+  ## build the temporary directory at the start
   current_dir <- getwd()
   temp_dir <- tempdir()
   unlink(file.path(temp_dir, "*"), recursive = TRUE)
