@@ -1,4 +1,9 @@
 server <- function(input, output, session) { 
+
+  ## build the temporary directory
+  current_dir <- getwd()
+  temp_dir <- tempdir()
+  unlink(file.path(temp_dir, "*"), recursive = TRUE)
   
   # the following functions are to create checkmarks for whether the input gene is aml-restricted and transmembrane
   #-------------------------------------------------------------#
