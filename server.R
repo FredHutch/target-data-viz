@@ -277,8 +277,6 @@ server <- function(input, output, session) {
         # Check if output_log.txt exists outside RStudio
         if (file.exists("output_log.txt")) {
           full_output <- readLines("output_log.txt")
-          print(full_output)
-          
           # Check if "Done" is in the file output
           if (any(grepl("Done", full_output))) {
             Sys.sleep(10)  # Wait for 10 seconds
