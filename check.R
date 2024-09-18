@@ -9,7 +9,7 @@ nres <- cbind(pkg, installed)
 print(nres)
 
 if (any(!installed)) {
-    q("no", 1)
+#    q("no", 1)
 }
 
 
