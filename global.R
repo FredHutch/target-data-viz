@@ -19,8 +19,8 @@ library(survival)
 library(survminer)
 library(ggsurvfit)
 library(biomaRt)
-library(RSelenium)
-library(netstat)
+#library(RSelenium)
+#library(netstat)
 
 # https://rstudio.github.io/bslib/articles/bslib.html#bootswatch New themes package to check out
 
@@ -91,7 +91,7 @@ readData <- function(x) {
   
 }
 
-testing <- FALSE
+testing <- TRUE
 
 if (testing == TRUE) {
   print("Testing mode - data already in environment")

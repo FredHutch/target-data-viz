@@ -360,10 +360,11 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
               legend.position = plotLegend,
               legend.text = element_text(size = bs - 5),
               legend.title = element_blank()) +
-        geom_boxplot(width = 0.1, fill = "white", outlier.size = 0.4) + 
         geom_violin(scale = "width", aes_string(color = input$grouping_var)) +
+        # geom_boxplot(width = 0.2, outlier.shape = NA, fill = "white", color = "black") +
+        stat_summary(fun = median, geom = "crossbar", width = 0.5, color = "black") + 
         guides(color = "none")
-      
+        
       # Try to convert to a plotly plot with interactive tooltips
       p <- ggplotly(p, tooltip = c("y", "color"))
       
