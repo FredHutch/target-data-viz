@@ -20,7 +20,7 @@ EXPOSE 3838
 
 WORKDIR /srv/shiny-server
 
-RUN R -f /tmp/check.R --args shinyalert shinydashboard shinyjs shinyBS shinyWidgets shinythemes survminer gtools cmprsk ggpubr DT data.table viridis viridisLite ggplot2 plotly fst BiocManager dplyr ComplexHeatmap survival ggsurvfit openxlsx biomaRt RSelenium netstat
+RUN R -f /tmp/check.R --args shinyalert shinydashboard shinyjs shinyBS shinyWidgets shinythemes survminer gtools cmprsk ggpubr DT data.table viridis viridisLite ggplot2 plotly fst BiocManager dplyr ComplexHeatmap survival ggsurvfit openxlsx biomaRt
 
 RUN rm /tmp/check.R
 
