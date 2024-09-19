@@ -123,7 +123,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                            br(),             # Linebreaks to help center the plot on the page
                            fluidRow(
                              column(11, offset = 0, align = "left",                   # This will be a reactive object that is linked to an item in the
-                                    plotOutput(ns("plot"))           # output list, created in the "server" script
+                                    plotlyOutput(ns("plot"), height = "100%")           # output list, created in the "server" script
                                     )
                            )
                   ),
@@ -360,9 +360,13 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
               legend.position = plotLegend,
               legend.text = element_text(size = bs - 5),
               legend.title = element_blank()) +
-        geom_violin(scale = "width", aes_string(color = input$grouping_var)) +
-        geom_boxplot(width = 0.1, fill = "white", outlier.size = 0.4) +
+        geom_violin(scale = "width", aes_string(color = input$grouping_var), alpha = 0.75) +
+        geom_boxplot(width = 0.2, outlier.shape = NA, fill = "white", color = "black") +
         guides(color = "none")
+        
+      # Try to convert to a plotly plot with interactive tooltips
+      p <- ggplotly(p, tooltip = c("y", "color"))
+      
       p
 
     } else if (input$plot_type == "str") { # Generating strip plots w/ jittered raw data points
@@ -476,7 +480,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   #-------------------- Plot tab -----------------------#
 
   # Saving the plot to the output list object so it can be run & saved reactively
-  output$plot <- renderPlot({
+  output$plot <- renderPlotly({
     plotFun()
   })
 
