@@ -160,6 +160,11 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   # bs <- 17 # Base font size for figures
 
   
+  # Making the gene2 input non-case sensitive
+  observeEvent(input$gene2, {
+    newValue <- toupper(input$gene2)
+    updateTextInput(session, "gene2", value = newValue)
+  })
   
   #################################################################
   #-------------------- DATA PREPARATION -------------------------#
