@@ -367,7 +367,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
               axis.text.x = xaxLabs,
               axis.text.y = element_text(size = bs),
               plot.title = element_text(size = bs + 2, hjust = 0.5),
-              legend.position = plotLegend,
+              legend.position = "bottom",
               legend.text = element_text(size = bs - 5),
               legend.title = element_blank()) +
         geom_violin(scale = "width", aes_string(color = input$grouping_var), alpha = 0.75) +
