@@ -21,6 +21,8 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
             sidebarLayout(
               position = "left", # Placing the sidebar on the left side of the screen
               sidebarPanel(
+                width = 3,
+                height = "70vh",
 
                 # Dropdown menu to select variable to use for arranging/grouping patients in waterfall plot
                 selectInput(ns("grouping_var"),
@@ -83,6 +85,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                 ),
                 br(),
                 br(),
+                br(),
                 downloadButton(ns("plot_download"),
                                label = "plot",
                                class = "plotdwnld"),
@@ -91,7 +94,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                                    title = "Click here to download a copy of the plot",
                                    placement = "right",
                                    trigger = "hover"),
-              
+              br(),
               br(),
               br(),
               
@@ -105,7 +108,10 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
               shinyBS::bsTooltip(ns("key_button"),
                                  title = "Click for a Sample Type Key",
                                  placement = "right",
-                                 trigger = "hover")
+                                 trigger = "hover"),
+
+              br(),
+              br(),
               
               ),
               
@@ -123,7 +129,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                            br(),             # Linebreaks to help center the plot on the page
                            fluidRow(
                              column(11, offset = 0, align = "left",                   # This will be a reactive object that is linked to an item in the
-                                    plotlyOutput(ns("plot"), height = "100%")           # output list, created in the "server" script
+                                    plotlyOutput(ns("plot"), height = "60vh")           # output list, created in the "server" script
                                     )
                            )
                   ),
@@ -340,13 +346,16 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
 
     # Customizing the x-axis labels based on user input
     xaxLabs <- if (input$labels == TRUE) {
-      element_text(hjust = 1, vjust = 1, angle = 20)
+      element_text(hjust = 1, vjust = 1, angle = 90)
     } else {
       element_blank()
     }
 
-    # Specifying location of the plot legend
-    plotLegend <- ifelse(input$labels == TRUE, "none", "right")
+    # Removes the plot legend if you turn on x-axis labels
+    plotLegend <- ifelse(input$labels == TRUE, FALSE, TRUE)
+    
+    # Soheil check for long x-axis names
+    xLabAdj <- ifelse(dataset() == "BeatAML" && input$labels == TRUE && input$grouping_var == "Cytogenetic.Category", 2, 1)
 
     if (input$plot_type == "bx") { # Generating box plots
       p <- plotData() %>%
@@ -354,8 +363,9 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
         ggplot(aes_string(x = input$grouping_var, y = expCol, fill = input$grouping_var)) +
         theme_classic(base_size = bs) +
         labs(x = NULL, y = yaxLab, fill = gsub("\\.", " ", input$grouping_var)) +
-        theme(axis.text.x = xaxLabs,
-              axis.text.y = element_text(size = bs + 1),
+        theme(axis.title.y = element_text(size = bs),
+              axis.text.x = xaxLabs,
+              axis.text.y = element_text(size = bs),
               plot.title = element_text(size = bs + 2, hjust = 0.5),
               legend.position = plotLegend,
               legend.text = element_text(size = bs - 5),
@@ -367,6 +377,16 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       # Try to convert to a plotly plot with interactive tooltips
       p <- ggplotly(p, tooltip = c("y", "color"))
       
+      # Adjust legend position in plotly
+      p <- layout(p,
+                  showlegend = plotLegend,
+                  legend = list(orientation = "h", 
+                                                 y = -0.1, 
+                                                 x = 0.5, 
+                                                 xanchor = "center"
+                                   ),
+                  xaxis = list(tickfont = list(size = bs / xLabAdj)))
+                  
       p
 
     } else if (input$plot_type == "str") { # Generating strip plots w/ jittered raw data points
@@ -375,15 +395,28 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
         ggplot(aes_string(x = input$grouping_var, y = expCol, fill = input$grouping_var, color = input$grouping_var)) +
         theme_classic(base_size = bs) +
         labs(x = NULL, y = yaxLab, fill = gsub("\\.", " ", input$grouping_var)) +
-        theme(axis.text.x = xaxLabs,
-              axis.text.y = element_text(size = bs + 1),
+        theme(axis.title.y = element_text(size = bs),
+              axis.text.x = xaxLabs,
+              axis.text.y = element_text(size = bs),
               plot.title = element_text(size = bs + 2, hjust = 0.5),
-              legend.position = plotLegend,
-              legend.text = element_text(size = bs - 5),
+              legend.position = "bottom",
+              legend.text = element_text(size = bs - 6),
               legend.title = element_blank()) +
         guides(color = "none") +
         geom_jitter(width = 0.3, size = 0.7) +
         stat_summary(fun = median, geom = "crossbar", width = 0.5, color = "black")
+      
+      # Try to convert to a plotly plot with interactive tooltips
+      p <- ggplotly(p, tooltip = c("y", "color"))
+      
+      # Adjust legend position in plotly
+      p <- layout(p, 
+                  showlegend = plotLegend,
+                  legend = list(orientation = "h", 
+                                y = -0.1, 
+                                x = 0.5, 
+                                xanchor = "center"
+                  ))
       p
 
     } else if (input$plot_type == "wf") { # Generating a waterfall plot
@@ -391,15 +424,26 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
         drop_na(input$grouping_var) %>%
         ggplot(aes_string(x = "PatientID", y = "Expression", fill = input$grouping_var)) +
         theme_classic(base_size = bs) +
-        labs(x = "Patients", y = yaxLab, fill = gsub("\\.", " ", input$grouping_var)) +
+        labs(x = NULL, y = yaxLab, fill = gsub("\\.", " ", input$grouping_var)) +
         theme(axis.text.x = element_blank(),
               axis.text.y = element_text(size = bs),
               plot.title = element_text(size = bs + 2, hjust = 0.5),
               axis.ticks.x = element_blank(),
               legend.position = "bottom",
-              legend.text = element_text(size = bs - 5),
+              legend.text = element_text(size = bs - 6),
               legend.title = element_blank()) +
         geom_bar(stat = "identity", width = 1, position = position_dodge(width = 0.4))
+      
+      # Try to convert to a plotly plot with interactive tooltips
+      p <- ggplotly(p)
+      
+      # Adjust legend position in plotly
+      p <- layout(p, 
+                  legend = list(orientation = "h", 
+                                y = -0.1, 
+                                x = 0.5, 
+                                xanchor = "center"
+                                ))
       p
 
     } else if (input$plot_type == "sctr") { # Generating a scatter plot
@@ -481,7 +525,10 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
 
   # Saving the plot to the output list object so it can be run & saved reactively
   output$plot <- renderPlotly({
+
+    # Create the plot
     plotFun()
+    
   })
 
   # Adding a download button widget for the plot
