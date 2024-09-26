@@ -160,6 +160,11 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   # bs <- 17 # Base font size for figures
 
   
+  # Making the gene2 input non-case sensitive
+  observeEvent(input$gene2, {
+    newValue <- toupper(input$gene2)
+    updateTextInput(session, "gene2", value = newValue)
+  })
   
   #################################################################
   #-------------------- DATA PREPARATION -------------------------#
@@ -447,14 +452,15 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       p
 
     } else if (input$plot_type == "sctr") { # Generating a scatter plot
-
+      
+      
       p <- plotData() %>%
         drop_na(input$grouping_var) %>%
         filter(Disease.Group == c("AML")) %>%
         ungroup() %>%
         dplyr::select(PatientID, Gene, Expression, !!sym(input$grouping_var)) %>%
         pivot_wider(names_from = "Gene", values_from = "Expression")
-
+      
       if (input$log == TRUE) {
         p <- p %>%
           mutate(expCol_1 = log2(!!sym(gene()) + 1),
@@ -468,10 +474,14 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
           rename(expCol_1 = !!sym(gene()),
                  expCol_2 = !!sym(input$gene2))
       }
-
+      
+      # Calculate correlation and p-value
+      correlation <- cor.test(p$expCol_1, p$expCol_2, method = "pearson")
+      p_value <- round(correlation$p.value, 6)
+      
       p <- p %>%
         ggpubr::ggscatter(.,  x = "expCol_1", y = "expCol_2",
-                  cor.coef = TRUE,
+                  cor.coef = FALSE,
                   cor.coef.size = 7,
                   cor.method = "spearman",
                   xlab = xaxLab,
@@ -487,13 +497,36 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
               legend.text = element_text(size = bs - 5),
               legend.title = element_blank(),
               legend.position = "bottom")
+      
+      p <- ggplotly(p)
+      
+      # Add p-value annotation
+      p <- p %>% 
+        layout(annotations = list(
+          x = 1,
+          y = 1,
+          text = paste("p-value =", p_value),
+          xref = "paper",
+          yref = "paper",
+          showarrow = FALSE,
+          font = list(size = 22)
+        ))
+      
+      # Adjust legend position in plotly
+      p <- layout(p, 
+                  legend = list(orientation = "h", 
+                                y = -0.2, 
+                                x = 0.5, 
+                                xanchor = "center"
+                  ))
       p
+      
     }
-
+    
     # Performing hypothesis tests
     if (length(input$comparisons) > 1) {
       validate(
-        need(length(input$comparisons > 1), "Please select 2 groups to compare.")) # !!!!! Need to add another error message for the cell lines specifically !!!!!!
+        need(length(input$comparisons > 1), "Please select 2 groups to compare."))
       c <- p + ggpubr::stat_compare_means(method = "wilcox.test", comparisons = list(input$comparisons))
       c # Return plot generated above + additional geom layer created by stat_compare_means
     } else {
