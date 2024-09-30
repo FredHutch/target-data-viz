@@ -358,9 +358,6 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
 
     # Removes the plot legend if you turn on x-axis labels
     plotLegend <- ifelse(input$labels == TRUE, FALSE, TRUE)
-    
-    # Soheil check for long x-axis names
-    xLabAdj <- ifelse(dataset() == "BeatAML" && input$labels == TRUE && input$grouping_var == "Cytogenetic.Category", 2, 1)
 
     if (input$plot_type == "bx") { # Generating box plots
       p <- plotData() %>%
@@ -390,7 +387,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
                                                  x = 0.5, 
                                                  xanchor = "center"
                                    ),
-                  xaxis = list(tickfont = list(size = bs / xLabAdj)))
+                  xaxis = list(tickfont = list(size = bs)))
                   
       p
 
