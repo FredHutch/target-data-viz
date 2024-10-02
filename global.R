@@ -91,7 +91,7 @@ readData <- function(x) {
   
 }
 
-testing <- FALSE
+testing <- TRUE
 
 if (testing == TRUE) {
   print("Testing mode - data already in environment")
