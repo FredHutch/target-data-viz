@@ -377,7 +377,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
         guides(color = "none")
         
       # Try to convert to a plotly plot with interactive tooltips
-      p <- ggplotly(p, tooltip = c("y", "color"))
+      p <- ggplotly(p, tooltip = c("y", "color"), dynamicTicks = TRUE)
       
       # Adjust legend position in plotly
       p <- layout(p,
@@ -409,7 +409,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
         stat_summary(fun = median, geom = "crossbar", width = 0.5, color = "black")
       
       # Try to convert to a plotly plot with interactive tooltips
-      p <- ggplotly(p, tooltip = c("y", "color"))
+      p <- ggplotly(p, tooltip = c("y", "color"), dynamicTicks = TRUE)
       
       # Adjust legend position in plotly
       p <- layout(p, 
@@ -437,7 +437,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
         geom_bar(stat = "identity", width = 1, position = position_dodge(width = 0.4))
       
       # Try to convert to a plotly plot with interactive tooltips
-      p <- ggplotly(p)
+      p <- ggplotly(p, dynamicTicks = TRUE)
       
       # Adjust legend position in plotly
       p <- layout(p, 
@@ -495,7 +495,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
               legend.title = element_blank(),
               legend.position = "bottom")
       
-      p <- ggplotly(p)
+      p <- ggplotly(p, dynamicTicks = TRUE)
       
       # Add p-value annotation
       p <- p %>% 
