@@ -264,8 +264,8 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
   
   # https://glin.github.io/reactable/articles/examples.html#conditional-styling
   output$rankedTable <- DT::renderDataTable({
-    t <- makeTable() %>% 
-      filter(grepl("\\+", Filter.Category))
+    t <- makeTable() #%>% 
+      #filter(grepl("\\+", Filter.Category))
     
     DT::datatable(t, 
                   class = "compact nowrap hover row-border order-column", # Defines the CSS formatting of the final table, can string multiple options together
@@ -275,9 +275,8 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
                                  buttons = list(
                                    list(extend = 'excel', filename = paste0(dataset(), "_AML_", gene(), "pos_patientList_generated_", format(Sys.time(), "%m.%d.%Y")))),
                                  scrollX = TRUE,
-                                 # fixedColumns = list(leftColumns = 1),
                                  searchHighlight = TRUE,
-                                 pageLength = 50), 
+                                 pageLength = nrow(t)), 
                   escape = F) %>%
       DT::formatStyle(columns = c(1,2,4), fontSize = "100%")
   })
