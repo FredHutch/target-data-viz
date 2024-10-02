@@ -33,6 +33,7 @@ geneExpUI <- function(id, label = "Identifying expressors"){
                              label = "Limit to a single subgroup?", 
                              choices = list("No - view all patients" = "no",
                                             "Yes" = "yes")),
+                # Can add a statement here to allow different choices for each cohort - E.g. Cell lines should not be limited to rearrangements.
                 conditionalPanel(
                   condition = paste0("input['", ns("filter_cohort"), "'] == 'yes'"),
                   selectInput(ns("select_subgroup"),                                                  
@@ -102,16 +103,27 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
       validate("No cutoff criteria has been selected. Please choose a cutoff value OR choose a diff selection type.")
     }
     ########################################################################################
-    
     # Transforming expression matrix into long-form table
-    expTable <- expData() %>%
-      rownames_to_column("Gene") %>%
-      filter(Gene == gene()) %>%
-      pivot_longer(names_to = "Sample.ID", values_to = "Expression", -Gene) %>%
-      filter(!is.na(Expression)) %>%
-      mutate(Alterations = clinData()$Filter.Code[match(Sample.ID, clinData()$PatientID)],
-             AML.Sample = clinData()$AML.Sample[match(Sample.ID, clinData()$PatientID)]) %>%
-      filter(AML.Sample %in% c("AML", "ALL", "TALL", "CCLE"))
+    if (dataset() %in% c("SWOG", "BeatAML", "TARGET", "TCGA", "StJude", "GMKF")) {
+      expTable <- expData() %>%
+        rownames_to_column("Gene") %>%
+        filter(Gene == gene()) %>%
+        pivot_longer(names_to = "Sample.ID", values_to = "Expression", -Gene) %>%
+        filter(!is.na(Expression)) %>%
+        mutate(Alterations = clinData()$Filter.Code[match(Sample.ID, clinData()$PatientID)],
+               AML.Sample = clinData()$AML.Sample[match(Sample.ID, clinData()$PatientID)]) %>%
+        filter(AML.Sample %in% c("AML", "ALL", "TALL"))
+    } else if (dataset() == "CCLE") {
+      expTable <- expData() %>%
+        rownames_to_column("Gene") %>%
+        filter(Gene == gene()) %>%
+        pivot_longer(names_to = "Sample.ID", values_to = "Expression", -Gene) %>%
+        filter(!is.na(Expression)) %>%
+        mutate(Tissue = clinData()$Tissue[match(Sample.ID, clinData()$PatientID)],
+               Malignancy = clinData()$Malignancy[match(Sample.ID, clinData()$PatientID)],
+               AML.Sample = clinData()$AML.Sample[match(Sample.ID, clinData()$PatientID)],
+               Alterations = clinData()$Filter.Code[match(Sample.ID, clinData()$PatientID)])
+      }
     
     # Filtering table if the user wants to restrict the analysis to a single AML subset
     if (input$filter_cohort == "yes") {
@@ -164,10 +176,15 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
                                                                Expression < as.numeric(input$tpm_cutoff) ~ paste0(gene(), "-"),  # so they need to be cast to numeric for this to work
                                                                TRUE ~ NA_character_))
     }
-    
-    expTable <-  expTable %>%
-      arrange(desc(Expression)) %>% # Setting this up in case I want to add the study ID to this table later (aka "Protocol" column)
-      dplyr::select(Sample.ID, AML.Sample, matches("Protocol"), Gene, Expression, Filter.Category, Alterations)
+    if (dataset() %in% c("SWOG", "BeatAML", "TARGET", "TCGA", "StJude", "GMKF")) {
+      expTable <- expTable %>%
+        arrange(desc(Expression)) %>% 
+        dplyr::select(Sample.ID, AML.Sample, matches("Protocol"), Gene, Expression, Filter.Category, Alterations)
+    } else if (dataset() == "CCLE") {
+      expTable <- expTable %>%
+        arrange(desc(Expression)) %>%
+        dplyr::select(Sample.ID, AML.Sample, Tissue, Malignancy, Gene, Expression, Filter.Category)
+    }
     
     return(expTable)
     
@@ -264,8 +281,7 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
   
   # https://glin.github.io/reactable/articles/examples.html#conditional-styling
   output$rankedTable <- DT::renderDataTable({
-    t <- makeTable() %>% 
-      filter(grepl("\\+", Filter.Category))
+    t <- makeTable()
     
     DT::datatable(t, 
                   class = "compact nowrap hover row-border order-column", # Defines the CSS formatting of the final table, can string multiple options together
@@ -275,9 +291,8 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
                                  buttons = list(
                                    list(extend = 'excel', filename = paste0(dataset(), "_AML_", gene(), "pos_patientList_generated_", format(Sys.time(), "%m.%d.%Y")))),
                                  scrollX = TRUE,
-                                 # fixedColumns = list(leftColumns = 1),
                                  searchHighlight = TRUE,
-                                 pageLength = 50), 
+                                 pageLength = nrow(t)), 
                   escape = F) %>%
       DT::formatStyle(columns = c(1,2,4), fontSize = "100%")
   })
