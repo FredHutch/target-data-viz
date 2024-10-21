@@ -85,9 +85,17 @@ readData <- function(x) {
   classification <<- read.csv("data/classification.csv")
   km_cde <<- read.csv("data/km_updated_1_29_24.csv")
 
-  tcga_cancer <<- readRDS("data/concat_gtex_tcga_data.RDS")
-  tcga_csv <<- read.csv("data/listforcancers_bothlocat_10in90_final.csv")
-  gtex_tcga_combined <<- readRDS("data/concatenated_for_comparison_tcga_gtex.RDS")
+  # tcga_cancer <<- readRDS("data/concat_gtex_tcga_data.RDS")
+  # tcga_csv <<- read.csv("data/listforcancers_bothlocat_10in90_final.csv")
+  # gtex_tcga_combined <<- readRDS("data/concatenated_for_comparison_tcga_gtex.RDS")
+  #tcga_newcsv <<- readRDS("data/tcga_expression_matrix.rds")
+  tcga_newcsv <<- readRDS("data/tcga_concatenated_full.rds")
+  tcga_manifest <<- read.csv("data/tcga_manifest.csv")
+  
+  gtex_csv <<- readRDS("data/gtex_concatenated_full.rds")
+  gtex_manifest <<- read.csv("data/gtex_manifest.csv")
+  gtex_manifest$Tissue <- gsub("(^|[[:space:]])([[:alpha:]])", "\\1\\U\\2", gtex_manifest$Tissue, perl=TRUE)
+  
   
 }
 
