@@ -101,8 +101,10 @@ readData <- function(x) {
 
 testing <- FALSE
 
-if (testing == TRUE) {
-  print("Testing mode - data already in environment")
+if (identical(testing, TRUE)) {
+  print("Testing mode - Data already in environment")
+} else if (exists("target_expData38")) {
+  print("Data already exists in the environment")
 } else {
   readData()
 }
