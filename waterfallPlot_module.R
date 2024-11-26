@@ -533,10 +533,22 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
 
   #----------------- Summary table function -------------------#
   # Function to generate an expression summary table from the plot data
+  
+  ### Needs to be treated a little differently for cell line data, we don't want to group by Disease.Group
+  ### Instead want to plot all cell lines individually for sorting. E.g., don't use Disease.Group as a grouping variable.
+  
+  
+  # Function to generate an expression summary table from the plot data
   tableFun <- reactive({
     plotData() %>%
       drop_na(input$grouping_var) %>%
-      group_by(!!as.name(input$grouping_var)) %>%
+      {
+      if (dataset() == "CCLE" && input$grouping_var == "Disease.Group") {
+        group_by(., Name)
+      } else {
+        group_by(., !!as.name(input$grouping_var)) 
+        } 
+      } %>%
       dplyr::summarize(N = n(),
                        Gene = gene(),
                        `Mean (TPM)` = round(mean(Expression, na.rm = T), 2),
@@ -546,7 +558,8 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
                        `% >= 5 (TPM)` = round(sum(Expression >= 5, na.rm = T) / n() * 100, 2),
                        .groups = "keep")
   })
-
+  
+  
   #################################################################
   #-------------------- FINAL MODULE OUTPUTS ---------------------#
   #################################################################
