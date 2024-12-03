@@ -53,6 +53,20 @@ deploy_preview:
     - chmod 0400 ./sc_swarm_cicd_ssh_key
     - python3 build_helper.py docker-compose-preview.yml | ssh -i ./sc_swarm_cicd_ssh_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@sc-swarm-mgr.fhcrc.org docker stack deploy --with-registry-auth -c - target-data-viz-preview
 
+deploy_bgmp:
+  stage: deploy
+  only:
+    refs:
+        - BGMP
+  script:
+    - docker tag sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test sc-registry.fredhutch.org/target-data-viz-bgmp:latest
+    - docker push sc-registry.fredhutch.org/target-data-viz-bgmp:latest
+    - sleep 15
+    - echo $SC_SWARM_CICD_SSH_KEY | base64 -d > ./sc_swarm_cicd_ssh_key
+    - chmod 0400 ./sc_swarm_cicd_ssh_key
+    - python3 build_helper.py docker-compose-bgmp.yml | ssh -i ./sc_swarm_cicd_ssh_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@sc-swarm-mgr.fhcrc.org docker stack deploy --with-registry-auth -c - target-data-viz-bgmp
+
+
 
 deploy:
   stage: deploy

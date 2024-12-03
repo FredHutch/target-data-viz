@@ -1,0 +1,22 @@
+version: '3.3'
+services:
+  target-data-viz:
+    image: sc-registry.fredhutch.org/target-data-viz-bgmp:latest
+    environment:
+      - SHINY_LOG_STDERR=1
+    networks:
+      - sc-swarm-net
+    deploy:
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.target-data-viz-bgmp.rule=Host(`meshinchi-data-viz-bgmp.fredhutch.org`)"
+        - "traefik.http.routers.target-data-viz-bgmp-secured.rule=Host(`meshinchi-data-viz-bgmp.fredhutch.org`)"
+        - "traefik.http.routers.target-data-viz-bgmp.entrypoints=web,web-secured"
+        - "traefik.http.services.target-data-viz-bgmp.loadbalancer.server.port=3838" # it seems you always need to give traefik a port so it 'notices' the service
+        - "traefik.http.routers.target-data-viz-bgmp.tls=true"
+
+networks:
+  sc-swarm-net:
+    external: true
