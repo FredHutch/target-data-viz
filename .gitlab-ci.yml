@@ -57,7 +57,7 @@ deploy_bgmp:
   stage: deploy
   only:
     refs:
-        - BGMP
+        - bgmp
   script:
     - docker tag sc-registry.fredhutch.org/target-data-viz-${CI_COMMIT_BRANCH}:test sc-registry.fredhutch.org/target-data-viz-bgmp:latest
     - docker push sc-registry.fredhutch.org/target-data-viz-bgmp:latest
