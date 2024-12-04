@@ -32,7 +32,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                 radioButtons(ns("plot_type"),
                              label = "Select a type of plot to generate",
                               choices = list("Waterfall plot" = "wf",
-                                             "Box/violin plots" = "bx",
+                                             "Box plot" = "bx",
                                              "Strip plot" = "str",
                                              "Scatter plot" = "sctr")),
 
