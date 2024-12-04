@@ -372,8 +372,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
               legend.position = "bottom",
               legend.text = element_text(size = bs - 5),
               legend.title = element_blank()) +
-        geom_violin(scale = "width", aes_string(color = input$grouping_var), alpha = 0.75) +
-        geom_boxplot(width = 0.2, outlier.shape = NA, fill = "white", color = "black") +
+        geom_boxplot(width = 0.2, outlier.shape = NA, aes_string(fill = input$grouping_var), color = "black") +
         guides(color = "none")
         
       # Try to convert to a plotly plot with interactive tooltips
@@ -405,7 +404,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
               legend.text = element_text(size = bs - 6),
               legend.title = element_blank()) +
         guides(color = "none") +
-        geom_jitter(width = 0.3, size = 0.7) +
+        geom_point(position = jitter(width = 0.3, size = 0.7, alpha = 0.6)) +
         stat_summary(fun = median, geom = "crossbar", width = 0.5, color = "black")
       
       # Try to convert to a plotly plot with interactive tooltips
@@ -615,7 +614,8 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
                                  scrollX = TRUE,
                                  # fixedColumns = list(leftColumns = 1),
                                  searchHighlight = TRUE,
-                                 pageLength = 50),
+                                 #pageLength = 50
+                                 ),
                   escape = F) %>%
       DT::formatStyle(columns = c(1,2,4), fontSize = "100%")
   })
