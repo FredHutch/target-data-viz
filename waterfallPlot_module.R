@@ -404,7 +404,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
               legend.text = element_text(size = bs - 6),
               legend.title = element_blank()) +
         guides(color = "none") +
-        geom_point(position = jitter(width = 0.3, size = 0.7, alpha = 0.6)) +
+        geom_point() +
         stat_summary(fun = median, geom = "crossbar", width = 0.5, color = "black")
       
       # Try to convert to a plotly plot with interactive tooltips
