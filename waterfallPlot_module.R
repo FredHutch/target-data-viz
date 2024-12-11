@@ -404,8 +404,10 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
               legend.position = "bottom",
               legend.text = element_text(size = bs - 6),
               legend.title = element_blank()) +
+
         guides(color = "none") 
         
+
       # Try to convert to a plotly plot with interactive tooltips
       p <- ggplotly(p, tooltip = c("y", "color"), dynamicTicks = TRUE)
 
