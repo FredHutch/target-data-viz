@@ -602,7 +602,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
 
   # https://glin.github.io/reactable/articles/examples.html#conditional-styling
   output$table <- DT::renderDataTable({
-
+    
     DT::datatable(tableFun(),
                   class = "compact nowrap hover row-border order-column", # Defines the CSS formatting of the final table, can string multiple options together
                   callback = DT::JS("$('table.dataTable.no-footer').css('border-bottom', 'none');"),
@@ -612,9 +612,8 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
                                  buttons = list(
                                    list(extend = 'excel', filename = paste0(dataset(), "_AML_", gene(), "_Summary_Table_generated_", format(Sys.time(), "%m.%d.%Y")))),
                                  scrollX = TRUE,
-                                 # fixedColumns = list(leftColumns = 1),
                                  searchHighlight = TRUE,
-                                 #pageLength = 50
+                                 pageLength = 5000
                                  ),
                   escape = F) %>%
       DT::formatStyle(columns = c(1,2,4), fontSize = "100%")
