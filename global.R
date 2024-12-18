@@ -61,7 +61,7 @@ readData <- function(x) {
 
   # Clinical data
   load("data/Clinical/Beat_AML_Supplementary_ClinicalData_FinalforShiny.RData", .GlobalEnv)
-  load("data/Clinical/TARGET_AML_merged_CDEs_Shareable_FinalforShiny_Updated_08_28_24_NA.RData", .GlobalEnv)
+  load("data/Clinical/TARGET_AML_merged_CDEs_Shareable_FinalforShiny_Updated_12_17_24.RData", .GlobalEnv)
   load("data/Clinical/SWOG_AML_Merged_CDEs_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/TCGA_LAML_ClinicalData_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/StJude_ALL_ClinicalData_FinalforShiny.RData", .GlobalEnv)
