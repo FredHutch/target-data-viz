@@ -32,7 +32,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
                 radioButtons(ns("plot_type"),
                              label = "Select a type of plot to generate",
                               choices = list("Waterfall plot" = "wf",
-                                             "Box/violin plots" = "bx",
+                                             "Box plot" = "bx",
                                              "Strip plot" = "str",
                                              "Scatter plot" = "sctr")),
 
@@ -326,7 +326,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       # alphabetically by ggplot (this step is required for waterfall plots made w/ ggplot)
       plotDF$PatientID <- factor(plotDF$PatientID, levels = plotDF$PatientID)
     }
-
+    
     return(plotDF)
   })
 
@@ -372,8 +372,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
               legend.position = "bottom",
               legend.text = element_text(size = bs - 5),
               legend.title = element_blank()) +
-        geom_violin(scale = "width", aes_string(color = input$grouping_var), alpha = 0.75) +
-        geom_boxplot(width = 0.2, outlier.shape = NA, fill = "white", color = "black") +
+        geom_boxplot(width = 0.2, outlier.shape = NA, aes_string(fill = input$grouping_var), color = "black") +
         guides(color = "none")
         
       # Try to convert to a plotly plot with interactive tooltips
@@ -396,6 +395,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
         drop_na(input$grouping_var) %>%
         ggplot(aes_string(x = input$grouping_var, y = expCol, fill = input$grouping_var, color = input$grouping_var)) +
         theme_classic(base_size = bs) +
+        geom_jitter(width = 0.2, height = 0) +
         labs(x = NULL, y = yaxLab, fill = gsub("\\.", " ", input$grouping_var)) +
         theme(axis.title.y = element_text(size = bs),
               axis.text.x = xaxLabs,
@@ -404,23 +404,24 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
               legend.position = "bottom",
               legend.text = element_text(size = bs - 6),
               legend.title = element_blank()) +
-        guides(color = "none") +
-        geom_jitter(width = 0.3, size = 0.7) +
-        stat_summary(fun = median, geom = "crossbar", width = 0.5, color = "black")
-      
+
+        guides(color = "none") 
+        
+
       # Try to convert to a plotly plot with interactive tooltips
       p <- ggplotly(p, tooltip = c("y", "color"), dynamicTicks = TRUE)
-      
+
       # Adjust legend position in plotly
-      p <- layout(p, 
+      p <- layout(p,
                   showlegend = plotLegend,
-                  legend = list(orientation = "h", 
-                                y = -0.1, 
-                                x = 0.5, 
+                  legend = list(orientation = "h",
+                                y = -0.1,
+                                x = 0.5,
                                 xanchor = "center"
                   ))
+      
       p
-
+      
     } else if (input$plot_type == "wf") { # Generating a waterfall plot
       p <- plotData() %>%
         drop_na(input$grouping_var) %>%
@@ -520,12 +521,36 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       
     }
     
-    # Performing hypothesis tests
+    ### Perform Statistical Comparison ###
     if (length(input$comparisons) > 1) {
       validate(
         need(length(input$comparisons > 1), "Please select 2 groups to compare."))
-      c <- p + ggpubr::stat_compare_means(method = "wilcox.test", comparisons = list(input$comparisons))
-      c # Return plot generated above + additional geom layer created by stat_compare_means
+      # c <- ggpubr::stat_compare_means(method = "wilcox.test", comparisons = list(input$comparisons)) ### This no longer works when using ggplotly (fails to recognize added geom)
+      
+      ### Manually generate the comparison and add to plot ###
+      
+      # Sort plot data for the comparitors of interest
+      df <- plotData() %>% 
+        drop_na(input$grouping_var) %>%
+        filter(!!as.name(input$grouping_var) %in% input$comparisons) %>%
+        ungroup()
+      
+      # Create the formula
+      grouping_var <- input$grouping_var
+      formula <- as.formula(paste0("Expression ~ ", grouping_var))
+      test <- compare_means(formula = formula, data = df, method = "wilcox.test")
+      
+      p_value <- test$p
+      
+      # Add the result from the statistical test as an annotation to the plot
+      y = ifelse(input$log == TRUE, max(plotData()$Log2) + 1, max(plotData()$Expression) + 1)
+      
+      p <- p %>% add_annotations(
+        text = paste("p-value:", format(p_value, digits = 3)),
+        x = 1.5, y = y,
+        showarrow = FALSE
+      )
+      
     } else {
       p # Return the plot as-is with no additional geom layers
     }
@@ -536,8 +561,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   
   ### Needs to be treated a little differently for cell line data, we don't want to group by Disease.Group
   ### Instead want to plot all cell lines individually for sorting. E.g., don't use Disease.Group as a grouping variable.
-  
-  
+
   # Function to generate an expression summary table from the plot data
   tableFun <- reactive({
     plotData() %>%
@@ -603,7 +627,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
 
   # https://glin.github.io/reactable/articles/examples.html#conditional-styling
   output$table <- DT::renderDataTable({
-
+    
     DT::datatable(tableFun(),
                   class = "compact nowrap hover row-border order-column", # Defines the CSS formatting of the final table, can string multiple options together
                   callback = DT::JS("$('table.dataTable.no-footer').css('border-bottom', 'none');"),
@@ -613,9 +637,9 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
                                  buttons = list(
                                    list(extend = 'excel', filename = paste0(dataset(), "_AML_", gene(), "_Summary_Table_generated_", format(Sys.time(), "%m.%d.%Y")))),
                                  scrollX = TRUE,
-                                 # fixedColumns = list(leftColumns = 1),
                                  searchHighlight = TRUE,
-                                 pageLength = 50),
+                                 pageLength = 5000
+                                 ),
                   escape = F) %>%
       DT::formatStyle(columns = c(1,2,4), fontSize = "100%")
   })
