@@ -105,11 +105,27 @@ circosPlot <- function(input, output, session){
   patient_fusion_dt["TARGET-20-PAUZRY-09A-02D", "RUNX1-RUNX1T1"] <- "yes"
   patient_fusion_dt["TARGET-20-PAUNVN-09A-01D", "ETV6-X"] <- "yes"
   
+  #read in RDS sv data file
+  
+  svdata <- readRDS("./data/sv_circos_data.rds")
+  
+  
+  
   ##---------------------------------------------------------------
-  ##                          Functions                          --
+  ##                                                             --
   ##---------------------------------------------------------------
   
   #plot circos plots for patients with selected fusion -- Lauren's plot generation code (circlize)!
+  selectedFusion <- input$fusion_group
+  
+  pts_with_fusion <- patient_fusion_dt %>% filter(selectedFusion == "yes") %>% rownames()
+  
+  
+  plot_circos <- function(pt_names) {
+    
+    
+  }
+  
   
   
   #patchwork?
