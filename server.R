@@ -188,6 +188,9 @@ server <- function(input, output, session) {
   callModule(CancerPlot, id = "cancertype",
              gene = target)
   
+  #OUR MODULE--------------------------------------------------------------------
+  callModule(CircosPlot, id = "circos")
+  
   #--------------------- External databases tab --------------------- #
 
   # TO DO: Add a searchable AML-restricted gene list to this tab

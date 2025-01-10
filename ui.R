@@ -99,7 +99,10 @@ ui <- dashboardPage(
                 menuItem("UMAP", tabName = "umap", icon = icon("spinner")),
                 menuItem("External databases", tabName = "extData", icon = icon("atlas")),
                 menuItem("HPA Info", tabName = "HPA", icon = icon("dna")),
-                menuItem("Other Cancers", tabName = "cancertype", icon = icon("droplet"))
+                menuItem("Other Cancers", tabName = "cancertype", icon = icon("droplet")),
+                
+                #OUR MODULE--------------------------------------------------------------------
+                menuItem("Circos Plots", tapName = "circosPlot", icon = icon("record-vinyl"))
     )
   ),  
   
@@ -152,6 +155,11 @@ ui <- dashboardPage(
       tabItem(tabName = "cancertype",
               CancerPlotUI(id = "cancertype", label = "Cancer Type")
       ),
+      
+      #OUR MODULE--------------------------------------------------------------------
+      
+      tabItem(tabName = "circosPlot", 
+              CircosPlotUI(id = "circos", label = "Circos Plot Generation"))
       
       # Building the external datasets tab that will contain links to other gene expression or protein databases
       tabItem(tabName = "extData",
