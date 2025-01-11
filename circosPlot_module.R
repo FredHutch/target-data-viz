@@ -232,6 +232,78 @@ circosPlot <- function(input, output, session){
     bed_DUP <- bed_DUP %>% rename(end = NEWEND)
     bed_DUP <- bed_DUP[, c("chr", "start", "end", "ID", "INFO", "value")] 
     
+    #MARKING CANONICAL FUSIONS
+    #TARGET-20-PAVBIH-09A-02D_consensus -> MLLT10 gene on chromosome 10 with chromosome X
+    if (patient_name == "TARGET-20-PAVBIH-09A-02D"){
+      bed_BND_CANON <- data.frame(
+        chr = c("chr10", "chr10", "chr10"), 
+        pos = c(21729167, 21729137, 21729166),
+        pos = c(21729167, 21729137, 21729166),
+        gene = c("MLLT10", "MLLT10", "MLLT10"),
+        value = c(1))
+      bed_BND_MATES_CANON <- data.frame(
+        chr_mate = c("chrX", "chrX", "chrX"),  
+        pos_mate = c(41341864, 41341865, 41341865), 
+        pos_mate = c(41341864, 41341865, 41341865), 
+        gene_mate = c("", "", ""),
+        value = c(1))
+    }
+    
+    #MARKING CANONICAL FUSIONS
+    #TARGET-20-PAUZRY-09A-02D_consensus -> RUNX1 gene on chromosome 21 with RUNX1T1 gene on chromosome 8
+    if (patient_name == "TARGET-20-PAUZRY-09A-02D"){
+      bed_BND_CANON <- data.frame("chr21", 34838337, 34838337, "RUNX1", 1)
+      bed_BND_MATES_CANON <- data.frame("chr8", 92058671, 92058671, "RUNX1T1", 1)
+    }
+    
+    #MARKING CANONICAL FUSIONS
+    #TARGET-20-PAUNVN-09A-01D_Tumor_consensus -> ETV6 gene on chromosome 12 with chromosome 4 
+    if (patient_name == "TARGET-20-PAUNVN-09A-01D"){
+      chr <- c("chr12", "chr12")
+      chr_mate <- c("chr4", "chr4")
+      pos <- c(117749121, 117749135)
+      pos_mate <- c(59084883, 59081772)
+      value <- c(1)
+      gene <- c("ETV6", "ETV6")
+      gene_mate <- c("", "")
+      bed_BND_CANON <- data.frame(chr, pos, pos, gene, value)
+      bed_BND_MATES_CANON <- data.frame(chr_mate, pos_mate, pos_mate, gene_mate, value)
+    }
+    
+    #MARKING CANONICAL FUSIONS
+    #TARGET-20-PAURDN-03A-01D_consensus -> NUP98 gene on chromosome 11 with chromosome 5
+    if (patient_name == "TARGET-20-PAURDN-03A-01D"){
+      bed_BND_CANON <- data.frame("chr11", 3743985, 3743985, "NUP98", 1)
+      bed_BND_MATES_CANON <- data.frame("chr5", 177233312, 177233312, " ", 1)
+    }
+    
+    #MARKING CANONICAL FUSIONS
+    #PAVESI-03A-01D_Tumor_consensus -> NUP98 gene on chromosome 11 with chromosome 5
+    if (patient_name == "PAVESI-03A-01D_Tumor"){
+      chr <- c("chr11", "chr11")
+      chr_mate <- c("chr5", "chr5")
+      pos <- c(3743776, 3743777)
+      pos_mate <- c(177234100, 177234102)
+      value <- c(1)
+      gene <- c("NUP98", "NUP98")
+      gene_mate <- c("", "")
+      bed_BND_CANON <- data.frame(chr, pos, pos, gene, value)
+      bed_BND_MATES_CANON <- data.frame(chr_mate, pos_mate, pos_mate, gene_mate, value)
+    }
+    
+    #MARKING CANONICAL FUSIONS
+    #TARGET-20-PAUPIY-03A-01D_consensus -> NUP98 gene on chromosome 11 with chromosome 5
+    if (patient_name == "TARGET-20-PAUPIY-03A-01D"){
+      chr <- c("chr11", "chr11", "chr11")
+      chr_mate <- c("chr5", "chr5", "chr5")
+      pos <- c(3739358, 3739361, 3680098)
+      pos_mate <- c(177216203, 177216209, 177190111)
+      value <- c(1)
+      gene <- c("NUP98", "NUP98", "NUP98")
+      gene_mate <- c("", "", "")
+      bed_BND_CANON <- data.frame(chr, pos, pos, gene, value)
+      bed_BND_MATES_CANON <- data.frame(chr_mate, pos_mate, pos_mate, gene_mate, value)
+    }
     
     #make CIRCOS plots - need to save plot to a variable so it can be added to a list for plotting (in case of more than one patient)
     
