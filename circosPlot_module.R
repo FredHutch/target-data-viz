@@ -1,3 +1,9 @@
+library(stringr)
+library(dplyr)
+library(circlize)
+library(bedr)
+library(rlist)
+
 #################################################################
 ##                UI FUNCTION FOR CIRCOS MODULE                ##
 #################################################################
@@ -105,30 +111,52 @@ circosPlot <- function(input, output, session){
   patient_fusion_dt["TARGET-20-PAUZRY-09A-02D", "RUNX1-RUNX1T1"] <- "yes"
   patient_fusion_dt["TARGET-20-PAUNVN-09A-01D", "ETV6-X"] <- "yes"
   
-  #read in RDS sv data file
-  
+  #read in SV data RDS object
   svdata <- readRDS("./data/sv_circos_data.rds")
   
+  #since we're no longer working with VCF files, fix the names to match the patient_fusion_dt
+  ptnames <- names(svdata)
+  ptnames <- lapply(ptnames, function(x)strsplit(x, split = "_")[[1]])
+  ptnames = lapply(ptnames, function(l) l[[1]])
+  names(svdata) <- ptnames
   
   
   ##---------------------------------------------------------------
-  ##                                                             --
+  ##                            CIRCOS                           --
   ##---------------------------------------------------------------
   
-  #plot circos plots for patients with selected fusion -- Lauren's plot generation code (circlize)!
+  #get fusion type selected from dropdown
   selectedFusion <- input$fusion_group
   
-  pts_with_fusion <- patient_fusion_dt %>% filter(selectedFusion == "yes") %>% rownames()
+  #subset dataframe to patients with the fusion, convert to list of patient names
+  pts_with_fusion <- patient_fusion_dt[,selectedFusion, drop=FALSE]
+  
+  pts_with_fusion <- pts_with_fusion %>% filter(across(1) == "yes") %>% rownames()
   
   
-  plot_circos <- function(pt_names) {
+  circos_objects <- c()
+  
+  #loop through all patients with fusion, 
+  for (pt in pts_with_fusion) {
+    
+    #get vcf data for that patient
+    vcf = svdata$pt
+    
+    #convert to BED
+    vcf_bed <- vcf2bed(vcf, other = c("ID", "INFO", "ALT"))
+    
+    #make CIRCOS plots - need to save plot to a variable so it can be added to a list for plotting (in case of more than one patient)
+    
+    
+    #add circos objects to list
     
     
   }
   
+  #if more than one patient, patchwork to make plot all circos plots?
   
   
-  #patchwork?
+  #if only one patient, just plot
   
   
   
