@@ -151,118 +151,193 @@ circosPlot <- function(input, output, session){
   ##---------------------------------------------------------------
   
   #subset dataframe to patients with the fusion selected in the dropdown
+
   blank <- reactive({
+  pts_with_fusion <- reactive(patient_fusion_dt %>% filter(input$fusion_group == "yes") %>% rownames())
+  
+  circos_objects <- c()
+
+  #loop through all patients with fusion,
+  for (pt in pts_with_fusion) {
+
+    #get vcf data for that patient
+    vcf = svdata$pt
     
-    pts_with_fusion <- patient_fusion_dt %>% 
-             filter(input$fusion_group == "yes") %>% 
-             rownames() %>% as.list()
-   
-      
-    #loop through all patients with fusion,
-    for (pt in pts_with_fusion) {
-      
-      #get vcf data for that patient
-      vcf = svdata$pt
-      
-      #convert to BED
-      vcf_bed <- vcf2bed(vcf, other = c("ID", "INFO", "ALT"))
-      vcf_bed <- vcf_bed %>% filter(chr!="chrM") %>% mutate(value = 1) 
-      vcf_bed <- data.frame(vcf_bed)
+    #convert to BED
+    vcf_bed <- vcf2bed(vcf, other = c("ID", "INFO", "ALT"))
+    vcf_bed <- vcf_bed %>% filter(chr!="chrM") %>% mutate(value = 1) 
+    vcf_bed <- data.frame(vcf_bed)
     
-      #initializing BED files for each variant
-      bed_INS <- vcf_bed %>% filter(grepl("INS", ID)) %>% distinct(chr, start, .keep_all = TRUE)
-      bed_DEL <- vcf_bed %>% filter(grepl("DEL", ID)) %>% distinct(chr, start, .keep_all = TRUE)
-      bed_INV <- vcf_bed %>% filter(grepl("INV", ID)) %>% distinct(chr, start, .keep_all = TRUE)
-      bed_DUP <- vcf_bed %>% filter(grepl("DUP", ID)) %>% distinct(chr, start, .keep_all = TRUE)
-      bed_BND <- vcf_bed %>% filter(grepl("BND", ID)) %>% distinct(chr, start, .keep_all = TRUE) 
-      
-      #initializing bed_BND_MATE
-      mates <- bed_BND$ALT
-      mates <- strsplit(mates, ":")
-      chrom_mate <- sapply(mates, `[[`,1)
-      chrom_mate <- str_match(chrom_mate, "chr\\w+")
-      pos_mate <- sapply(mates, `[[`, 2)
-      pos_mate <- str_match(pos_mate, "\\d+")
-      pos_mate <- as.numeric(pos_mate)
-      
-      chr <- c(chrom_mate)
-      start <- c(pos_mate)
-      end <- c(pos_mate)
+    #initializing BED files for each variant
+    bed_INS <- vcf_bed %>% filter(grepl("INS", ID)) %>% distinct(chr, start, .keep_all = TRUE)
+    bed_DEL <- vcf_bed %>% filter(grepl("DEL", ID)) %>% distinct(chr, start, .keep_all = TRUE)
+    bed_INV <- vcf_bed %>% filter(grepl("INV", ID)) %>% distinct(chr, start, .keep_all = TRUE)
+    bed_DUP <- vcf_bed %>% filter(grepl("DUP", ID)) %>% distinct(chr, start, .keep_all = TRUE)
+    bed_BND <- vcf_bed %>% filter(grepl("BND", ID)) %>% distinct(chr, start, .keep_all = TRUE) 
+    
+    #initializing bed_BND_MATE
+    mates <- bed_BND$ALT
+    mates <- strsplit(mates, ":")
+    chrom_mate <- sapply(mates, `[[`,1)
+    chrom_mate <- str_match(chrom_mate, "chr\\w+")
+    pos_mate <- sapply(mates, `[[`, 2)
+    pos_mate <- str_match(pos_mate, "\\d+")
+    pos_mate <- as.numeric(pos_mate)
+    
+    chr <- c(chrom_mate)
+    start <- c(pos_mate)
+    end <- c(pos_mate)
+    value <- c(1)
+    bed_BND_MATES <- data.frame(chr, start, end, value)
+    
+    #fixing bed_DEL end values
+    del_end <- data.frame(matrix(nrow=0,ncol=1))
+    del_end <- del_end %>% rename(end = matrix.nrow...0..ncol...1.)
+    info <- bed_DEL$INFO
+    info <- strsplit(info, "END=")
+    NEWEND <- sapply(info, `[[`, 2)
+    NEWEND <- str_match(NEWEND, "\\d+")
+    NEWEND <- as.numeric(NEWEND)
+    
+    bed_DEL <- bed_DEL %>% mutate(NEWEND = NEWEND)
+    bed_DEL <- bed_DEL %>% rename(OLDend = end)
+    bed_DEL <- bed_DEL %>% mutate(OLDend = NULL)
+    bed_DEL <- bed_DEL %>% rename(end = NEWEND)
+    bed_DEL <- bed_DEL[, c("chr", "start", "end", "ID", "INFO", "value")] 
+    
+    #fixing bed_INV end values
+    inv_end <- data.frame(matrix(nrow=0,ncol=1))
+    inv_end <- inv_end %>% rename(end = matrix.nrow...0..ncol...1.)
+    info <- bed_INV$INFO
+    info <- strsplit(info, "END=")
+    NEWEND <- sapply(info, `[[`, 2)
+    NEWEND <- str_match(NEWEND, "\\d+")
+    NEWEND <- as.numeric(NEWEND)
+    
+    bed_INV <- bed_INV %>% mutate(NEWEND = NEWEND)
+    bed_INV <- bed_INV %>% rename(OLDend = end)
+    bed_INV <- bed_INV %>% mutate(OLDend = NULL)
+    bed_INV <- bed_INV %>% rename(end = NEWEND)
+    bed_INV <- bed_INV[, c("chr", "start", "end", "ID", "INFO", "value")] 
+    
+    #fixing bed_DUP end values
+    dup_end <- data.frame(matrix(nrow=0,ncol=1))
+    dup_end <- dup_end %>% rename(end = matrix.nrow...0..ncol...1.)
+    info <- bed_DUP$INFO
+    info <- strsplit(info, "END=")
+    NEWEND <- sapply(info, `[[`, 2)
+    NEWEND <- str_match(NEWEND, "\\d+")
+    NEWEND <- as.numeric(NEWEND)
+    
+    bed_DUP <- bed_DUP %>% mutate(NEWEND = NEWEND)
+    bed_DUP <- bed_DUP %>% rename(OLDend = end)
+    bed_DUP <- bed_DUP %>% mutate(OLDend = NULL)
+    bed_DUP <- bed_DUP %>% rename(end = NEWEND)
+    bed_DUP <- bed_DUP[, c("chr", "start", "end", "ID", "INFO", "value")] 
+    
+    #MARKING CANONICAL FUSIONS
+    #TARGET-20-PAVBIH-09A-02D_consensus -> MLLT10 gene on chromosome 10 with chromosome X
+    if (patient_name == "TARGET-20-PAVBIH-09A-02D"){
+      bed_BND_CANON <- data.frame(
+        chr = c("chr10", "chr10", "chr10"), 
+        pos = c(21729167, 21729137, 21729166),
+        pos = c(21729167, 21729137, 21729166),
+        gene = c("MLLT10", "MLLT10", "MLLT10"),
+        value = c(1))
+      bed_BND_MATES_CANON <- data.frame(
+        chr_mate = c("chrX", "chrX", "chrX"),  
+        pos_mate = c(41341864, 41341865, 41341865), 
+        pos_mate = c(41341864, 41341865, 41341865), 
+        gene_mate = c("", "", ""),
+        value = c(1))
+    }
+    
+    #MARKING CANONICAL FUSIONS
+    #TARGET-20-PAUZRY-09A-02D_consensus -> RUNX1 gene on chromosome 21 with RUNX1T1 gene on chromosome 8
+    if (patient_name == "TARGET-20-PAUZRY-09A-02D"){
+      bed_BND_CANON <- data.frame("chr21", 34838337, 34838337, "RUNX1", 1)
+      bed_BND_MATES_CANON <- data.frame("chr8", 92058671, 92058671, "RUNX1T1", 1)
+    }
+    
+    #MARKING CANONICAL FUSIONS
+    #TARGET-20-PAUNVN-09A-01D_Tumor_consensus -> ETV6 gene on chromosome 12 with chromosome 4 
+    if (patient_name == "TARGET-20-PAUNVN-09A-01D"){
+      chr <- c("chr12", "chr12")
+      chr_mate <- c("chr4", "chr4")
+      pos <- c(117749121, 117749135)
+      pos_mate <- c(59084883, 59081772)
       value <- c(1)
-      bed_BND_MATES <- data.frame(chr, start, end, value)
-      
-      #fixing bed_DEL end values
-      del_end <- data.frame(matrix(nrow=0,ncol=1))
-      del_end <- del_end %>% rename(end = matrix.nrow...0..ncol...1.)
-      info <- bed_DEL$INFO
-      info <- strsplit(info, "END=")
-      NEWEND <- sapply(info, `[[`, 2)
-      NEWEND <- str_match(NEWEND, "\\d+")
-      NEWEND <- as.numeric(NEWEND)
-      
-      bed_DEL <- bed_DEL %>% mutate(NEWEND = NEWEND)
-      bed_DEL <- bed_DEL %>% rename(OLDend = end)
-      bed_DEL <- bed_DEL %>% mutate(OLDend = NULL)
-      bed_DEL <- bed_DEL %>% rename(end = NEWEND)
-      bed_DEL <- bed_DEL[, c("chr", "start", "end", "ID", "INFO", "value")] 
-      
-      #fixing bed_INV end values
-      inv_end <- data.frame(matrix(nrow=0,ncol=1))
-      inv_end <- inv_end %>% rename(end = matrix.nrow...0..ncol...1.)
-      info <- bed_INV$INFO
-      info <- strsplit(info, "END=")
-      NEWEND <- sapply(info, `[[`, 2)
-      NEWEND <- str_match(NEWEND, "\\d+")
-      NEWEND <- as.numeric(NEWEND)
-      
-      bed_INV <- bed_INV %>% mutate(NEWEND = NEWEND)
-      bed_INV <- bed_INV %>% rename(OLDend = end)
-      bed_INV <- bed_INV %>% mutate(OLDend = NULL)
-      bed_INV <- bed_INV %>% rename(end = NEWEND)
-      bed_INV <- bed_INV[, c("chr", "start", "end", "ID", "INFO", "value")] 
-      
-      #fixing bed_DUP end values
-      dup_end <- data.frame(matrix(nrow=0,ncol=1))
-      dup_end <- dup_end %>% rename(end = matrix.nrow...0..ncol...1.)
-      info <- bed_DUP$INFO
-      info <- strsplit(info, "END=")
-      NEWEND <- sapply(info, `[[`, 2)
-      NEWEND <- str_match(NEWEND, "\\d+")
-      NEWEND <- as.numeric(NEWEND)
-      
-      bed_DUP <- bed_DUP %>% mutate(NEWEND = NEWEND)
-      bed_DUP <- bed_DUP %>% rename(OLDend = end)
-      bed_DUP <- bed_DUP %>% mutate(OLDend = NULL)
-      bed_DUP <- bed_DUP %>% rename(end = NEWEND)
-      bed_DUP <- bed_DUP[, c("chr", "start", "end", "ID", "INFO", "value")] 
-      
-      
-      #make CIRCOS plots - need to save plot to a variable so it can be added to a list for plotting (in case of more than one patient)
-      
-      # INITIALIZE WITH IDEOGRAM (all chromosomes)
-      circos.par(track.height = 0.08)
-      circos.initializeWithIdeogram(species = "hg38")
-      
-      # ADD PATIENT NAME
-      text(1, 1, pt, cex = 1)
-      
-      # INSERTION TRACK
-      circos.trackHist(bed_INS$chr, x = bed_INS$start, bin.size = 1000000, col = "purple", border = "purple")
-      
-      # DELETION TRACK
-      circos.trackHist(bed_DEL$chr, x = bed_DEL$start, bin.size = 1000000, col = "green3", border = "green3")
-      
-      # INVERSION TRACK
-      circos.genomicTrack(bed_INV, ylim = c(0,1), panel.fun = function(region, value, ...) {circos.genomicRect(region, value, col = "green3", border = "green3")})
-      
-      # DUPLICATION TRACK
-      circos.genomicLink(bed_DUP, bed_DUP, col = "green3", border = "green3")
-      
-      # TRANSLOCATION TRACK
-      circos.genomicLink(bed_BND, bed_BND_MATES, col = "red2", border = "red2")
-      
-      # CANONICAL TRANSLOCATIONS TRACK
-      circos.genomicLink(bed_BND_CANON, bed_BND_MATES_CANON, col = "blue", border = "blue")
+      gene <- c("ETV6", "ETV6")
+      gene_mate <- c("", "")
+      bed_BND_CANON <- data.frame(chr, pos, pos, gene, value)
+      bed_BND_MATES_CANON <- data.frame(chr_mate, pos_mate, pos_mate, gene_mate, value)
+    }
+    
+    #MARKING CANONICAL FUSIONS
+    #TARGET-20-PAURDN-03A-01D_consensus -> NUP98 gene on chromosome 11 with chromosome 5
+    if (patient_name == "TARGET-20-PAURDN-03A-01D"){
+      bed_BND_CANON <- data.frame("chr11", 3743985, 3743985, "NUP98", 1)
+      bed_BND_MATES_CANON <- data.frame("chr5", 177233312, 177233312, " ", 1)
+    }
+    
+    #MARKING CANONICAL FUSIONS
+    #PAVESI-03A-01D_Tumor_consensus -> NUP98 gene on chromosome 11 with chromosome 5
+    if (patient_name == "PAVESI-03A-01D_Tumor"){
+      chr <- c("chr11", "chr11")
+      chr_mate <- c("chr5", "chr5")
+      pos <- c(3743776, 3743777)
+      pos_mate <- c(177234100, 177234102)
+      value <- c(1)
+      gene <- c("NUP98", "NUP98")
+      gene_mate <- c("", "")
+      bed_BND_CANON <- data.frame(chr, pos, pos, gene, value)
+      bed_BND_MATES_CANON <- data.frame(chr_mate, pos_mate, pos_mate, gene_mate, value)
+    }
+    
+    #MARKING CANONICAL FUSIONS
+    #TARGET-20-PAUPIY-03A-01D_consensus -> NUP98 gene on chromosome 11 with chromosome 5
+    if (patient_name == "TARGET-20-PAUPIY-03A-01D"){
+      chr <- c("chr11", "chr11", "chr11")
+      chr_mate <- c("chr5", "chr5", "chr5")
+      pos <- c(3739358, 3739361, 3680098)
+      pos_mate <- c(177216203, 177216209, 177190111)
+      value <- c(1)
+      gene <- c("NUP98", "NUP98", "NUP98")
+      gene_mate <- c("", "", "")
+      bed_BND_CANON <- data.frame(chr, pos, pos, gene, value)
+      bed_BND_MATES_CANON <- data.frame(chr_mate, pos_mate, pos_mate, gene_mate, value)
+    }
+    
+    #make CIRCOS plots - need to save plot to a variable so it can be added to a list for plotting (in case of more than one patient)
+    
+    # INITIALIZE WITH IDEOGRAM (all chromosomes)
+    circos.par(track.height = 0.08)
+    circos.initializeWithIdeogram(species = "hg38")
+    
+    # ADD PATIENT NAME
+    text(1, 1, pt, cex = 1)
+    
+    # INSERTION TRACK
+    circos.trackHist(bed_INS$chr, x = bed_INS$start, bin.size = 1000000, col = "purple", border = "purple")
+    
+    # DELETION TRACK
+    circos.trackHist(bed_DEL$chr, x = bed_DEL$start, bin.size = 1000000, col = "green3", border = "green3")
+    
+    # INVERSION TRACK
+    circos.genomicTrack(bed_INV, ylim = c(0,1), panel.fun = function(region, value, ...) {circos.genomicRect(region, value, col = "green3", border = "green3")})
+    
+    # DUPLICATION TRACK
+    circos.genomicLink(bed_DUP, bed_DUP, col = "green3", border = "green3")
+    
+    # TRANSLOCATION TRACK
+    circos.genomicLink(bed_BND, bed_BND_MATES, col = "red2", border = "red2")
+    
+    # CANONICAL TRANSLOCATIONS TRACK
+    circos.genomicLink(bed_BND_CANON, bed_BND_MATES_CANON, col = "blue", border = "blue")
+    
+    #add circos objects to list
+    
+   
       
       #add circos objects to list
       #?????????????????????
