@@ -95,7 +95,7 @@ circosPlot <- function(input, output, session){
   
   #prepare dataframe of patient ids and which fusions are observed in each
   #columns are fusion types, rownames are patient IDs
-  patientids <- read.table(".data/ptlist.txt")
+  patientids <- read.table("./data/ptlist.txt")
   patientids <- patientids$V1
   fusionnames <- c("CBFA2T3-GLIS2", "CBFB-MYH11", "DEK-NUP214", "KAT6A-CREBBP", "RBM15-MKL1", "RUNX1-RUNX1T1", "NPM1-MLF1", "ERG-X", "ETV6-X", "FEV-X", "FLI1-X", "KMT2A-X", "MECOM-X", "MLLT10-X", "NUP98-X")
   
@@ -123,25 +123,19 @@ circosPlot <- function(input, output, session){
   ##                            CIRCOS                           --
   ##---------------------------------------------------------------
   
-  #get fusion type selected from dropdown
-  selectedFusion <- input$fusion_group
-  
-  #subset dataframe to patients with the fusion, convert to list of patient names
-  pts_with_fusion <- patient_fusion_dt[,selectedFusion, drop=FALSE]
-  
-  pts_with_fusion <- pts_with_fusion %>% filter(across(1) == "yes") %>% rownames()
-  
+  #subset dataframe to patients with the fusion selected in the dropdown
+  pts_with_fusion <- reactive(patient_fusion_dt %>% filter(input$fusion_group == "yes") %>% rownames())
   
   circos_objects <- c()
-  
-  #loop through all patients with fusion, 
+
+  #loop through all patients with fusion,
   for (pt in pts_with_fusion) {
-    
+
     #get vcf data for that patient
     vcf = svdata$pt
     
     #convert to BED
-    # vcf_bed <- vcf2bed(vcf, other = c("ID", "INFO", "ALT"))
+    vcf_bed <- vcf2bed(vcf, other = c("ID", "INFO", "ALT"))
 
     #make CIRCOS plots - need to save plot to a variable so it can be added to a list for plotting (in case of more than one patient)
 
@@ -163,5 +157,5 @@ circosPlot <- function(input, output, session){
   
   
   
-} 
+}
   
