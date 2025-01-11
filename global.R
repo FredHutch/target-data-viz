@@ -19,6 +19,8 @@ library(survival)
 library(survminer)
 library(ggsurvfit)
 library(biomaRt)
+library(stringr)
+library(circlize)
 #library(RSelenium)
 #library(netstat)
 
@@ -34,6 +36,7 @@ source("HPA_module.R")
 source("oncoprint_module.R")
 source("classification_module.R")
 source("cancerModule.R")
+source("circosPlot_module.R")
 
 ######### Loading external data
 # PLEASE NOTE: Large expression datasets required for this app to function are *not* stored in the Github repo,
