@@ -14,9 +14,9 @@ circosPlotUI <- function(id, label = "Circos plot parameters"){
   chromosome_choices <- list("chr1", "chr2", "chr3","chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11","chr12", "chr13","chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21","chr22", "chrX", "chrY", "chrM")
   names(chromosome_choices) <- list("chr1", "chr2", "chr3","chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11","chr12", "chr13","chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21","chr22", "chrX", "chrY", "chrM")
   
-  ##----------------------------------------------------------------
-  ##                          Page Setup                           --
-  ##----------------------------------------------------------------
+  ###################################################################
+  ##                          Page Setup                           ##
+  ###################################################################
 
   tagList(
   useShinyjs(),
@@ -24,33 +24,59 @@ circosPlotUI <- function(id, label = "Circos plot parameters"){
   theme = shinythemes::shinytheme(theme = "paper"),
 
 
+  ###################################################################
+  ##                          Sidebar                              ##
+  ###################################################################
+  
+  # Placing the sidebar on the left hand side of the screen
   sidebarLayout(
-    #sidebar on left screen
     position = "left",
     sidebarPanel(
-
-      #dropdown to select fusion class you want to see circos plots for
+      
+      # Creating dropdown menu to select the fusion class for circos plot generation
       selectInput(ns("fusion_group"),
                   label = "Select a fusion type",
                   choices = canonical_fusions),
+      
+      # Buttons to select whether circos plots generated will show all chromosomes 
+      # or two chromosomes where specific translocation is occurring
+      radioButtons(ns("all_chroms"), 
+                   label = "View all chromosomes?", 
+                   choices = list("All chromosomes" = "all", 
+                                  "Two chromosomes" = "two"))),
+    
+      # Temporary fix for not being able to hover over circos plots and get more info
+      # Narrowing down to two chromosomes has similar impact
 
-      #buttons to select whether circos plots generated will show all chromosomes
-      #or only two chromosomes
-      radioButtons(ns("all_chroms"),
-                   label = "View all chromosomes?",
-                   choices = list("All chromosomes" = "all",
-                                  "Two chromosomes" = "two")),
-
-      #conditional panel for if the user chooses to view only two chromosomes
+      # Conditional panel for if the user chooses to view only two chromosomes
       conditionalPanel(
         condition = paste0("input['", ns("all_chroms"), "'] == 'two'"),
-        #dropdown input for one of the selected chromosomes
+        
+        # Dropdown input for one of the selected chromosomes
         selectInput(ns("chromA"), label = "Select first chromosome:", choices = chromosome_choices),
-        #dropdown input for the second of the selected chromosomes -- GOING TO NEED TO MAKE SURE THIS CANNOT BE THE SAME AS CHROM_A
+        
+        # Dropdown input for the second of the selected chromosomes -- GOING TO NEED TO MAKE SURE THIS CANNOT BE THE SAME AS CHROM_A
         selectInput(ns("chromB"), label = "Select second chromosome:", choices = chromosome_choices))
 
         ),
+  
+        # Txt on sidebar
+        helpText("Circos plots will be generated to show canonical fusions in blue."),
+  
+      # Creating download button so Circos plots can be downloaded locally
+      downloadButton(ns("plot_download"), 
+                 label = "plot", 
+                 class = "plotdwnld"),
+  
+      shinyBS::bsTooltip(ns("plot_download"), 
+                     title = "Click here to download a copy of the plot",
+                     placement = "right", 
+                     trigger = "hover"),
 
+  
+  ###############################################################
+  #----------------------- MAIN PLOT PANEL ---------------------#
+  ###############################################################
 
 
     #Creating space for plot to go!
@@ -75,7 +101,7 @@ circosPlotUI <- function(id, label = "Circos plot parameters"){
                  fluidRow(
                    column(12, offset = 0, align = "left",
                           plotOutput(ns("plot"), width = "600px")
-                   ))))))))
+                   )))))))
   }
 
 
