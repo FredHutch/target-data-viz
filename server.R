@@ -189,7 +189,7 @@ server <- function(input, output, session) {
              gene = target)
   
   #OUR MODULE--------------------------------------------------------------------
-  callModule(CircosPlot, id = "circos")
+  callModule(circosPlot, id = "circos")
   
   #--------------------- External databases tab --------------------- #
 
