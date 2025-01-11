@@ -151,132 +151,136 @@ circosPlot <- function(input, output, session){
   ##---------------------------------------------------------------
   
   #subset dataframe to patients with the fusion selected in the dropdown
-  pts_with_fusion <- reactive(patient_fusion_dt %>% filter(input$fusion_group == "yes") %>% rownames())
-  
-  circos_objects <- c()
-
-  #loop through all patients with fusion,
-  for (pt in pts_with_fusion) {
-
-    #get vcf data for that patient
-    vcf = svdata$pt
+  blank <- reactive({
     
-    #convert to BED
-    vcf_bed <- vcf2bed(vcf, other = c("ID", "INFO", "ALT"))
-    vcf_bed <- vcf_bed %>% filter(chr!="chrM") %>% mutate(value = 1) 
-    vcf_bed <- data.frame(vcf_bed)
+    pts_with_fusion <- patient_fusion_dt %>% 
+             filter(input$fusion_group == "yes") %>% 
+             rownames() %>% as.list()
+   
+      
+    #loop through all patients with fusion,
+    for (pt in pts_with_fusion) {
+      
+      #get vcf data for that patient
+      vcf = svdata$pt
+      
+      #convert to BED
+      vcf_bed <- vcf2bed(vcf, other = c("ID", "INFO", "ALT"))
+      vcf_bed <- vcf_bed %>% filter(chr!="chrM") %>% mutate(value = 1) 
+      vcf_bed <- data.frame(vcf_bed)
     
-    #initializing BED files for each variant
-    bed_INS <- vcf_bed %>% filter(grepl("INS", ID)) %>% distinct(chr, start, .keep_all = TRUE)
-    bed_DEL <- vcf_bed %>% filter(grepl("DEL", ID)) %>% distinct(chr, start, .keep_all = TRUE)
-    bed_INV <- vcf_bed %>% filter(grepl("INV", ID)) %>% distinct(chr, start, .keep_all = TRUE)
-    bed_DUP <- vcf_bed %>% filter(grepl("DUP", ID)) %>% distinct(chr, start, .keep_all = TRUE)
-    bed_BND <- vcf_bed %>% filter(grepl("BND", ID)) %>% distinct(chr, start, .keep_all = TRUE) 
-    
-    #initializing bed_BND_MATE
-    mates <- bed_BND$ALT
-    mates <- strsplit(mates, ":")
-    chrom_mate <- sapply(mates, `[[`,1)
-    chrom_mate <- str_match(chrom_mate, "chr\\w+")
-    pos_mate <- sapply(mates, `[[`, 2)
-    pos_mate <- str_match(pos_mate, "\\d+")
-    pos_mate <- as.numeric(pos_mate)
-    
-    chr <- c(chrom_mate)
-    start <- c(pos_mate)
-    end <- c(pos_mate)
-    value <- c(1)
-    bed_BND_MATES <- data.frame(chr, start, end, value)
-    
-    #fixing bed_DEL end values
-    del_end <- data.frame(matrix(nrow=0,ncol=1))
-    del_end <- del_end %>% rename(end = matrix.nrow...0..ncol...1.)
-    info <- bed_DEL$INFO
-    info <- strsplit(info, "END=")
-    NEWEND <- sapply(info, `[[`, 2)
-    NEWEND <- str_match(NEWEND, "\\d+")
-    NEWEND <- as.numeric(NEWEND)
-    
-    bed_DEL <- bed_DEL %>% mutate(NEWEND = NEWEND)
-    bed_DEL <- bed_DEL %>% rename(OLDend = end)
-    bed_DEL <- bed_DEL %>% mutate(OLDend = NULL)
-    bed_DEL <- bed_DEL %>% rename(end = NEWEND)
-    bed_DEL <- bed_DEL[, c("chr", "start", "end", "ID", "INFO", "value")] 
-    
-    #fixing bed_INV end values
-    inv_end <- data.frame(matrix(nrow=0,ncol=1))
-    inv_end <- inv_end %>% rename(end = matrix.nrow...0..ncol...1.)
-    info <- bed_INV$INFO
-    info <- strsplit(info, "END=")
-    NEWEND <- sapply(info, `[[`, 2)
-    NEWEND <- str_match(NEWEND, "\\d+")
-    NEWEND <- as.numeric(NEWEND)
-    
-    bed_INV <- bed_INV %>% mutate(NEWEND = NEWEND)
-    bed_INV <- bed_INV %>% rename(OLDend = end)
-    bed_INV <- bed_INV %>% mutate(OLDend = NULL)
-    bed_INV <- bed_INV %>% rename(end = NEWEND)
-    bed_INV <- bed_INV[, c("chr", "start", "end", "ID", "INFO", "value")] 
-    
-    #fixing bed_DUP end values
-    dup_end <- data.frame(matrix(nrow=0,ncol=1))
-    dup_end <- dup_end %>% rename(end = matrix.nrow...0..ncol...1.)
-    info <- bed_DUP$INFO
-    info <- strsplit(info, "END=")
-    NEWEND <- sapply(info, `[[`, 2)
-    NEWEND <- str_match(NEWEND, "\\d+")
-    NEWEND <- as.numeric(NEWEND)
-    
-    bed_DUP <- bed_DUP %>% mutate(NEWEND = NEWEND)
-    bed_DUP <- bed_DUP %>% rename(OLDend = end)
-    bed_DUP <- bed_DUP %>% mutate(OLDend = NULL)
-    bed_DUP <- bed_DUP %>% rename(end = NEWEND)
-    bed_DUP <- bed_DUP[, c("chr", "start", "end", "ID", "INFO", "value")] 
-    
-    
-    #make CIRCOS plots - need to save plot to a variable so it can be added to a list for plotting (in case of more than one patient)
-    
-    # INITIALIZE WITH IDEOGRAM (all chromosomes)
-    circos.par(track.height = 0.08)
-    circos.initializeWithIdeogram(species = "hg38")
-    
-    # ADD PATIENT NAME
-    text(1, 1, pt, cex = 1)
-    
-    # INSERTION TRACK
-    circos.trackHist(bed_INS$chr, x = bed_INS$start, bin.size = 1000000, col = "purple", border = "purple")
-    
-    # DELETION TRACK
-    circos.trackHist(bed_DEL$chr, x = bed_DEL$start, bin.size = 1000000, col = "green3", border = "green3")
-    
-    # INVERSION TRACK
-    circos.genomicTrack(bed_INV, ylim = c(0,1), panel.fun = function(region, value, ...) {circos.genomicRect(region, value, col = "green3", border = "green3")})
-    
-    # DUPLICATION TRACK
-    circos.genomicLink(bed_DUP, bed_DUP, col = "green3", border = "green3")
-    
-    # TRANSLOCATION TRACK
-    circos.genomicLink(bed_BND, bed_BND_MATES, col = "red2", border = "red2")
-    
-    # CANONICAL TRANSLOCATIONS TRACK
-    circos.genomicLink(bed_BND_CANON, bed_BND_MATES_CANON, col = "blue", border = "blue")
-    
-    #add circos objects to list
-    
-    
+      #initializing BED files for each variant
+      bed_INS <- vcf_bed %>% filter(grepl("INS", ID)) %>% distinct(chr, start, .keep_all = TRUE)
+      bed_DEL <- vcf_bed %>% filter(grepl("DEL", ID)) %>% distinct(chr, start, .keep_all = TRUE)
+      bed_INV <- vcf_bed %>% filter(grepl("INV", ID)) %>% distinct(chr, start, .keep_all = TRUE)
+      bed_DUP <- vcf_bed %>% filter(grepl("DUP", ID)) %>% distinct(chr, start, .keep_all = TRUE)
+      bed_BND <- vcf_bed %>% filter(grepl("BND", ID)) %>% distinct(chr, start, .keep_all = TRUE) 
+      
+      #initializing bed_BND_MATE
+      mates <- bed_BND$ALT
+      mates <- strsplit(mates, ":")
+      chrom_mate <- sapply(mates, `[[`,1)
+      chrom_mate <- str_match(chrom_mate, "chr\\w+")
+      pos_mate <- sapply(mates, `[[`, 2)
+      pos_mate <- str_match(pos_mate, "\\d+")
+      pos_mate <- as.numeric(pos_mate)
+      
+      chr <- c(chrom_mate)
+      start <- c(pos_mate)
+      end <- c(pos_mate)
+      value <- c(1)
+      bed_BND_MATES <- data.frame(chr, start, end, value)
+      
+      #fixing bed_DEL end values
+      del_end <- data.frame(matrix(nrow=0,ncol=1))
+      del_end <- del_end %>% rename(end = matrix.nrow...0..ncol...1.)
+      info <- bed_DEL$INFO
+      info <- strsplit(info, "END=")
+      NEWEND <- sapply(info, `[[`, 2)
+      NEWEND <- str_match(NEWEND, "\\d+")
+      NEWEND <- as.numeric(NEWEND)
+      
+      bed_DEL <- bed_DEL %>% mutate(NEWEND = NEWEND)
+      bed_DEL <- bed_DEL %>% rename(OLDend = end)
+      bed_DEL <- bed_DEL %>% mutate(OLDend = NULL)
+      bed_DEL <- bed_DEL %>% rename(end = NEWEND)
+      bed_DEL <- bed_DEL[, c("chr", "start", "end", "ID", "INFO", "value")] 
+      
+      #fixing bed_INV end values
+      inv_end <- data.frame(matrix(nrow=0,ncol=1))
+      inv_end <- inv_end %>% rename(end = matrix.nrow...0..ncol...1.)
+      info <- bed_INV$INFO
+      info <- strsplit(info, "END=")
+      NEWEND <- sapply(info, `[[`, 2)
+      NEWEND <- str_match(NEWEND, "\\d+")
+      NEWEND <- as.numeric(NEWEND)
+      
+      bed_INV <- bed_INV %>% mutate(NEWEND = NEWEND)
+      bed_INV <- bed_INV %>% rename(OLDend = end)
+      bed_INV <- bed_INV %>% mutate(OLDend = NULL)
+      bed_INV <- bed_INV %>% rename(end = NEWEND)
+      bed_INV <- bed_INV[, c("chr", "start", "end", "ID", "INFO", "value")] 
+      
+      #fixing bed_DUP end values
+      dup_end <- data.frame(matrix(nrow=0,ncol=1))
+      dup_end <- dup_end %>% rename(end = matrix.nrow...0..ncol...1.)
+      info <- bed_DUP$INFO
+      info <- strsplit(info, "END=")
+      NEWEND <- sapply(info, `[[`, 2)
+      NEWEND <- str_match(NEWEND, "\\d+")
+      NEWEND <- as.numeric(NEWEND)
+      
+      bed_DUP <- bed_DUP %>% mutate(NEWEND = NEWEND)
+      bed_DUP <- bed_DUP %>% rename(OLDend = end)
+      bed_DUP <- bed_DUP %>% mutate(OLDend = NULL)
+      bed_DUP <- bed_DUP %>% rename(end = NEWEND)
+      bed_DUP <- bed_DUP[, c("chr", "start", "end", "ID", "INFO", "value")] 
+      
+      
+      #make CIRCOS plots - need to save plot to a variable so it can be added to a list for plotting (in case of more than one patient)
+      
+      # INITIALIZE WITH IDEOGRAM (all chromosomes)
+      circos.par(track.height = 0.08)
+      circos.initializeWithIdeogram(species = "hg38")
+      
+      # ADD PATIENT NAME
+      text(1, 1, pt, cex = 1)
+      
+      # INSERTION TRACK
+      circos.trackHist(bed_INS$chr, x = bed_INS$start, bin.size = 1000000, col = "purple", border = "purple")
+      
+      # DELETION TRACK
+      circos.trackHist(bed_DEL$chr, x = bed_DEL$start, bin.size = 1000000, col = "green3", border = "green3")
+      
+      # INVERSION TRACK
+      circos.genomicTrack(bed_INV, ylim = c(0,1), panel.fun = function(region, value, ...) {circos.genomicRect(region, value, col = "green3", border = "green3")})
+      
+      # DUPLICATION TRACK
+      circos.genomicLink(bed_DUP, bed_DUP, col = "green3", border = "green3")
+      
+      # TRANSLOCATION TRACK
+      circos.genomicLink(bed_BND, bed_BND_MATES, col = "red2", border = "red2")
+      
+      # CANONICAL TRANSLOCATIONS TRACK
+      circos.genomicLink(bed_BND_CANON, bed_BND_MATES_CANON, col = "blue", border = "blue")
+      
+      #add circos objects to list
+      #?????????????????????
+      
+      }})
   }
   
-  #if more than one patient, patchwork to make plot all circos plots?
+  # if more than one patient, make all circos plots?
   
   
-  #if only one patient, just plot
-  
-  
-  
+  # if only one patient, just plot
   
   
   
   
   
-}
+  
+  
+  
+# }
   
