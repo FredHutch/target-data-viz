@@ -131,6 +131,7 @@ circosPlot <- function(input, output, session){
   
   patient_fusion_dt["TARGET-20-PAURDN-03A-01D", "NUP98-X"] <- "yes"
   patient_fusion_dt["TARGET-20-PAUPIY-03A-01D", "NUP98-X"] <- "yes"
+  patient_fusion_dt["PAVESI-03A-01D", "NUP98-X"] <- "yes"
   patient_fusion_dt["TARGET-20-PAVBIH-09A-02D", "MLLT10-X"] <- "yes"
   patient_fusion_dt["TARGET-20-PAUZRY-09A-02D", "RUNX1-RUNX1T1"] <- "yes"
   patient_fusion_dt["TARGET-20-PAUNVN-09A-01D", "ETV6-X"] <- "yes"
