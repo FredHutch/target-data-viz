@@ -24,6 +24,8 @@ library(circlize)
 library(gridExtra)
 library(png)
 library(bedr)
+library(slickR)
+library(shinybusy)
 #library(RSelenium)
 #library(netstat)
 

@@ -1,6 +1,6 @@
 FROM fredhutch/r-shiny-server-base:4.4.1
 RUN apt-get update -y && apt-get install -y pandoc libpq-dev python3 python3-pip
-RUN R -q -e 'install.packages(c("shinyalert", "shinydashboard", "shinyjs", "shinyBS", "shinyWidgets", "shinythemes", "survminer", "survival", "gtools", "cmprsk", "ggpubr", "DT", "data.table", "viridis", "viridisLite", "ggplot2", "plotly", "fst", "BiocManager", "ggsurvfit", "openxlsx", "stringr", "circlize", "png", "gridExtra", "bedr"))'
+RUN R -q -e 'install.packages(c("shinyalert", "shinydashboard", "shinyjs", "shinyBS", "shinyWidgets", "shinythemes", "survminer", "survival", "gtools", "cmprsk", "ggpubr", "DT", "data.table", "viridis", "viridisLite", "ggplot2", "plotly", "fst", "BiocManager", "ggsurvfit", "openxlsx", "stringr", "circlize", "png", "bedr", "slickR", "shinybusy"))'
 RUN R -q -e 'install.packages(c("dplyr"), repos="https://cran.r-project.org")'
 RUN R -q -e 'BiocManager::install(c("ComplexHeatmap", "biomaRt"), ask=FALSE, update=FALSE)'
 
@@ -20,7 +20,7 @@ EXPOSE 3838
 
 WORKDIR /srv/shiny-server
 
-RUN R -f /tmp/check.R --args shinyalert shinydashboard shinyjs shinyBS shinyWidgets shinythemes survminer gtools cmprsk ggpubr DT data.table viridis viridisLite ggplot2 plotly fst BiocManager dplyr ComplexHeatmap survival ggsurvfit openxlsx biomaRt stringr circlize png gridExtra bedr
+RUN R -f /tmp/check.R --args shinyalert shinydashboard shinyjs shinyBS shinyWidgets shinythemes survminer gtools cmprsk ggpubr DT data.table viridis viridisLite ggplot2 plotly fst BiocManager dplyr ComplexHeatmap survival ggsurvfit openxlsx biomaRt stringr circlize png bedr slickR shinybusy
 
 RUN rm /tmp/check.R
 
