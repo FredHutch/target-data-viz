@@ -35,7 +35,7 @@ circosPlotUI <- function(id, label = "Circos plot parameters"){
       
       # Creating dropdown menu to select the fusion class for circos plot generation
       selectInput(ns("fusion_group"),
-                  label = "Select a fusion type:",
+                  label = "Select a fusion to view circos plots of patients with relevant chromosomal rearrangements:",
                   choices = all_fusions),
       
       # Buttons to select whether circos plots generated will show all chromosomes 

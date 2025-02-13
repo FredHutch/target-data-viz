@@ -1,5 +1,5 @@
 server <- function(input, output, session) { 
-
+  session$allowReconnect(TRUE)
   ## build the temporary directory at the start
   current_dir <- getwd()
   temp_dir <- tempdir()
