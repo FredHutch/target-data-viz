@@ -1,9 +1,13 @@
 server <- function(input, output, session) { 
 
-  ## build the temporary directory at the start
-  current_dir <- getwd()
-  temp_dir <- tempdir()
-  unlink(file.path(temp_dir, "*"), recursive = TRUE)
+  # ## build the temporary directory at the start
+  # current_dir <- getwd()
+  # temp_dir <- tempdir()
+  # unlink(file.path(temp_dir, "*"), recursive = TRUE)
+  # 
+  # ## duplicate gene names?
+  # duplicates <- FALSE
+  # gene_choices <- c(NULL)
   
   # the following functions are to create checkmarks for whether the input gene is aml-restricted and transmembrane
   #-------------------------------------------------------------#
@@ -24,15 +28,17 @@ server <- function(input, output, session) {
     
     choices <- switch(input$leukemiaSelection,
                       "AML" = dataset_choices$aml,
-                      "ALL" = dataset_choices$all, 
+                      "BALL" = dataset_choices$all, 
                       "TALL" = dataset_choices$tall,
-                      "CCLE" = dataset_choices$ccle) 
+                      "CCLE" = dataset_choices$ccle,
+                      "PCGP" = dataset_choices$pcgp) 
     
     selected <- switch(input$leukemiaSelection,
                        "AML" = "TARGET",
-                       "ALL" = "StJude",
+                       "BALL" = "StJude",
                        "TALL" = "GMKF",
-                       "CCLE" = "CCLE")
+                       "CCLE" = "CCLE",
+                       "PCGP" = "PCGP")
     
     updateRadioButtons(
       session = session,
@@ -42,45 +48,64 @@ server <- function(input, output, session) {
     )
   }, ignoreInit = T, ignoreNULL = T) # ignoreInit parameter is required to work!
   
-  
   # Variable representing the *name* of the selected cohort (as a character string)
   cohort <- reactive({
       input$expDataCohort
   })
   
-  # Reactive variable that stores the expression data matrix for the selected cohort
   expData <- reactive({
+    # Select base matrix based on cohort
     matrix <- switch(input$expDataCohort,
                      "SWOG" = swog_expData,
                      "BeatAML" = beatAML_expData,
-                     "TARGET" = target_expData38,
+                     "TARGET" = NULL,  # Placeholder, will be assigned below
                      "TCGA" = laml_expData,
                      "StJude" = stjude_expData,
                      "GMKF" = gmkf_expData,
-                     "CCLE" = ccle_expData)
+                     "CCLE" = ccle_expData,
+                     "LEUCEGENE" = leuce_expData,
+                     "PCGP AML" = pcgp_aml_expData,
+                     "PCGP" = pcgp_expData)
     
-    # For the TARGET dataset only, we have both GRCh37 & GRCh38-aligned datasets available. 
-    # This will allow the user to select one of those alignments, but ONLY if the TARGET AML dataset has been selected.
-    if (input$expDataCohort == "TARGET" ) {
-      assembly <- switch(input$seqAssembly,
-                         "grch37" = target_expData37,
-                         "grch38" = target_expData38)
-      return(assembly)
-    } else {
-      return(matrix)
+    # Handle TARGET cohort separately
+    if (input$expDataCohort == "TARGET") {
+      if (input$aligner == "star") {
+        # Default to diagnostic timepoint
+        matrix <- switch(input$timepoint,
+                         "diagnostic" = target_expData38_STAR_Dx, 
+                         "remission" = target_expData38_STAR_Rem,
+                         "relapse" = target_expData38_STAR_Rel)
+        
+        genenames <- matrix$name
+        matrix <- matrix[,c(-1:-2)]
+        rownames(matrix) <- genenames
+        
+      } else if (input$aligner == "kallisto") {
+        # No timepoint selection for kallisto
+        matrix <- target_expData38
+      }
     }
+    return(matrix)
   })
   
   # Reactive variable that stores the clinical data elements for the selected cohort
   studyData <- reactive({
-    switch(input$expDataCohort,
-           "SWOG" = swog_cde,
-           "BeatAML" = beatAML_cde,
-           "TARGET" = target_cde,
-           "TCGA" = laml_cde,
-           "StJude" = stjude_cde,
-           "GMKF" = gmkf_cde,
-           "CCLE" = ccle_cde)
+    if (input$expDataCohort == "TARGET") {
+      switch(input$aligner,
+             "star" = target_mani,    # Use target_mani for STAR aligner
+             "kallisto" = target_cde) # Use target_cde for Kallisto aligner
+    } else {
+      switch(input$expDataCohort,
+             "SWOG" = swog_cde,
+             "BeatAML" = beatAML_cde,
+             "TCGA" = laml_cde,
+             "StJude" = stjude_cde,
+             "GMKF" = gmkf_cde,
+             "CCLE" = ccle_cde,
+             "LEUCEGENE" = leuce_mani,
+             "PCGP AML" = pcgp_mani,
+             "PCGP" = pcgp_total_mani)
+    }
   })
   
   # Creating a variable that will be used to reactively pass the gene of interest into each module,
@@ -97,6 +122,65 @@ server <- function(input, output, session) {
       symbol <- toupper(input$geneInput)
     }
     return(symbol)
+  })
+  
+  alignment <- reactiveVal("star")  # Default aligner is "star"
+  
+  # Track last known aligner for TARGET only
+  targetAligner <- reactiveVal("star")
+  
+  # Update aligner value when aligner changes and cohort is TARGET
+  observeEvent(input$aligner, {
+    if (input$expDataCohort == "TARGET") {
+      alignment(input$aligner)
+      targetAligner(input$aligner)
+    }
+  })
+  
+  # Handle changes to cohort
+  observeEvent(input$expDataCohort, {
+    if (input$expDataCohort == "TARGET") {
+      # Restore last used TARGET aligner or default to "star"
+      updateRadioGroupButtons(session, "aligner", selected = targetAligner())
+      alignment(targetAligner())
+      shinyjs::enable("aligner")
+    } else {
+      # Force aligner to "star" internally and disable UI
+      updateRadioGroupButtons(session, "aligner", selected = "star")
+      alignment("star")
+      shinyjs::disable("aligner")
+    }
+  })
+  
+  
+  observeEvent(input$ensid, {
+    req(input$expDataCohort, input$aligner, input$geneInput)
+    
+    if (input$expDataCohort == "TARGET" && input$aligner == "star") {
+      
+      matrix <- switch(input$timepoint,
+                       "diagnostic" = target_expData38_STAR_Dx, 
+                       "remission" = target_expData38_STAR_Rem,
+                       "relapse" = target_expData38_STAR_Rel)
+      
+      filteredData <- matrix[matrix$name == toupper(input$geneInput), ]
+    
+      if (nrow(filteredData) > 0) {
+        ensid_info <- paste("<strong>Matching ENSID(s):</strong><br>", 
+                            paste(unique(filteredData$id), collapse = "<br>"))
+      } else {
+        ensid_info <- "<strong style='color: red;'>No ENSID found for this gene.</strong>"
+      }
+    } else {
+      ensid_info <- "<strong style='color: red;'>ENSID information not available for this dataset.</strong>"
+    }
+    
+    showModal(modalDialog(
+      title = div(style = "font-size: 20px; font-weight: bold; color: #41B0FA;", "ENSID Information"),
+      HTML(paste("<div style='padding: 10px; font-size: 16px;'>", ensid_info, "</div>")),
+      easyClose = TRUE,
+      footer = modalButton("Close")
+    ))
   })
   
   observeEvent(input$check, {
@@ -143,14 +227,23 @@ server <- function(input, output, session) {
              expData = expData, 
              adc_cart_targetData = adc_cart_targetData,
              gene = target, 
+             aligner = alignment,
              dataset = cohort,
              parent = session) # See https://stackoverflow.com/questions/51708815/accessing-parent-namespace-inside-a-shiny-module
                                # for an explanation of the 'parent' parameter
+  
+  callModule(timePlot, id = "timepoints", 
+             clinData = studyData, 
+             expData = expData, 
+             gene = target, 
+             aligner = alignment,
+             dataset = cohort)
   
   # Calling the Kaplan-Meier curve module
   callModule(kmPlot, id = "kaplanmeier", 
              clinData = studyData, 
              expData = expData, 
+             aligner = alignment,
              dataset = cohort,
              gene = target)
   
@@ -165,12 +258,12 @@ server <- function(input, output, session) {
              clinData = studyData,
              expData = expData,
              dataset = cohort,
-             gene = target)
+             aligner = alignment)
   
   # Calling the DEG table module
-  callModule(deTable, id = "degs",
-             table = degTables37,
-             gene = target)
+  # callModule(deTable, id = "degs",
+  #            table = degTables37,
+  #            gene = target)
   
   # Calling the DEG table module
   callModule(geneExp, id = "exps",
@@ -182,8 +275,8 @@ server <- function(input, output, session) {
   callModule(HPAPlot, id = "hpa",
              gene = target)
 
-  # Calling the HPA module
-  callModule(ClassiPlot, id = "Classi")
+  # # Calling the HPA module
+  # callModule(ClassiPlot, id = "Classi")
 
   callModule(CancerPlot, id = "cancertype",
              gene = target)
@@ -192,38 +285,70 @@ server <- function(input, output, session) {
 
   # TO DO: Add a searchable AML-restricted gene list to this tab
   
-  output$protAtlas <- renderValueBox({
-    validate(
-      need(target(), "Please enter a gene symbol in the text box."))
-    
-        valueBox(value = tags$p("Human Protein\nAtlas", style = "font-size: 60%"),
-                 subtitle = "Protein expression", 
-                 color = "light-blue", 
-                 icon = icon("prescription-bottle"),
-                 href = paste0("https://www.proteinatlas.org/search/", target()))
+  customBox <- function(title, subtitle, link, icon_name) {
+    tags$a(
+      href = link, target = "_blank", style = "text-decoration: none;",
+      tags$div(
+        class = "small-box",
+        style = paste(
+          "background: #2096f6;",
+          "color: #FFFFFF;",                    # dark blue text
+          "min-height: 120px;",
+          "border-radius: 12px;",
+          "box-shadow: 0 4px 8px rgba(0,0,0,0.1);",
+          "padding: 15px;"
+        ),
+        tags$div(
+          class = "inner",
+          tags$p(title, style = "font-size: 200%; font-weight: bold; margin-top: -10px;"),
+          tags$h4(subtitle, style = "font-size: 120%; font-weight: normal; color: #ffffff; margin-top: -10px;")
+        ),
+        tags$div(class = "icon-large", icon(icon_name), style = "margin-right: 5px;")
+      )
+    )
+  }
+  
+  output$protAtlas <- renderUI({
+    customBox("Human Protein Atlas", "Protein Expression",
+              paste0("https://www.proteinatlas.org/search/", target()), "dna")
   })
   
-  output$gtex <- renderValueBox({
-    validate(
-      need(target(), "Please enter a gene symbol in the text box."))
-    
-    valueBox(value = tags$p("GTEx", style = "font-size: 60%"),
-             subtitle = "Normal tissue expression",
-             color = "light-blue",
-             icon = icon("prescription-bottle"),
-             href = paste0("https://gtexportal.org/home/gene/", target(), "#geneExpression"))
+  output$gtex <- renderUI({
+    customBox("GTEx", "Normal Tissue Expression",
+              paste0("https://gtexportal.org/home/gene/", target(), "#geneExpression"), "lungs")
   })
   
-  output$protPaint <- renderValueBox({
-    validate(
-      need(target(), "Please enter a gene symbol in the text box."))
-    
-    valueBox(value = tags$p("ProteinPaint", style = "font-size: 60%"),
-             subtitle = "St. Jude PeCan visualization",
-             color = "light-blue",
-             icon = icon("prescription-bottle"), 
-             href = paste0("https://proteinpaint.stjude.org/?genome=hg19&gene=", target(), "&dataset=pediatric"))
+  output$protPaint <- renderUI({
+    customBox("ProteinPaint", "St. Jude PeCan",
+              paste0("https://proteinpaint.stjude.org/?genome=hg38&gene=", target(), "&dataset=pediatric"), "brush")
   })
+  
+  output$cbioportal <- renderUI({
+    customBox("cBioPortal", "Cancer Datasets",
+              "https://www.cbioportal.org/", "database")
+  })
+  
+  output$deeptmhmm <- renderUI({
+    customBox("DeepTMHMM", "Transmembrane Prediction",
+              "https://dtu.biolib.com/DeepTMHMM", "map-location-dot")
+  })
+  
+  output$expasy <- renderUI({
+    customBox("Expasy", "Nucleotide-Protein Translation",
+              "https://web.expasy.org/translate/", "language")
+  })
+  
+  output$ucsc <- renderUI({
+    customBox("UCSC", "Genome Browser",
+              "https://genome.ucsc.edu/index.html", "binoculars")
+  })
+  
+  output$vizrisk <- renderUI({
+    customBox("VizRisk", "Risk Classification App",
+              "https://vizrisk.fredhutch.org/", "notes-medical")
+  })
+  
+  
   
   
  ## This is the code for the DeepTMHMM Button ###################################################
@@ -237,161 +362,161 @@ server <- function(input, output, session) {
   ## 7. Print the cleaned terminal output 
   ## 8. Output the plot.png
   
-  # function for creating the action button for embedding DeepTMHMM ###############################
-  output$tmhmm <- renderUI({
-    validate(
-      need(target(), FALSE)
-    )
-    
-    actionButton("start_deeptmhmm", 
-                 label = div(
-                   "DeepTMHMM",
-                   div("Protein localization", style = "text-transform: none; color: white; font-size: 15px; font-weight: normal; margin-top:20px; margin-bottom:20px;") # Additional white text below the label
-                 ),
-                 style = "text-transform: none; background-color: #3c8dbc; box-shadow: none; text-align: left; font-size: 21px; font-weight: bold; height: 110px; width: 100%; padding: 10px;",
-                 class = "btn-box"
-    )
-  })
-  
-  # creating a reactive value that will change once the output is finished
-  output_completed <- reactiveVal(FALSE)
-  
-  poll_terminal_output <- function(myTerm) {
-    function() {
-      setwd(temp_dir)
-      output <- NULL
-      
-      # Check if running inside RStudio
-      if (Sys.getenv("RSTUDIO") == "1") {  
-        full_output <- rstudioapi::terminalBuffer(myTerm)
-        
-        # Check if "Done" is in the terminal output
-        if (any(grepl("Done", full_output))) {
-          Sys.sleep(10)  # Wait for 10 seconds
-          output_completed(TRUE)  # Mark the output as completed
-        } else {
-          output_completed(FALSE)
-        }
-      } 
-      else {
-        # Check if output_log.txt exists outside RStudio
-        if (file.exists("output_log.txt")) {
-          full_output <- readLines("output_log.txt")
-          # Check if "Done" is in the file output
-          if (any(grepl("Done", full_output))) {
-            Sys.sleep(10)  # Wait for 10 seconds
-            output_completed(TRUE)  # Mark the output as completed
-          } else {
-            output_completed(FALSE)
-          }
-        } else {
-          # If output_log.txt doesn't exist
-          output <- output[output != "" & !is.null(output)]
-          output_completed(FALSE)
-        }
-      }
-      return(output)  # Return the output if any
-    }
-  }
-  
-  
-  # when the action button is pushed, we're starting the DeepTMHMM code ###########################
-  observeEvent(input$start_deeptmhmm, {
-    
-    output_completed(FALSE)
-    
-    output$tmhmm_plot <- renderImage({
-      filename <- normalizePath(file.path(current_dir, 'data', 'loading.png'))
-      
-      list(
-        src = filename,
-        alt = "Loading...",
-        width = "80%",
-        height = "auto"
-      )
-    }, deleteFile = FALSE)
-    
-    # cleaning the temporary directory
-    unlink(file.path(temp_dir, "*"), recursive = TRUE)
-    
-    # setting the temporary directory
-    setwd(temp_dir)
-    
-    # this gives a little loading text before the output starts
-    output$terminal_output <- renderText({
-        "Waiting for DeepTMHMM to start, this may take a few seconds... \n"
-    })
-    
-    # the goal of this is to take the gene name and find the longest peptide sequence
-    ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
-    gene_name <- target()
-    sequences <- getSequence(id = gene_name, type = "hgnc_symbol", seqType = "peptide", mart = ensembl)
-    
-    # longest sequence function
-    get_longest_sequence <- function(sequences) {
-      sequence_lengths <- nchar(sequences$peptide)
-      max_length <- max(sequence_lengths)
-      longest_indices <- which(sequence_lengths == max_length)
-      longest_sequence <- sequences$peptide[longest_indices[1]]
-      return(longest_sequence)
-    }
-    
-    # finding the longest sequence
-    longest_sequence <- get_longest_sequence(sequences)
-    
-    # create a temporary fasta file
-    temp_fasta <- tempfile(fileext = ".fasta")
-    writeLines(paste0(">header\n", longest_sequence), con = temp_fasta)
-    
-    # now we run the python biolib package inside a terminal
-    myTerm <- NULL
-    if (Sys.getenv("RSTUDIO") == "1") { 
-      myTerm <- rstudioapi::terminalCreate(show = FALSE)
-      tmhmm <- paste("biolib run DTU/DeepTMHMM --fasta", temp_fasta)
-      rstudioapi::terminalSend(myTerm, paste0(tmhmm, "\n"))
-    } else {
-      system(paste("biolib run DTU/DeepTMHMM --fasta", temp_fasta, "> output_log.txt 2>&1 &"))
-    }
-    
-    # reactive function to monitor terminal output
-    terminal_output <- reactivePoll(1000, session, checkFunc = poll_terminal_output(myTerm), valueFunc = poll_terminal_output(myTerm))
-    
-    observe({
-      # Check the value of output_completed reactively
-      if (output_completed() == TRUE) {
-        
-        # Set the working directory to temp_dir
-        setwd(temp_dir)
-        
-        # Render the image when it's available
-        output$tmhmm_plot <- renderImage({
-        
-          filename <- normalizePath(file.path(temp_dir, 'biolib_results', 'plot.png'))
-
-          list(
-            src = filename,
-            alt = "TMHMM Plot",
-            width = "80%",
-            height = "auto"
-          )
-        }, deleteFile = TRUE)
-        
-      } else {
-        # Render the placeholder/loading image
-        output$tmhmm_plot <- renderImage({
-          filename <- normalizePath(file.path(current_dir, 'data', 'loading.png'))
-          
-          list(
-            src = filename,
-            alt = "Loading...",
-            width = "80%",
-            height = "auto"
-          )
-        }, deleteFile = FALSE)
-      }
-    })
-    
-  })
+  # # function for creating the action button for embedding DeepTMHMM ###############################
+  # output$tmhmm <- renderUI({
+  #   validate(
+  #     need(target(), FALSE)
+  #   )
+  #   
+  #   actionButton("start_deeptmhmm", 
+  #                label = div(
+  #                  "DeepTMHMM",
+  #                  div("Protein localization", style = "text-transform: none; color: white; font-size: 15px; font-weight: normal; margin-top:20px; margin-bottom:20px;") # Additional white text below the label
+  #                ),
+  #                style = "text-transform: none; background-color: #3c8dbc; box-shadow: none; text-align: left; font-size: 21px; font-weight: bold; height: 110px; width: 100%; padding: 10px;",
+  #                class = "btn-box"
+  #   )
+  # })
+  # 
+  # # creating a reactive value that will change once the output is finished
+  # output_completed <- reactiveVal(FALSE)
+  # 
+  # poll_terminal_output <- function(myTerm) {
+  #   function() {
+  #     setwd(temp_dir)
+  #     output <- NULL
+  #     
+  #     # Check if running inside RStudio
+  #     if (Sys.getenv("RSTUDIO") == "1") {  
+  #       full_output <- rstudioapi::terminalBuffer(myTerm)
+  #       
+  #       # Check if "Done" is in the terminal output
+  #       if (any(grepl("Done", full_output))) {
+  #         Sys.sleep(10)  # Wait for 10 seconds
+  #         output_completed(TRUE)  # Mark the output as completed
+  #       } else {
+  #         output_completed(FALSE)
+  #       }
+  #     } 
+  #     else {
+  #       # Check if output_log.txt exists outside RStudio
+  #       if (file.exists("output_log.txt")) {
+  #         full_output <- readLines("output_log.txt")
+  #         # Check if "Done" is in the file output
+  #         if (any(grepl("Done", full_output))) {
+  #           Sys.sleep(10)  # Wait for 10 seconds
+  #           output_completed(TRUE)  # Mark the output as completed
+  #         } else {
+  #           output_completed(FALSE)
+  #         }
+  #       } else {
+  #         # If output_log.txt doesn't exist
+  #         output <- output[output != "" & !is.null(output)]
+  #         output_completed(FALSE)
+  #       }
+  #     }
+  #     return(output)  # Return the output if any
+  #   }
+  # }
+  # 
+  # 
+  # # when the action button is pushed, we're starting the DeepTMHMM code ###########################
+  # observeEvent(input$start_deeptmhmm, {
+  #   
+  #   output_completed(FALSE)
+  #   
+  #   output$tmhmm_plot <- renderImage({
+  #     filename <- normalizePath(file.path(current_dir, 'data', 'loading.png'))
+  #     
+  #     list(
+  #       src = filename,
+  #       alt = "Loading...",
+  #       width = "80%",
+  #       height = "auto"
+  #     )
+  #   }, deleteFile = FALSE)
+  #   
+  #   # cleaning the temporary directory
+  #   unlink(file.path(temp_dir, "*"), recursive = TRUE)
+  #   
+  #   # setting the temporary directory
+  #   setwd(temp_dir)
+  #   
+  #   # this gives a little loading text before the output starts
+  #   output$terminal_output <- renderText({
+  #       "Waiting for DeepTMHMM to start, this may take a few seconds... \n"
+  #   })
+  #   
+  #   # the goal of this is to take the gene name and find the longest peptide sequence
+  #   ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+  #   gene_name <- target()
+  #   sequences <- getSequence(id = gene_name, type = "hgnc_symbol", seqType = "peptide", mart = ensembl)
+  #   
+  #   # longest sequence function
+  #   get_longest_sequence <- function(sequences) {
+  #     sequence_lengths <- nchar(sequences$peptide)
+  #     max_length <- max(sequence_lengths)
+  #     longest_indices <- which(sequence_lengths == max_length)
+  #     longest_sequence <- sequences$peptide[longest_indices[1]]
+  #     return(longest_sequence)
+  #   }
+  #   
+  #   # finding the longest sequence
+  #   longest_sequence <- get_longest_sequence(sequences)
+  #   
+  #   # create a temporary fasta file
+  #   temp_fasta <- tempfile(fileext = ".fasta")
+  #   writeLines(paste0(">header\n", longest_sequence), con = temp_fasta)
+  #   
+  #   # now we run the python biolib package inside a terminal
+  #   myTerm <- NULL
+  #   if (Sys.getenv("RSTUDIO") == "1") { 
+  #     myTerm <- rstudioapi::terminalCreate(show = FALSE)
+  #     tmhmm <- paste("biolib run DTU/DeepTMHMM --fasta", temp_fasta)
+  #     rstudioapi::terminalSend(myTerm, paste0(tmhmm, "\n"))
+  #   } else {
+  #     system(paste("biolib run DTU/DeepTMHMM --fasta", temp_fasta, "> output_log.txt 2>&1 &"))
+  #   }
+  #   
+  #   # reactive function to monitor terminal output
+  #   terminal_output <- reactivePoll(1000, session, checkFunc = poll_terminal_output(myTerm), valueFunc = poll_terminal_output(myTerm))
+  #   
+  #   observe({
+  #     # Check the value of output_completed reactively
+  #     if (output_completed() == TRUE) {
+  #       
+  #       # Set the working directory to temp_dir
+  #       setwd(temp_dir)
+  #       
+  #       # Render the image when it's available
+  #       output$tmhmm_plot <- renderImage({
+  #       
+  #         filename <- normalizePath(file.path(temp_dir, 'biolib_results', 'plot.png'))
+  # 
+  #         list(
+  #           src = filename,
+  #           alt = "TMHMM Plot",
+  #           width = "80%",
+  #           height = "auto"
+  #         )
+  #       }, deleteFile = TRUE)
+  #       
+  #     } else {
+  #       # Render the placeholder/loading image
+  #       output$tmhmm_plot <- renderImage({
+  #         filename <- normalizePath(file.path(current_dir, 'data', 'loading.png'))
+  #         
+  #         list(
+  #           src = filename,
+  #           alt = "Loading...",
+  #           width = "80%",
+  #           height = "auto"
+  #         )
+  #       }, deleteFile = FALSE)
+  #     }
+  #   })
+  #   
+  # })
   
   
   output$therapyTable <- DT::renderDataTable({

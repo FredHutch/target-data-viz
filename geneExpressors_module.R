@@ -1,80 +1,123 @@
-# UI function for the waterfall plot module
-geneExpUI <- function(id, label = "Identifying expressors"){
-  ns <- NS(id) # Setting a unique namespace for this module
+geneExpUI <- function(id, label = "Identifying expressors") {
+  ns <- NS(id)
   
-  fluidPage(
-            sidebarLayout(
-              position = "left", 
-              sidebarPanel(
-                helpText("In the absence of protein expression data, it can be useful to identify expressors of a gene (or miRNA species) using available RNA-seq data. However, in order to determine samples that are positive or negative for the gene of interest, the application of arbitrary cutoff points to the continuous transcript expression data is required."),
-                helpText("Recommended cutoff values include 5, or 10 TPM, which are higher than typical sequencing noise, or 1 TPM if the majority of cases express the gene/miRNA species near 0. 
-                \nHowever, these values are arbitrary and should be adjusted based on summary statistics and/or the distribution of expression values seen in the histogram."), 
-                helpText("The colored line represents the selected expression cutoff."), 
-                br(),
-                
-                # Should this be numericInput? Answer = NO, not for now. numericInput forces a "starting" value and does not allow placeholder suggestions.
-                textInput(ns("tpm_cutoff"),                                                  
-                          label = "Use TPM cutoff value",
-                          placeholder = "Example: 5"),
-                
-                checkboxInput(ns("other_cutoff"), 
-                              label = "Use different selection method", 
-                              value = FALSE),
-                
-                conditionalPanel(
-                  condition = paste0("input['", ns("other_cutoff"), "'] == 1"), # No clue why this needs to be 1, since the docs say it's TRUE if checked!
-                  radioButtons(ns("select_cutoff"), 
-                               label = "Select one of the following options:",
-                               choices = list("Use median" = "median",
-                                              "Use top quartile" = "quartile"))
-                ),
-                
-                radioButtons(ns("filter_cohort"), 
-                             label = "Limit to a single subgroup?", 
-                             choices = list("No - view all patients" = "no",
-                                            "Yes" = "yes")),
-                # Can add a statement here to allow different choices for each cohort - E.g. Cell lines should not be limited to rearrangements.
-                conditionalPanel(
-                  condition = paste0("input['", ns("filter_cohort"), "'] == 'yes'"),
-                  selectInput(ns("select_subgroup"),                                                  
-                              label = "Which one?",
-                              choices = list("KMT2A/MLL rearranged" = "MLL|KMT2A-",       # The name of each list item is the option the
-                                             "inv(16)" = "inv\\(16\\)",                   # user will see in a drop-down menu;
-                                             "t(8;21)" = "t\\(8\\;21\\)",                 # the value is the regex that will be used to 
-                                             "FLT3-ITD" = "FLT3-ITD",                     # filter the dataset for the specified alteration.
-                                             "KMT2A-PTD" = "KMT2A-PTD",
-                                             "WT1" = "WT1",
-                                             "NPM1" = "NPM1(?!\\-)",
-                                             "CEBPA" = "CEBPA",
-                                             "CBFA2T3-GLIS2" = "CBFA2T3\\-GLIS2", 
-                                             "NUP98 fusions" = "NUP98-",
-                                             "Monosomy 7" = "[Mm]onosomy7",
-                                             "del5q/del7q" = "del5q|del7q",
-                                             "Trisomy 8" = "[Tt]risomy8",
-                                             "Normal karyotype" = "Normal"))
-                ),
-                helpText("NOTE: Please keep in mind that transcript expression does not always correlate with protein expression.")),
+  tagList(
+    useShinyjs(),
+    tags$head(
+      tags$style(HTML("
+        .sidebar-container {
+          display: flex;
+          height: 100vh;
+        }
+        .custom-sidebar {
+          background-color: #f8f9fa;
+          padding: 15px;
+          width: 250px;
+          flex-shrink: 0;
+          overflow-y: auto;
+        }
+        .main-content {
+          flex-grow: 1;
+          padding: 15px;
+        }
+        .plotdwnld, .custom-file-upload .btn {
+          background-color: #2096f6 !important;
+          color: white !important;
+          width: 100% !important;
+          padding: 3px 7px;
+          font-size: 1.2rem;
+        }
+        .custom-file-upload .form-control {
+          font-size: 1.2rem;
+          padding: 3px 7px;
+        }
+        .ui-slider-range {
+          background: #2096f6 !important;
+        }
+        .ui-slider-handle {
+          background: #2096f6 !important;
+          border-color: #2096f6 !important;
+        }
+      "))
+    ),
+    fluidPage(
+      theme = shinythemes::shinytheme("paper"),
+      div(class = "sidebar-container",
+          
+          #------------------ SIDEBAR ------------------#
+          div(class = "custom-sidebar",
+              helpText("In the absence of protein expression data, it can be useful to identify expressors of a gene (or miRNA species) using available RNA-seq data. However, in order to determine samples that are positive or negative for the gene of interest, the application of arbitrary cutoff points to the continuous transcript expression data is required."),
+              helpText("Recommended cutoff values include 5, or 10 TPM, which are higher than typical sequencing noise, or 1 TPM if the majority of cases express the gene/miRNA species near 0. 
+          \nHowever, these values are arbitrary and should be adjusted based on summary statistics and/or the distribution of expression values seen in the histogram."), 
+              helpText("The colored line represents the selected expression cutoff."), 
+              br(),
               
-              mainPanel(position = "right", 
-                        
-                        tabsetPanel(
-                          tabPanel("Figures",
-                                   br(),
-                                   fluidRow(
-                                     column(10, offset = 0, align = "left",        
-                                            plotOutput(ns("histogram"), width = "100%"),
-                                            br(),
-                                            plotOutput(ns("pieChart"), width = "100%")),  
-                                   )
-                                   ),
-                          tabPanel("Patient list",
-                                   fluidRow(
-                                     box(width = 12, div(style = 'overflow-x: scroll',
-                                                         DT::dataTableOutput(ns("rankedTable")))),
-                                   ))
-                        )
+              textInput(ns("tpm_cutoff"),                                                  
+                        label = "Use TPM cutoff value",
+                        placeholder = "Example: 5"),
+              
+              checkboxInput(ns("other_cutoff"), 
+                            label = "Use different selection method", 
+                            value = FALSE),
+              
+              conditionalPanel(
+                condition = paste0("input['", ns("other_cutoff"), "'] == 1"),
+                radioButtons(ns("select_cutoff"), 
+                             label = "Select one of the following options:",
+                             choices = list("Use median" = "median",
+                                            "Use top quartile" = "quartile"))
+              ),
+              
+              radioButtons(ns("filter_cohort"), 
+                           label = "Limit to a single subgroup?", 
+                           choices = list("No - view all patients" = "no",
+                                          "Yes" = "yes")),
+              
+              conditionalPanel(
+                condition = paste0("input['", ns("filter_cohort"), "'] == 'yes'"),
+                selectInput(ns("select_subgroup"),                                                  
+                            label = "Which one?",
+                            choices = list(
+                              "KMT2A/MLL rearranged" = "MLL|KMT2A-",
+                              "inv(16)" = "inv\\(16\\)",
+                              "t(8;21)" = "t\\(8\\;21\\)",
+                              "FLT3-ITD" = "FLT3-ITD",
+                              "KMT2A-PTD" = "KMT2A-PTD",
+                              "WT1" = "WT1",
+                              "NPM1" = "NPM1(?!\\-)",
+                              "CEBPA" = "CEBPA",
+                              "CBFA2T3-GLIS2" = "CBFA2T3\\-GLIS2", 
+                              "NUP98 fusions" = "NUP98-",
+                              "Monosomy 7" = "[Mm]onosomy7",
+                              "del5q/del7q" = "del5q|del7q",
+                              "Trisomy 8" = "[Tt]risomy8",
+                              "Normal karyotype" = "Normal"))
+              ),
+              helpText("NOTE: Please keep in mind that transcript expression does not always correlate with protein expression.")
+          ),
+          
+          #------------------ MAIN PANEL ------------------#
+          div(class = "main-content",
+              tabsetPanel(
+                tabPanel("Figures",
+                         br(),
+                         fluidRow(
+                           column(12, align = "left",        
+                                  plotOutput(ns("histogram"), width = "100%"),
+                                  br(),
+                                  plotOutput(ns("pieChart"), width = "100%"))
+                         )
+                ),
+                tabPanel("Patient list",
+                         fluidRow(
+                           box(width = 12, div(style = 'overflow-x: scroll',
+                                               DT::dataTableOutput(ns("rankedTable"))))
+                         )
+                )
               )
-            )
+          )
+      )
+    )
   )
 }
 
@@ -104,15 +147,16 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
     }
     ########################################################################################
     # Transforming expression matrix into long-form table
-    if (dataset() %in% c("SWOG", "BeatAML", "TARGET", "TCGA", "StJude", "GMKF")) {
+    if (dataset() %in% c("SWOG", "BeatAML", "TARGET", "TCGA", "StJude", "GMKF", "PCGP AML", "PCGP", "LEUCEGENE")) {
       expTable <- expData() %>%
         rownames_to_column("Gene") %>%
         filter(Gene == gene()) %>%
         pivot_longer(names_to = "Sample.ID", values_to = "Expression", -Gene) %>%
-        filter(!is.na(Expression)) %>%
+        filter(!is.na(as.numeric(Expression))) %>%
         mutate(Alterations = clinData()$Filter.Code[match(Sample.ID, clinData()$PatientID)],
                AML.Sample = clinData()$AML.Sample[match(Sample.ID, clinData()$PatientID)]) %>%
-        filter(AML.Sample %in% c("AML", "ALL", "TALL"))
+        filter(AML.Sample %in% c("AML", "BALL", "TALL"))
+      
     } else if (dataset() == "CCLE") {
       expTable <- expData() %>%
         rownames_to_column("Gene") %>%
@@ -176,7 +220,7 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
                                                                Expression < as.numeric(input$tpm_cutoff) ~ paste0(gene(), "-"),  # so they need to be cast to numeric for this to work
                                                                TRUE ~ NA_character_))
     }
-    if (dataset() %in% c("SWOG", "BeatAML", "TARGET", "TCGA", "StJude", "GMKF")) {
+    if (dataset() %in% c("SWOG", "BeatAML", "TARGET", "TCGA", "StJude", "GMKF", "PCGP", "PCGP AML", "LEUCEGENE")) {
       expTable <- expTable %>%
         arrange(desc(Expression)) %>% 
         dplyr::select(Sample.ID, AML.Sample, matches("Protocol"), Gene, Expression, Filter.Category, Alterations)
