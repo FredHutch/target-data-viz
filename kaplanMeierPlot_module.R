@@ -1,144 +1,147 @@
 # UI for the Kaplan-Meier plot module
-kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters"){
-  ns <- NS(id) # Setting a unique namespace for this module
+kmPlotUI <- function(id, label = "Kaplan-Meier plot parameters") {
+  ns <- NS(id)
   
   mut_choices <- as.list(filter(colMapping, Module_Code == "Mutation" & !is.na(Final_Column_Label))$Final_Column_Name)
   names(mut_choices) <- filter(colMapping, Module_Code == "Mutation" & !is.na(Final_Column_Label))$Final_Column_Label
   
-  # Using tagList() instead of fluidPage() to allow for the ADC/CAR T-cell therapy button to change the tab
   tagList(
+    useShinyjs(),
+    tags$head(
+      tags$style(HTML("
+        .sidebar-container {
+          display: flex;
+          height: 100vh;
+        }
+        .custom-sidebar {
+          background-color: #f8f9fa;
+          padding: 15px;
+          width: 280px;
+          flex-shrink: 0;
+        }
+        .main-content {
+          flex-grow: 1;
+          padding: 15px;
+          min-width: 0;    
+          max-width: 100vw;  
+          overflow-x: auto; 
+        }
+        .selectize-dropdown-content .option.active {
+          background-color: #2096f6 !important;
+          color: white !important;
+        }
+        .selectize-dropdown-content .option.selected {
+          background-color: #2096f6 !important;
+          color: white !important;
+        }
+      "))
+    ),
     fluidPage(
-    
-              ###############################################################
-              #----------------------- SIDEBAR -----------------------------#
-              ###############################################################
+      theme = shinythemes::shinytheme("paper"),
+      div(class = "sidebar-container",
+          
+          # Sidebar Panel
+          div(class = "custom-sidebar",
+              checkboxGroupInput(ns("test_type"), 
+                                 label = "Select a survival type to model", 
+                                 choices = c("Event-Free Survival (EFS)" = "EFS",
+                                                "Overall Survival (OS)" = "OS", 
+                                                "Disease-Free Survival (DFS)" = "DFS", 
+                                                "Relapse Risk (RR)" = "RR")),
               
-              sidebarLayout(
-                position = "left", 
-                sidebarPanel(
-                  
-                  # Checkboxes to select the type of test & format of time data
-                  checkboxGroupInput(ns("test_type"), 
-                                     label = "Select a survival type to model", 
-                                     choices = list("Event-Free Survival (EFS)" = "EFS",
-                                                    "Overall Survival (OS)" = "OS", 
-                                                    "Disease-Free Survival (DFS)" = "DFS", 
-                                                    "Relapse Risk (RR)" = "RR")),
-                  radioButtons(ns("time_type"), 
-                               label = "Select a time interval to display", 
-                               choices = list("Years" = "years", 
-                                              "Days" = "days")), 
-                  
-                  radioButtons(ns("filter_cohort"), 
-                               label = "Limit to a single subgroup?", 
-                               choices = list("No - view all patients" = "no",
-                                              "Yes" = "yes")),
-                  conditionalPanel(
-                    condition = paste0("input['", ns("filter_cohort"), "'] == 'yes'"),
-                    selectInput(ns("select_subgroup"),                                                  
-                                label = "Which one?",
-                                choices = list("KMT2A/MLL rearranged" = "MLL|KMT2A-",       # The name of each list item is the option the
-                                               "inv(16)" = "inv\\(16\\)",                   # user will see in a drop-down menu;
-                                               "t(8;21)" = "t\\(8\\;21\\)",                 # the value is the regex that will be used to 
-                                               "FLT3-ITD" = "FLT3-ITD",                     # filter the dataset for the specified alteration.
-                                               "KMT2A-PTD" = "KMT2A-PTD",
-                                               "WT1" = "WT1",
-                                               "NPM1" = "NPM1(?!\\-)",
-                                               "CEBPA" = "CEBPA",
-                                               "CBFA2T3-GLIS2" = "CBFA2T3\\-GLIS2", 
-                                               "NUP98 fusions" = "NUP98-",
-                                               "Monosomy 7" = "[Mm]onosomy7",
-                                               "del5q/del7q" = "del5q|del7q",
-                                               "Trisomy 8" = "[Tt]risomy8",
-                                               "Normal karyotype" = "Normal"))
-                  ), 
-                  
-                  # Dropdown menu to select grouping variable for patients, based on expression
-                  selectInput(ns("strata_var"), 
-                              label = "Select a method of grouping the patients", 
-                              choices = list("By median" = "median", 
-                                             "By quartile" = "quartile", 
-                                             "By percentile" = "percentile", 
-                                             "By TPM cutoff" = "tpm_value",
-                                             "By mutation status" = "mutation")),
-                  
-                  # Adding 2 text boxes that will only appear if "Percentile" is selected for the strata
-                  # but this doesn't seem to work with Shiny Dashboard? 
-                  # https://github.com/rstudio/shiny/issues/1586 
-                  conditionalPanel(
-                    condition = paste0("input['", ns("strata_var"), "'] == 'percentile'"),
-                    textInput(ns("perc_cutoff"),                                                  
-                              label = "Cutoff percentile",
-                              placeholder = "Example: 75")),
-                  
-                  conditionalPanel(
-                    condition = paste0("input['", ns("strata_var"), "'] == 'tpm_value'"),
-                    textInput(ns("tpm_cutoff"),                                                  
-                              label = "TPM cutoff value",
-                              placeholder = "Example: 5")),
-                  
-                  conditionalPanel(
-                    condition = paste0("input['", ns("strata_var"), "'] == 'mutation'"),
-                    selectInput(ns("mutCol"),                                                  
-                              label = "Which mutation?",
-                              choices = mut_choices)),
-                  
-                  br(),
-                  
-                  helpText("The patients are sorted by expression of the gene of interest.
-                             Kaplan-Meier curves will be generated for each half of patients (median), 
-                             for each quartile of patients (quartile), 
-                             or for patients that fall either above or below a percentile cutoff point specified by the user (percentile)."),
-                br(),
-                br(),
-                downloadButton(ns("plot_download"), 
-                               label = "plot", 
-                               class = "plotdwnld"),
-                
-                shinyBS::bsTooltip(ns("plot_download"), 
-                                   title = "Click here to download a copy of the plot",
-                                   placement = "right", 
-                                   trigger = "hover")
+              radioButtons(ns("time_type"), 
+                           label = "Select a time interval to display", 
+                           choices = list("Years" = "years", "Days" = "days")),
+              
+              radioButtons(ns("filter_cohort"), 
+                           label = "Limit to a single subgroup?", 
+                           choices = list("No - view all patients" = "no", "Yes" = "yes")),
+              
+              conditionalPanel(
+                condition = paste0("input['", ns("filter_cohort"), "'] == 'yes'"),
+                selectInput(ns("select_subgroup"), label = "Which one?",
+                            choices = list(
+                              "KMT2A/MLL rearranged" = "MLL|KMT2A-",
+                              "inv(16)" = "inv\\(16\\)|CBFB-MYH11",
+                              "t(8;21)" = "t\\(8\\;21\\)|RUNX1-RUNX1T1",
+                              "DEK-NUP214" = "DEK-NUP214",
+                              "ETS-Family" = "ETS-Family",
+                              "MLLT10-X" = "MLLT10-X",
+                              "FLT3-ITD" = "FLT3-ITD",
+                              "KMT2A-PTD" = "KMT2A-PTD",
+                              "WT1" = "WT1",
+                              "NPM1" = "NPM1(?!\\-)",
+                              "CEBPA" = "CEBPA",
+                              "CBFA2T3-GLIS2" = "CBFA2T3\\-GLIS2",
+                              "NUP98 fusions" = "NUP98-",
+                              "NUP98-NSD1" = "NUP98-NSD1",
+                              "NUP98-KDM5A" = "NUP98-KDM5A",
+                              "Monosomy 7" = "[Mm]onosomy7|Monosomy 7",
+                              "del5q/del7q" = "del5q|del7q",
+                              "Trisomy 8" = "[Tt]risomy8",
+                              "Normal karyotype" = "Normal"))
+              ),
+              
+              selectInput(ns("strata_var"), 
+                          label = "Select a method of grouping the patients", 
+                          choices = list("By median" = "median", 
+                                         "By quartile" = "quartile", 
+                                         "By percentile" = "percentile", 
+                                         "By TPM cutoff" = "tpm_value",
+                                         "By mutation status" = "mutation")),
+              
+              conditionalPanel(
+                condition = paste0("input['", ns("strata_var"), "'] == 'percentile'"),
+                textInput(ns("perc_cutoff"), label = "Cutoff percentile", placeholder = "Example: 75")
+              ),
+              conditionalPanel(
+                condition = paste0("input['", ns("strata_var"), "'] == 'tpm_value'"),
+                textInput(ns("tpm_cutoff"), label = "TPM cutoff value", placeholder = "Example: 5")
+              ),
+              conditionalPanel(
+                condition = paste0("input['", ns("strata_var"), "'] == 'mutation'"),
+                selectInput(ns("mutCol"), label = "Which mutation?", choices = mut_choices)
+              ),
+              
+              tags$hr(style = "margin: 15px 0;"),
+              
+              helpText("The patients are sorted by expression of the gene of interest. Kaplan-Meier curves will be generated:"),
+              helpText("- for each half of patients (median),"),
+              helpText("- for each quartile (quartile),"),
+              helpText("- or for patients above/below a percentile (percentile)."),
+              
+              tags$hr(style = "margin: 15px 0;"),
+              
+              downloadButton(ns("plot_download"), "Download Plot", class = "btn-primary w-100"),
+              
+              shinyBS::bsTooltip(ns("plot_download"), 
+                                 title = "Click here to download a copy of the plot",
+                                 placement = "right", 
+                                 trigger = "hover")
+          ),
+          
+          # Main Panel
+          div(class = "main-content",
+              tabsetPanel(
+                tabPanel("Kaplan-Meier curves",
+                         br(),
+                         div(style = 'overflow-y: auto;',
+                             plotOutput(ns("plot"), height = "80vh", width = "100%"))
                 ),
-              
-                ###############################################################
-                #----------------------- MAIN PLOT PANEL ---------------------#
-                ###############################################################
-                
-                mainPanel(
-                  position = "right", 
-                  tabsetPanel(
-                    
-                    #-------------------- Survival analysis tabs -----------------------#
-                    
-                    tabPanel("Kaplan-Meier curves", 
-                             br(),
-                             br(),
-                             fluidRow(
-                               style = 'height:40vh',
-                               div(style = 'max-height: 900px; overflow-y: scroll; position: relative',
-                                   plotOutput(ns("plot"), height = "1400px", width = "50%")),
-                             )
-                    ), 
-                    
-                    #-------------------- Patient data tab -----------------------#
-                    
-                    tabPanel("Patient survival data", 
-                             br(),
-                             br(),
-                             fluidRow(
-                               DT::dataTableOutput(ns("table")) # Table of summary stats for plot + outcome data
-                             ),  
-                    )
-                  )
+                tabPanel("Patient survival data",
+                         br(),
+                         DT::dataTableOutput(ns("table"))
                 )
               )
+          )
+      )
     )
   )
 }
 
+
 # Server function for the Kaplan-Meier plot module
-kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
+kmPlot <- function(input, output, session, dataset, clinData, expData, gene, aligner){
   
   # https://www.mailman.columbia.edu/research/population-health-methods/competing-risk-analysis <- Info on how to handle RR outcome data
   # http://www.math.ucsd.edu/~rxu/math284/CompRisk.pdf
@@ -174,10 +177,13 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     # Converting the time from days -> years, if requested by the user.
     if (input$time_type == "years") {
       time <- as.numeric(time)/365
-    }
-    else{
+      x_max <- 5
+      x_breaks <- seq(0, x_max, by = 1)
+    } else{
       time <- as.numeric(time)
-    }
+      x_max <- 365 * 5  # 5 years in days
+      x_breaks <- seq(0, x_max, by = 365)  # yearly intervals
+      }
     
     # Creating the survival objects for EFS, DFS, and OS.
     if (testType != "RR" ) { 
@@ -188,6 +194,10 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     # Fitting the Kaplan-Meier curves using the recoded survival data.
     # If test type is RR, the cumulative incidence function will be used instead.
     if (testType == "RR") {
+
+      
+      event <- ifelse(grepl("Unknown", event), NA, event)
+      
       group <- ifelse(input$strata_var == "mutation", input$mutCol, input$strata_var)
       group <- as.vector(plotData()[,group])
       group <- gsub(" ", ".", group)
@@ -195,6 +205,21 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
                             fstatus = event, 
                             cencode = "Censored", # This is the censor code for the TARGET data
                             group = group)
+      
+      # relapse_names <- grep("Primary event$", names(fit), value = TRUE)
+      # 
+      # # Check if we found any matching names
+      # if (length(relapse_names) == 0) {
+      #   stop("No 'Primary event' curves found in the cuminc object.")
+      # }
+      # 
+      # # Subset to only Primary event (relapse) curves
+      # fit <- fit[relapse_names]
+      # 
+      # # Preserve attributes and class
+      # #attributes(fit) <- attributes(fit)
+      # class(fit) <- "cuminc"
+      
     } else {
       formula <- if (input$strata_var == "mutation") { 
         as.formula(paste0("surv.obj ~ ", input$mutCol))
@@ -212,7 +237,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     }
     
     # Creating the plot title using the group & test type information
-    title <- paste0("Kaplan-Meier curves for ", testType)
+    title <- paste0("KM curves for ", testType, " by ", gene())
     
     nstrata <- if (input$strata_var == "mutation") {
       length(levels(as.factor(plotData()[[input$mutCol]])))
@@ -224,48 +249,47 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     # https://stackoverflow.com/questions/51387396/different-color-type-and-line-type-for-multiple-groups-in-survival-curve
     # https://stackoverflow.com/questions/64186565/customizing-a-competing-risks-plot-in-r-with-package-cmprsk
     if (testType == "RR") {
-      # Relapse risk plots need to be generated w/ the cumulative incidence of risk calculation, not the Kaplan-Meier method,
-      # so this will need a different plotting method to accommodate the cuminc object ('fit').
       plot <- ggcompetingrisks(fit, 
                                data = plotData(),
-                               multiple_panels = F,
-                               palette = RColorBrewer::brewer.pal(9, "Set1")[c(1:5, 7:9)],
-                               ggtheme = theme_classic(base_size = bs) + 
+                               xlim = c(0,x_max),
+                               multiple_panels = FALSE,
+                               palette = c("#fa766d", "#06bfc1", "#7faf1a", "#c47eff"),
+                               ggtheme = theme_classic(base_size = bs) +
                                  theme(plot.title = element_text(hjust = 0.5, size = bs + 2),
+                                       axis.text = element_text(size = bs),
+                                       axis.title = element_text(size = bs),
                                        legend.position = "bottom")) +
-        ggplot2::annotate("text", y = 1, x = (max(time, na.rm = T) - max(time, na.rm = T)/5),
-                          label = gene(), hjust = 0.5, vjust = 1, size = 8, fontface = "bold") +
         guides(fill = guide_legend(nrow = 2), color = guide_legend(nrow = 2), linetype = guide_legend(nrow = 2))
-    
-      # Changing default strata schema, rather than using a distinct linetype for each group (aka the default)
-      # https://stackoverflow.com/questions/64186565/customizing-a-competing-risks-plot-in-r-with-package-cmprsk
+      
       plot$mapping <- aes(x = time, y = est, colour = group, linetype = event)
-      plot <- plot + 
-        geom_line(size = 1) + # Making line wider than default, to match the KM plot for OS, EFS, etc.
+      plot <- plot +
+        geom_line(size = 1) +
         labs(x = paste0("Time (", input$time_type, ")"),
-             title = "Cumulative incidence curves for RR",
+             title = paste0("RR curves by ", gene()),
              linetype = "Event",
-             colour = "Group")
+             colour = "Group") +
+        scale_x_continuous(limits = c(0, x_max), breaks = x_breaks) +
+        scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.2))
+      
     } else {
-      # Creates a plot for OS, EFS, and DFS, which use Kaplan-Meier curves and the logrank test
-      plot <- ggsurvplot(fit, data = plotData(), # Creating the Kaplan-Meier plot
+      plot <- ggsurvplot(fit, data = plotData(),
                          pval = TRUE,
-                         ggtheme = theme_classic(base_size = bs) + theme(plot.title = element_text(hjust = 0.5, size = bs + 2),
-                                                                         axis.text.x = element_text(size = bs + 1)),
+                         xlim = c(0,x_max),
+                         ggtheme = theme_classic(base_size = bs) +
+                           theme(plot.title = element_text(hjust = 0.5, size = bs + 2),
+                                 axis.text = element_text(size = bs),
+                                 axis.title = element_text(size = bs),
+                                 legend.position = "bottom"),
                          legend = "bottom",
-                         title = title) 
+                         title = title)
       
-      plot$plot <- plot$plot + 
-        guides(fill = guide_legend(title = NULL, nrow = nstrata), 
-               color = guide_legend(title = NULL, nrow = nstrata)) + 
-        labs(x = paste0("Time (", input$time_type, ")"))
-      
-      # Adding gene name as a text annotation layer (to the ggsurvplot object), 
-      # to be displayed in the top right corner of the plot
-      # https://stackoverflow.com/questions/10747307/legend-placement-ggplot-relative-to-plotting-region
       plot$plot <- plot$plot +
-        ggplot2::annotate("text", y = 1, x = (max(time, na.rm = T) - max(time, na.rm = T)/5), 
-                          label = gene(), hjust = 0.5, vjust = 1, size = 8, fontface = "bold")
+        guides(fill = guide_legend(title = NULL, nrow = nstrata),
+               color = guide_legend(title = NULL, nrow = nstrata)) +
+        labs(x = paste0("Time (", input$time_type, ")")) +
+        scale_x_continuous(limits = c(0, x_max), breaks = x_breaks) +
+        scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.2))
+      
     }
   }
   
@@ -313,6 +337,14 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     )    
     
     validate(
+      need(dataset() != "LEUCEGENE", "Survival data is not currently available for this cohort.")
+    )   
+    
+    validate(
+      need(dataset() != "PCGP", "Survival data is not currently available for this cohort.")
+    )   
+    
+    validate(
       need(input$test_type, "Please select at least one survival metric to analyze.")
     )
     if (length(input$test_type) == 1) {
@@ -332,6 +364,16 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
         # All columns w/ mutation data follow the same naming convention, so they can be easily selected w/ grep.
         mut_choices <- as.list(grep("mutation", colnames(swog_cde), value = T))
         names(mut_choices) <- gsub("_mutation", "", mut_choices)
+        
+        updateSelectInput(session = session,
+                          inputId = "select_subgroup",
+                          label = "Which one?",
+                          choices = list(
+                            "NPM1" = "NPM1",
+                            "TP53" = "TP53",
+                            "WT1" = "WT1",
+                            "Normal karyotype" = "Normal"))
+        
       } else {
         mut_choices <- as.list(filter(colMapping, Module_Code == "Mutation" & !is.na(!!sym(dataset())))$Final_Column_Name)
         names(mut_choices) <- filter(colMapping, Module_Code == "Mutation" & !is.na(!!sym(dataset())))$Final_Column_Label
@@ -359,6 +401,47 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
                         choices = mut_choices)
     })
   
+  observeEvent(dataset(), {
+
+    if (dataset() == "BeatAML") {
+
+      updateSelectInput(session = session,
+                        inputId = "select_subgroup",
+                        label = "Which one?",
+                        choices = list(
+                          "KMT2A/MLL rearranged" = "MLL|KMT2A-",
+                          "inv(16)" = "inv\\(16\\)|CBFB-MYH11",
+                          "t(8;21)" = "t\\(8\\;21\\)|RUNX1-RUNX1T1",
+                          "FLT3-ITD" = "FLT3-ITD",
+                          "NPM1" = "NPM1(?!\\-)",
+                          "CEBPA" = "CEBPA",
+                          "WT1" = "WT1",
+                          "TP53" = "TP53",
+                          "PML-RARA" = "PML-RARA",
+                          "Normal karyotype" = "Normal"))
+      
+    } else if (dataset() == "TCGA") {
+      
+      updateSelectInput(session = session,
+                        inputId = "select_subgroup",
+                        label = "Which one?",
+                        choices = list(
+                          "FLT3-ITD" = "FLT3-ITD",
+                          "NPM1" = "NPM1(?!\\-)",
+                          "CEBPA" = "CEBPA",
+                          "WT1" = "WT1",
+                          "TP53" = "TP53",
+                          "Normal karyotype" = "Normal"))
+
+    } else if (dataset() %in% c("LEUCEGENE", "PCGP")) {
+      
+      updateSelectInput(session = session,
+                        inputId = "select_subgroup",
+                        label = "Which one?",
+                        choices = "")
+    }
+  })
+  
   # The reactive function below contains multiple components that
   # generate the dataframe that will be used for generating Kaplan-Meier estimates
   # and plotting the survival curves
@@ -384,6 +467,8 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
     # (the columns differ between the available datasets).
     # This will be used to restrict the dataset to specific subgroups, if the user opts to do so.
     if (input$filter_cohort == "yes") {
+      
+      print(colnames(mergedDF))
       
       test <- any(grepl(input$select_subgroup, mergedDF$Filter.Code, perl = T))
       validate(
@@ -440,6 +525,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
       )
     }
     
+    print(mergedDF)
     return(mergedDF)
   })
 
@@ -453,7 +539,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene){
   #-------------------- Plot tab -----------------------#
   
   output$plot <- renderPlot({
-    cowplot::plot_grid(plotlist = finalPlot(), ncol = 1, nrow = 4)
+    cowplot::plot_grid(plotlist = finalPlot(), ncol = 2, nrow = 2)
   })
   
   # Adding a download button widget for the plot.

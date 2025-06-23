@@ -1,177 +1,312 @@
 # UI function for the waterfall plot module, the id is a unique identifier for this module
 oncoprintUI <- function(id, label = "oncoprint") {
+  ns <- NS(id)
   
-  # Setting a unique namespace for this module
-  ns <- NS(id) 
-  
-  # Creating a fluid page that will move with window adjustments
-  fluidPage(
-    
-    # Having a sidebar positioned on the left
-    sidebarLayout(
-      position = "left", 
-      
-      # Adjusting the panel
-      sidebarPanel(
-        
-        # Instructions for uploading a CSV file
-        helpText("Upload a CSV file with a single column of gene symbols. Do not include a column title or header. 
-                            Do not include any rows/columns other than 1 single column of gene symbols.
-                            If the gene list is > 30, only the first 30 will be taken."),
-        
-        # Line breaks for readability
-        br(),
-        
-        # File input for uploading gene list in CSV format
-        fileInput(ns("gene_list"), 
-                  label = "Upload gene list here (.csv only)",
-                  multiple = FALSE, 
-                  accept = c(".csv"),
-                  placeholder = "  No file selected",
-                  buttonLabel = "Upload"),
-        
-        # Slider input for setting the minimum TPMs, this starts at 2 by default
-        sliderInput(ns("tpms"), "Minimum TPMs", min = 0, max = 50, value = 2),
-        
-        # Checkbox group input for selecting fusions
-        checkboxGroupInput(ns("fusions"),
-                           label = "Fusions:",
-                           choices = c("CBFA2T3-GLIS2", 
-                                       "CBFB-MYH11",
-                                       "DEK-NUP214",
-                                       "ETV6-MNX1",
-                                       "FUS-ERG",
-                                       "KAT6A-CREBBP",
-                                       "KMT2A-X",
-                                       "NUP98-KDM5A",
-                                       "NUP98-NSD1",
-                                       "RBM15-MKL1",
-                                       "RUNX1-CBFA2T3",
-                                       "RUNX1-RUNX1T1",
-                                       "None",
-                                       "Other AML")),
-        
-        # Action button for (de)selecting all fusions
-        actionButton(ns("selectall"), "(De)Select All", class = "btn-primary btn-sm"),
-        
-        br(),
-        br(),
-        
-        # Additional annotation options
-        helpText("Additional Annotation Options:"),
-        
-        # Checkbox inputs for various annotation options
-        checkboxInput(ns("cnv"), "Primary CNV"),
-        checkboxInput(ns("age"), "Age Category"),
-        checkboxInput(ns("efs"), "Event Type ID"),
-        checkboxInput(ns("flt3"), "FLT3-ITD"),
-        checkboxInput(ns("wt1"), "WT1 Mutation"),
-        
-        # Select input for splitting heatmap by different options (dropdown menu)
-        selectInput(ns("split"), label = "Split Heatmap By:", choices = c("No Split", "Fusion", "CNV", "Age", "EFS", "FLT3-ITD", "WT1")),
-        
-        br(),
-        br(),
-        
-        # Download button for downloading the plot
-        downloadButton(ns("plot_download"), 
-                      label = "plot", 
-                      class = "plotdwnld"),
-        
-        # Tooltip for download button
-        shinyBS::bsTooltip(ns("plot_download"), 
-                          title = "Click here to download a copy of the plot",
-                          placement = "right", 
-                          trigger = "hover"), 
-        width = 3, height = 800),
+  tagList(
+    useShinyjs(),
+    tags$head(
+      tags$style(HTML("
+          .sidebar-container {
+            display: flex;
+            height: 100vh;
+          }
+          .custom-sidebar {
+            background-color: #f8f9fa;
+            padding: 15px;
+            width: 250px;
+            flex-shrink: 0;
+            overflow-y: auto;
+          }
+          .main-content {
+            flex-grow: 1;
+            padding: 15px;
+          }
+          .plotdwnld, .custom-file-upload .btn {
+            background-color: #2096f6 !important;
+            color: white !important;
+            width: 100% !important;
+            padding: 3px 7px;
+            font-size: 1.2rem;
+          }
+          .custom-file-upload .form-control {
+            font-size: 1.2rem;
+            padding: 3px 7px;
+          }
+         .js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar {background: #FD7370}
+        "))
+    ),
+    fluidPage(
+      useShinyjs(),
+      theme = shinythemes::shinytheme(theme = "paper"),
+      div(class = "sidebar-container",
+          
+          #------------------ SIDEBAR ------------------#
+          div(class = "custom-sidebar",
 
-#|---------------------------------------------------------------------------------------------------------------------------|#
-      
-      # Main panel for displaying the oncoprint plot
-      mainPanel(width = 9, height = 900, position = "right", 
-        tabsetPanel(
-          tabPanel("Figures",
-          br(),
-            fluidRow(
-              column(10, offset = 0, align = "left",        
-                plotOutput(ns("plot"), height = 600)
+              radioButtons(ns("gene_input_method"),
+                           label = "Gene Input Method:",
+                           choices = c("Manual Entry" = "text", "Upload CSV" = "file"),
+                           selected = "text",
+                           inline = TRUE),
+              
+              conditionalPanel(
+                condition = sprintf("input['%s'] == 'text'", ns("gene_input_method")),
+                textAreaInput(ns("gene_text"),
+                              label = "Enter gene symbols (comma or newline separated):",
+                              placeholder = "e.g. MSLN, PTPN11, WT1",
+                              rows = 5)
+              ),
+              
+              conditionalPanel(
+                condition = sprintf("input['%s'] == 'file'", ns("gene_input_method")),
+                div(class = "custom-file-upload",
+                    fileInput(ns("gene_list"), 
+                              label = "Upload gene list (.csv only, one column, no header)",
+                              multiple = FALSE, 
+                              accept = c(".csv"),
+                              placeholder = "   No file selected",
+                              buttonLabel = "Upload")
+                )
+                
+              ),
+              
+              
+              sliderInput(ns("tpms"), "Minimum TPMs", min = 0, max = 50, value = 2),
+              
+              div(id = ns("fusion_group_container"),
+                  checkboxGroupInput(ns("fusions"),
+                                     label = "Fusions:",
+                                     choices = c("CBFA2T3-GLIS2",
+                                                 "CBFB-MYH11",
+                                                 "DEK-NUP214",
+                                                 "ETS-Family",
+                                                 "KMT2A-X",
+                                                 "MLLT10-X",
+                                                 "NUP98-KDM5A",
+                                                 "NUP98-NSD1",
+                                                 "RUNX1-RUNX1T1",
+                                                 "Other AML",
+                                                 "None")),
+                  actionButton(ns("selectall"), "(De)Select All", class = "btn-primary btn-sm w-100"),
+                  br(), br()
+              ),
+              
+              
+              selectInput(ns("annot"), label = "Additional Annotation Options:", multiple = TRUE,
+                          choices = c("Primary CNV", "Age Category", "Event Type ID", "FLT3-ITD", "WT1")),
+              
+              selectInput(ns("split"), label = "Split Heatmap By:",
+                          choices = c("No Split", "Fusion", "Primary CNV", "Age Category", "Event Type ID", "FLT3-ITD", "WT1"),
+                          selected = "No Split"),
+              
+              br(),
+              
+              div(style = "margin-bottom: 10px;",
+                  downloadButton(ns("plot_download"),
+                                 label = "Download Plot",
+                                 class = "btn-primary btn-sm w-100")),
+              shinyBS::bsTooltip(ns("plot_download"),
+                                 title = "Click here to download a copy of the plot",
+                                 placement = "right",
+                                 trigger = "hover"),
+          ),
+          
+          #------------------ MAIN PANEL ------------------#
+          div(class = "main-content",
+              tabsetPanel(
+                tabPanel("Figures",
+                         br(),
+                         fluidRow(
+                           column(12, align = "left",
+                                  plotOutput(ns("plot"), height = "70vh")
+                           )
+                         )
+                )
               )
-            )
           )
-        )
       )
     )
   )
 }
 
+
 #|---------------------------------------------------------------------------------------------------------------------------|#
 
 # server function for the oncoprint module
-oncoprint <- function(input, output, session, clinData, expData, gene, dataset) {
+oncoprint <- function(input, output, session, clinData, expData, dataset, aligner) {
+  
 
-  # This is a handy function that will add a select all or deselect all button
-  observe({
-    if(is.null(input$selectall)) return(NULL)
-    else if (input$selectall%%2 == 0){
-      updateCheckboxGroupInput(session, "fusions", "Fusions:", choices = c("CBFA2T3-GLIS2", 
-                                                                            "CBFB-MYH11",
-                                                                            "DEK-NUP214",
-                                                                            "ETV6-MNX1",
-                                                                            "FUS-ERG",
-                                                                            "KAT6A-CREBBP",
-                                                                            "KMT2A-X",
-                                                                            "NUP98-KDM5A",
-                                                                            "NUP98-NSD1",
-                                                                            "RBM15-MKL1",
-                                                                            "RUNX1-CBFA2T3",
-                                                                            "RUNX1-RUNX1T1",
-                                                                            "None",
-                                                                            "Other AML"))
+  
+  # Reactive value to store current fusion choices
+  fusion_choices <- reactiveVal()
+  
+  observeEvent(dataset(), {
+    
+    if (dataset() %in% c("BeatAML", "SWOG", "TCGA", "LEUCEGENE")) {
+      shinyjs::hide("fusion_group_container")
+    } else {
+      shinyjs::show("fusion_group_container")
     }
     
-    else {
-      updateCheckboxGroupInput(session, "fusions", "Fusions:", choices = c("CBFA2T3-GLIS2", 
-                                                                            "CBFB-MYH11",
-                                                                            "DEK-NUP214",
-                                                                            "ETV6-MNX1",
-                                                                            "FUS-ERG",
-                                                                            "KAT6A-CREBBP",
-                                                                            "KMT2A-X",
-                                                                            "NUP98-KDM5A",
-                                                                            "NUP98-NSD1",
-                                                                            "RBM15-MKL1",
-                                                                            "RUNX1-CBFA2T3",
-                                                                            "RUNX1-RUNX1T1",
-                                                                            "None",
-                                                                            "Other AML"),
-                               
-                                                              selected = c("CBFA2T3-GLIS2", 
-                                                                            "CBFB-MYH11",
-                                                                            "DEK-NUP214",
-                                                                            "ETV6-MNX1",
-                                                                            "FUS-ERG",
-                                                                            "KAT6A-CREBBP",
-                                                                            "KMT2A-X",
-                                                                            "NUP98-KDM5A",
-                                                                            "NUP98-NSD1",
-                                                                            "RBM15-MKL1",
-                                                                            "RUNX1-CBFA2T3",
-                                                                            "RUNX1-RUNX1T1",
-                                                                            "None",
-                                                                            "Other AML"))
+    clinical <- clinData()
+    
+    if (dataset() %in% c("TARGET", "PCGP AML")) {
       
+      # Clean up Primary.Fusion column for PCGP
+      if (dataset() == "PCGP AML") {
+        clinical$Primary.Fusion <- ifelse(
+          clinical$Primary.Fusion == "No Fusion", "None",
+          ifelse(clinical$Primary.Fusion == "Rare Fusion", "Other AML", clinical$Primary.Fusion)
+        )
+        
+        updateSelectInput(session = session,
+                          inputId = "annot", 
+                          label = "Additional Annotation Options:", 
+                          choices = c("Age Category", "CEBPA", "FLT3-ITD", "NPM1"))
+        
+        updateSelectInput(session = session,
+                          inputId = "split", 
+                          label = "Split Heatmap By:", 
+                          choices = c("No Split", "Fusion", "Age Category", "CEBPA", "FLT3-ITD", "NPM1"),
+                          selected = "No Split")
+        
+      } else{
+        updateSelectInput(session = session,
+                          inputId = "annot", 
+                          label = "Additional Annotation Options:", 
+                          choices = c("Primary CNV", "Age Category", "Event Type ID", "CEBPA", "FLT3-ITD", "NPM1", "TP53", "WT1"))
+        
+        updateSelectInput(session = session,
+                          inputId = "split", 
+                          label = "Split Heatmap By:", 
+                          choices = c("No Split", "Fusion", "Primary CNV", "Age Category", "Event Type ID", "CEBPA", "FLT3-ITD", "NPM1", "TP53", "WT1"),
+                          selected = "No Split")
+      }
+      
+      # Get unique fusion values, removing NA
+      choices <- unique(na.omit(clinical$Primary.Fusion))
+      # Remove "Other AML" and "None" to avoid duplication
+      choices <- setdiff(choices, c("Other AML", "None"))
+      # Sort alphabetically
+      choices <- sort(choices)
+      # Append "Other AML" and "None" at the end
+      final_choices <- c(choices, "Other AML", "None")
+      # Update reactive value with character vector (not factor)
+      fusion_choices(final_choices)
+      # Update the checkbox group in the UI
+      updateCheckboxGroupInput(session, "fusions", "Fusions:", choices = final_choices, selected = final_choices)
+      
+    } else {
+      
+      fusion_choices <- "AML"
+      updateCheckboxGroupInput(session, "fusions", "Generate Oncoprint:", choices = fusion_choices, selected = fusion_choices)
+      
+          if (dataset() == "BeatAML") {
+
+            updateSelectInput(session = session,
+                              inputId = "annot",
+                              label = "Additional Annotation Options:",
+                              choices = c("Age Category", "CEBPA", "FLT3-ITD", "NPM1", "TP53", "WT1"))
+
+            updateSelectInput(session = session,
+                              inputId = "split",
+                              label = "Split Heatmap By:",
+                              choices = c("No Split", "Age Category", "CEBPA", "FLT3-ITD", "NPM1", "TP53", "WT1"),
+                              selected = "No Split")
+
+          } else if (dataset() == "SWOG") {
+
+            updateSelectInput(session = session,
+                              inputId = "annot",
+                              label = "Additional Annotation Options:",
+                              choices = c("Age Category", "NPM1", "TP53", "WT1"))
+
+            updateSelectInput(session = session,
+                              inputId = "split",
+                              label = "Split Heatmap By:",
+                              choices = c("No Split", "Age Category", "NPM1", "TP53", "WT1"),
+                              selected = "No Split")
+
+          } else if (dataset() == "TCGA") {
+
+            updateSelectInput(session = session,
+                              inputId = "annot",
+                              label = "Additional Annotation Options:",
+                              choices = c("Age Category", "CEBPA", "FLT3-ITD", "NPM1", "TP53"))
+
+            updateSelectInput(session = session,
+                              inputId = "split",
+                              label = "Split Heatmap By:",
+                              choices = c("No Split", "Age Category", "CEBPA", "FLT3-ITD", "NPM1", "TP53"),
+                              selected = "No Split")
+
+          } else if (dataset() == "LEUCEGENE") {
+
+            updateSelectInput(session = session,
+                              inputId = "annot",
+                              label = "There are no annotation options for LEUCEGENE",
+                              choices = c(""))
+
+            updateSelectInput(session = session,
+                              inputId = "split",
+                              label = "Split Heatmap By:",
+                              choices = c("No Split"),
+                              selected = "No Split")
+          }
     }
-})
-  
+  })
+
+  # Select all / Deselect all logic
+  observe({
+    req(fusion_choices())  # ensure choices are available
+    
+    if (dataset() %in% c("PCGP AML", "TARGET")) {
+      shinyjs::enable("selectall")
+    } else {
+      shinyjs::disable("selectall")
+    }
+    
+    if (is.null(input$selectall)) return(NULL)
+    
+    if (input$selectall %% 2 == 0) {
+      # Deselect all
+      updateCheckboxGroupInput(session, "fusions", selected = character(0))
+    } else {
+      # Select all
+      updateCheckboxGroupInput(session, "fusions", selected = fusion_choices())
+    }
+  })
+
   # Reading in the gene list from the csv input file
   readGeneList <- reactive({
-    validate(need(input$gene_list, "Please upload a list of genes to get started.")) # Checking to make sure the gene list is there
-    file <- input$gene_list 
-    ext <- tools::file_ext(file$datapath)
-    req(file)
-    validate(need(ext == "csv", "Please upload a .csv file.")) # Checking to make sure the extension is correct
-    read.csv(file$datapath, header = F, blank.lines.skip = T, strip.white = T)[,1]
+    req(input$gene_input_method)
+    
+    if (input$gene_input_method == "file") {
+      req(input$gene_list$datapath)
+      
+      gene_df <- tryCatch({
+        read.csv(input$gene_list$datapath, stringsAsFactors = FALSE, header = FALSE)
+      }, error = function(e) {
+        showNotification("Error reading gene list file. Please upload a valid .csv file.", type = "error")
+        return(NULL)
+      })
+      
+      genes <- unique(trimws(gene_df[[1]]))
+      genes <- genes[genes != ""]
+      validate(need(length(genes) > 0, "Uploaded gene list is empty."))
+      return(genes)
+      
+    } else {
+      validate(need(input$gene_text != "", "Please enter gene names to get started."))
+      
+      genes <- unlist(strsplit(input$gene_text, "[,\n\r\t ]+"))
+      genes <- unique(trimws(genes))
+      genes <- genes[genes != ""]
+      return(genes)
+    }
   })
+  
+  
   
   # Creating a dataframe that is subsetted by the input file genelist
   oncoMatrix <- reactive({
@@ -183,135 +318,366 @@ oncoprint <- function(input, output, session, clinData, expData, gene, dataset) 
     
   # filtering the matrix by fusion group (samples)
   fusionSubset <- reactive({
-    mat <- oncoMatrix() # the last function returns the dataframe so this reads it in again
-    updatedclinical <- filter(clinData(), clinData()$Primary.Fusion %in% input$fusions) # filters the cde by the checked fusions
-    mat <- mat[,which(colnames(mat) %in% updatedclinical$PatientID)] # filtering the dataframe for only the patients we have CDE for
-    mat <- mat[,colSums(is.na(mat)) == 0] # removing NAs
+    mat <- oncoMatrix()
     
-    # this is a function for counting which patients have greater or equal to the chosen tpm cutoff for each gene (in %)
-    percentage_expressed <- function(x) {
-      return(sum(x >= input$tpms) / length(x) * 100)
+    updatedclinical <- if (dataset() %in% c("TARGET", "PCGP AML")) {
+      
+      updatedclinical <- clinData()
+      updatedclinical <- filter(updatedclinical, updatedclinical$Disease.Group == "AML")
+      
+      if (dataset() == "PCGP AML") {
+        updatedclinical$Primary.Fusion <- ifelse(updatedclinical$Primary.Fusion == "Rare Fusion", "Other AML",
+                                                 ifelse(updatedclinical$Primary.Fusion == "No Fusion", "None", updatedclinical$Primary.Fusion))
+      }
+      filter(updatedclinical, Primary.Fusion %in% input$fusions)
+    } else {
+      updatedclinical <- clinData()
+      updatedclinical <- filter(updatedclinical, updatedclinical$Disease.Group == "AML")
     }
     
-    # Applying the function to the dataframe
-    mat$percentage <- apply(mat, 1, percentage_expressed)
-    mat <- mat[order(-mat$percentage),] # ordering the matrix by highest percent expression
-    mat <- mat[1:(length(mat)-1)] # removing the percent expressed column
+    # Subset mat to columns present in updatedclinical$PatientID
+    mat <- mat[, colnames(mat) %in% updatedclinical$PatientID, drop = FALSE]
     
-    # ifelse conditionals for limiting the input gene list to 30 genes max, otherwise it would not be readable
-    if (length(rownames(mat)) > 30) {
-      mat <- mat[c(1:30),]
-    }
-    else {
-      mat <- mat
+    # Filter out columns with any NAs
+    mat <- mat[, colSums(is.na(mat)) == 0, drop = FALSE]
+    
+    # Order columns alphabetically by their names
+    mat <- mat[, sort(colnames(mat)), drop = FALSE]
+    
+    if (ncol(mat) == 0 || nrow(mat) == 0) {
+      validate(need(FALSE, "No samples meet the criteria"))
     }
     
-    # the actual function for determining whether a patient "expresses" the gene at the TPM cutoff and 
-    # will also label the gene intracellular or transmembrane based on Ensembl data (may need updating)
-    mat <- apply(mat, c(1,2), function(x) ifelse(x >= input$tpms, "yes", ""))
-    mat <- mat[, order(colnames(mat))] # making sure the colnames are ordered correctly
-    common_rows <- intersect(rownames(mat), transmembrane_genelist$Gene.name)
-    mat[common_rows, ] <- ifelse(mat[common_rows, ] == "yes", "Transmembrane", "")
-    mat[setdiff(rownames(mat), common_rows), ] <- ifelse(mat[setdiff(rownames(mat), common_rows), ] == "yes", "Intracellular", "")
-    mat <- as.matrix(mat)
-    return(mat)
+    percentage_expressed <- function(x) sum(x >= input$tpms) / length(x) * 100
+    percentages <- apply(mat, 1, percentage_expressed)
+    mat <- mat[order(-percentages), , drop = FALSE]
+    
+    if (nrow(mat) > 30) mat <- mat[1:30, , drop = FALSE]
+    
+    gene_type <- ifelse(rownames(mat) %in% transmembrane_genelist$Gene.name, "Transmembrane", "Intracellular")
+    mat <- ifelse(mat >= input$tpms, gene_type[row(mat)], "")
+
+    return(as.matrix(mat))
   })
   
   # this function is for the heatmap annotation which will react to the checked input boxes
+  updatedClinical <- reactive({
+    mat <- fusionSubset()
+    sample_ids <- colnames(mat)
+    clinical <- clinData()
+    
+    # Filter only patients present in the matrix
+    updatedclinical <- clinical[clinical$PatientID %in% sample_ids,]
+    
+    if (dataset() == "PCGP AML") {
+      updatedclinical$Primary.Fusion <- ifelse(updatedclinical$Primary.Fusion == "Rare Fusion", "Other AML",
+                                               ifelse(updatedclinical$Primary.Fusion == "No Fusion", "None", updatedclinical$Primary.Fusion))
+    }
+  
+    # Further filter by selected fusions or cyto
+    if (dataset() %in% c("TARGET", "PCGP AML")) {
+      updatedclinical <- updatedclinical[updatedclinical$Primary.Fusion %in% input$fusions, ]
+    }
+    
+    updatedclinical <- updatedclinical[order(updatedclinical$PatientID), ]
+    
+    if (dataset() == "TARGET" && aligner() == "kallisto") {
+      
+          updatedclinical$EFS.event.type.ID <- updatedclinical$`EFS event type ID`
+          updatedclinical$TP53.Mutation <- updatedclinical$`TP53 mutation?`
+          
+          updatedclinical$Primary.CNV <- ifelse(is.na(updatedclinical$Primary.CNV), "Unknown", updatedclinical$Primary.CNV)
+          updatedclinical$Age.Category <- ifelse(is.na(updatedclinical$Age.Category), "Unknown", updatedclinical$Age.Category)
+          updatedclinical$EFS.event.type.ID <- ifelse(is.na(updatedclinical$EFS.event.type.ID), "Unknown", updatedclinical$EFS.event.type.ID)
+          updatedclinical$FLT3.ITD <- ifelse(is.na(updatedclinical$FLT3.ITD), "No", updatedclinical$FLT3.ITD)
+          updatedclinical$CEBPA.Mutation <- ifelse(is.na(updatedclinical$CEBPA.Mutation), "No", updatedclinical$CEBPA.Mutation)
+          updatedclinical$NPM1.Mutation <- ifelse(is.na(updatedclinical$NPM1.Mutation), "No", updatedclinical$NPM1.Mutation)
+          updatedclinical$TP53.Mutation <- ifelse(is.na(updatedclinical$TP53.Mutation), "No", updatedclinical$TP53.Mutation)
+
+          # creating levels in each of the clinical data elements columns so that the information is ordered nicely
+          # Get all unique levels except "Other AML" and "None"
+          # Extract unique fusions
+          existing_fusions <- unique(updatedclinical$Primary.Fusion)
+          
+          # Remove "Other AML" and "None" for sorting
+          core_levels <- sort(setdiff(existing_fusions, c("Other AML", "None")))
+          
+          # Check if "Other AML" and "None" exist, and add in correct order
+          optional_levels <- c()
+          if ("Other AML" %in% existing_fusions) optional_levels <- c(optional_levels, "Other AML")
+          if ("None" %in% existing_fusions) optional_levels <- c(optional_levels, "None")
+          
+          # Combine for final level order
+          final_levels <- c(core_levels, optional_levels)
+          
+          # Apply factor level ordering
+          updatedclinical$Primary.Fusion <- factor(updatedclinical$Primary.Fusion, levels = final_levels)
+          
+          updatedclinical$Primary.CNV <- factor(updatedclinical$Primary.CNV, levels = c("CBL deletion", "del5q", "monosomy7", "trisomy8", "trisomy21", "trisomy8/trisomy21", "-Y", "No Relevant CNV", "Unknown"))
+          updatedclinical$Age.Category <- factor(updatedclinical$Age.Category, levels = c("Less than 3 years", "Between 3 and 5 years", "Between 5 and 10 years", "Between 10 and 18 years", 
+                                                                                          "Greater than 18 years", "Unknown"))
+          updatedclinical$EFS.event.type.ID <- updatedclinical$`EFS event type ID`
+          updatedclinical$EFS.event.type.ID <- factor(updatedclinical$EFS.event.type.ID, levels = c("Censored", "Relapse", "Death", "Death without remission", "Induction failure", "Unknown"))
+          updatedclinical$FLT3.ITD <- factor(updatedclinical$FLT3.ITD, levels = c("Yes", "No"))
+          updatedclinical$WT1.Mutation <- factor(updatedclinical$WT1.Mutation, levels = c("Yes", "No"))
+          updatedclinical$CEBPA.Mutation <- factor(updatedclinical$CEBPA.Mutation, levels = c("Yes", "No"))
+          updatedclinical$NPM1.Mutation <- factor(updatedclinical$NPM1.Mutation, levels = c("Yes", "No"))
+          updatedclinical$TP53.Mutation <- ifelse(!updatedclinical$`TP53 mutation` %in% c("", "No"), "Yes", "No")
+          updatedclinical$TP53.Mutation <- factor(updatedclinical$TP53.Mutation, levels = c("Yes", "No"))
+
+    } else if (dataset() == "TARGET" && aligner() == "star") {
+      
+      updatedclinical$Primary.CNV <- ifelse(is.na(updatedclinical$Primary.CNV), "Unknown", updatedclinical$Primary.CNV)
+      updatedclinical$Age.Category <- ifelse(is.na(updatedclinical$Age.Category), "Unknown", updatedclinical$Age.Category)
+      updatedclinical$EFS.event.type.ID <- ifelse(is.na(updatedclinical$EFS.event.type.ID), "Unknown", updatedclinical$EFS.event.type.ID)
+      updatedclinical$FLT3.ITD <- ifelse(is.na(updatedclinical$FLT3.ITD), "No", updatedclinical$FLT3.ITD)
+      updatedclinical$WT1.Mutation <- ifelse(is.na(updatedclinical$WT1.Mutation), "No", updatedclinical$WT1.Mutation)
+      updatedclinical$CEBPA.Mutation <- ifelse(is.na(updatedclinical$CEBPA.Mutation), "No", updatedclinical$CEBPA.Mutation)
+      updatedclinical$NPM1.Mutation <- ifelse(is.na(updatedclinical$NPM1.Mutation), "No", updatedclinical$NPM1.Mutation)
+      updatedclinical$TP53.Mutation <- ifelse(is.na(updatedclinical$TP53.Mutation), "No", updatedclinical$TP53.Mutation)
+      
+      # Extract unique fusions
+      existing_fusions <- unique(updatedclinical$Primary.Fusion)
+      
+      # Remove "Other AML" and "None" for sorting
+      core_levels <- sort(setdiff(existing_fusions, c("Other AML", "None")))
+      
+      # Check if "Other AML" and "None" exist, and add in correct order
+      optional_levels <- c()
+      if ("Other AML" %in% existing_fusions) optional_levels <- c(optional_levels, "Other AML")
+      if ("None" %in% existing_fusions) optional_levels <- c(optional_levels, "None")
+      
+      # Combine for final level order
+      final_levels <- c(core_levels, optional_levels)
+      
+      # Apply factor level ordering
+      updatedclinical$Primary.Fusion <- factor(updatedclinical$Primary.Fusion, levels = final_levels)
+      
+      
+      updatedclinical$Primary.CNV <- factor(updatedclinical$Primary.CNV, levels = c("CBL deletion", "del5q", "monosomy7", "trisomy8", "trisomy21", "trisomy8/trisomy21", "minusY", "Unknown"))
+      updatedclinical$Age.Category <- factor(updatedclinical$Age.Category, levels = c("Less than 3 years", "Between 3 and 5 years", "Between 5 and 10 years", "Between 10 and 18 years", "Greater than 18 years", "Unknown"))
+      updatedclinical$EFS.event.type.ID <- factor(updatedclinical$EFS.event.type.ID, levels = c("Censored", "Relapse", "Death", "Death without remission", "Induction failure", "Unknown"))
+      updatedclinical$FLT3.ITD <- factor(updatedclinical$FLT3.ITD, levels = c("Yes", "No"))
+      updatedclinical$WT1.Mutation <- factor(updatedclinical$WT1.Mutation, levels = c("Yes", "No"))
+      updatedclinical$CEBPA.Mutation <- factor(updatedclinical$CEBPA.Mutation, levels = c("Yes", "No"))
+      updatedclinical$NPM1.Mutation <- factor(updatedclinical$NPM1.Mutation, levels = c("Yes", "No"))
+      updatedclinical$TP53.Mutation <- factor(updatedclinical$TP53.Mutation, levels = c("Yes", "No"))
+
+    } else if (dataset() == "BeatAML") {
+      
+      updatedclinical$ageAtDiagnosis <- as.numeric(updatedclinical$ageAtDiagnosis)
+      updatedclinical$Age.Category <- ifelse(updatedclinical$ageAtDiagnosis < 20, "Less than 20 years",
+             ifelse(updatedclinical$ageAtDiagnosis >= 20 & updatedclinical$ageAtDiagnosis <= 60, "Between 20 and 60 years",
+                    ifelse(updatedclinical$ageAtDiagnosis > 60, "Greater than 60 years", NA)))
+      
+      updatedclinical$Age.Category <- ifelse(is.na(updatedclinical$Age.Category), "Unknown", updatedclinical$Age.Category)
+      updatedclinical$FLT3.ITD <- ifelse(is.na(updatedclinical$FLT3.ITD), "No", updatedclinical$FLT3.ITD)
+      updatedclinical$WT1.Mutation <- ifelse(is.na(updatedclinical$WT1.Mutation), "No", updatedclinical$WT1.Mutation)
+      updatedclinical$CEBPA.Mutation <- ifelse(is.na(updatedclinical$CEBPA.Mutation), "No", updatedclinical$CEBPA.Mutation)
+      updatedclinical$NPM1.Mutation <- ifelse(is.na(updatedclinical$NPM1.Mutation), "No", updatedclinical$NPM1.Mutation)
+      updatedclinical$TP53.Mutation <- ifelse(is.na(updatedclinical$TP53.Mutation), "No", updatedclinical$TP53.Mutation)
+      
+      updatedclinical$Age.Category <- factor(updatedclinical$Age.Category, levels = c("Less than 20 years", "Between 20 and 60 years", "Greater than 60 years"))
+      updatedclinical$CEBPA.Mutation <- ifelse(updatedclinical$CEBPA.Mutation != "negative", "Yes", "No")
+      updatedclinical$CEBPA.Mutation <- factor(updatedclinical$CEBPA.Mutation, levels = c("Yes", "No"))
+      updatedclinical$FLT3.ITD <- ifelse(updatedclinical$FLT3.ITD == "positive", "Yes", "No")
+      updatedclinical$FLT3.ITD <- factor(updatedclinical$FLT3.ITD, levels = c("Yes", "No"))
+      updatedclinical$NPM1.Mutation <- ifelse(updatedclinical$NPM1.Mutation == "positive", "Yes", "No")
+      updatedclinical$NPM1.Mutation <- factor(updatedclinical$NPM1.Mutation, levels = c("Yes", "No"))
+      updatedclinical$TP53.Mutation <- ifelse(updatedclinical$TP53.Mutation != "negative", "Yes", "No")
+      updatedclinical$TP53.Mutation <- factor(updatedclinical$TP53.Mutation, levels = c("Yes", "No"))
+      updatedclinical$WT1.Mutation <- ifelse(updatedclinical$WT1.Mutation != "negative", "Yes", "No")
+      updatedclinical$WT1.Mutation <- factor(updatedclinical$WT1.Mutation, levels = c("Yes", "No"))
+      
+    } else if (dataset() == "SWOG") {
+      
+      updatedclinical$Age.Category <- ifelse(is.na(updatedclinical$Age.Category), "Unknown", updatedclinical$Age.Category)
+      updatedclinical$WT1.Mutation <- ifelse(is.na(updatedclinical$WT1.Mutation), "No", updatedclinical$WT1.Mutation)
+      updatedclinical$NPM1.Mutation <- ifelse(is.na(updatedclinical$NPM1.Mutation), "No", updatedclinical$NPM1.Mutation)
+      updatedclinical$TP53.Mutation <- ifelse(is.na(updatedclinical$TP53.Mutation), "No", updatedclinical$TP53.Mutation)
+      
+      updatedclinical$Age.Category <- factor(updatedclinical$Age.Category, levels = c("Between 18 and 40 years", "Between 40 and 60 years", "Greater than 60 years", "Unknown"))
+      updatedclinical$NPM1.Mutation <- ifelse(updatedclinical$NPM1.Mutation == "Positive", "Yes", "No")
+      updatedclinical$NPM1.Mutation <- factor(updatedclinical$NPM1.Mutation, levels = c("Yes", "No"))
+      updatedclinical$TP53.Mutation <- ifelse(updatedclinical$TP53.Mutation == "Positive", "Yes", "No")
+      updatedclinical$TP53.Mutation <- factor(updatedclinical$TP53.Mutation, levels = c("Yes", "No"))
+      updatedclinical$WT1.Mutation <- ifelse(updatedclinical$WT1.Mutation == "Positive", "Yes", "No")
+      updatedclinical$WT1.Mutation <- factor(updatedclinical$WT1.Mutation, levels = c("Yes", "No"))
+      
+    } else if (dataset() == "TCGA") {
+      
+      updatedclinical$Age.Category <- ifelse(is.na(updatedclinical$Age.Category), "Unknown", updatedclinical$Age.Category)
+      updatedclinical$CEBPA.Mutation <- ifelse(is.na(updatedclinical$CEBPA.Mutation), "No", updatedclinical$CEBPA.Mutation)
+      updatedclinical$NPM1.Mutation <- ifelse(is.na(updatedclinical$NPM1.Mutation), "No", updatedclinical$NPM1.Mutation)
+      updatedclinical$TP53.Mutation <- ifelse(is.na(updatedclinical$TP53.Mutation), "No", updatedclinical$TP53.Mutation)
+      updatedclinical$Age.Category <- factor(updatedclinical$Age.Category, levels = c("Between 18 and 40 years", "Between 40 and 60 years", "Greater than 60 years"))
+      updatedclinical$CEBPA.Mutation <- ifelse(updatedclinical$CEBPA.Mutation == "CEBPA mutation", "Yes", "No")
+      updatedclinical$CEBPA.Mutation <- factor(updatedclinical$CEBPA.Mutation, levels = c("Yes", "No"))
+      updatedclinical$NPM1.Mutation <- ifelse(updatedclinical$NPM1.Mutation == "NPM1 mutation", "Yes", "No")
+      updatedclinical$NPM1.Mutation <- factor(updatedclinical$NPM1.Mutation, levels = c("Yes", "No"))
+      updatedclinical$TP53.Mutation <- ifelse(updatedclinical$TP53.Mutation == "TP53 mutation", "Yes", "No")
+      updatedclinical$TP53.Mutation <- factor(updatedclinical$TP53.Mutation, levels = c("Yes", "No"))
+      updatedclinical$FLT3.ITD <- ifelse(grepl("in_frame_ins", updatedclinical$FLT3), "Yes", "No")
+      updatedclinical$FLT3.ITD <- ifelse(is.na(updatedclinical$FLT3.ITD), "No", updatedclinical$FLT3.ITD)
+      updatedclinical$FLT3.ITD <- factor(updatedclinical$FLT3.ITD, levels = c("Yes", "No"))
+      
+    } else if (dataset() == "PCGP AML") {
+      
+      updatedclinical$Age.Category <- ifelse(is.na(updatedclinical$Age.Category), "Unknown", updatedclinical$Age.Category)
+      updatedclinical$CEBPA <- ifelse(is.na(updatedclinical$CEBPA), "No", updatedclinical$CEBPA)
+      updatedclinical$NPM1 <- ifelse(is.na(updatedclinical$NPM1), "No", updatedclinical$NPM1)
+      updatedclinical$FLT3.ITD <- ifelse(is.na(updatedclinical$FLT3.ITD), "No", updatedclinical$FLT3.ITD)
+      
+      # Extract unique fusions
+      existing_fusions <- unique(updatedclinical$Primary.Fusion)
+      
+      # Remove "Other AML" and "None" for sorting
+      core_levels <- sort(setdiff(existing_fusions, c("Other AML", "None")))
+      
+      # Check if "Other AML" and "None" exist, and add in correct order
+      optional_levels <- c()
+      if ("Other AML" %in% existing_fusions) optional_levels <- c(optional_levels, "Other AML")
+      if ("None" %in% existing_fusions) optional_levels <- c(optional_levels, "None")
+      
+      # Combine for final level order
+      final_levels <- c(core_levels, optional_levels)
+      
+      # Apply factor level ordering
+      updatedclinical$Primary.Fusion <- factor(updatedclinical$Primary.Fusion, levels = final_levels)
+      
+      
+      updatedclinical$Age.Category <- factor(updatedclinical$Age.Category, levels = c("Less than 3 years", "Between 3 and 5 years", "Between 5 and 10 years", "Between 10 and 18 years", "Greater than 18 years", "Unknown"))
+      updatedclinical$CEBPA.Mutation <- updatedclinical$CEBPA
+      updatedclinical$NPM1.Mutation <- updatedclinical$NPM1
+      updatedclinical$CEBPA.Mutation <- factor(updatedclinical$CEBPA.Mutation, levels = c("Yes", "No"))
+      updatedclinical$NPM1.Mutation <- factor(updatedclinical$NPM1.Mutation, levels = c("Yes", "No"))
+      updatedclinical$FLT3.ITD <- factor(updatedclinical$FLT3.ITD, levels = c("Yes", "No"))
+      
+    }
+    
+    return(updatedclinical)
+  })
+    
+  
   oncoAnnotation <- reactive({
-    mat <- fusionSubset() # once again rereading the matrix
-    updatedclinical <- clinData()[which(clinData()$PatientID %in% colnames(mat)),] # which patients in the CDE are in the matrix
-    updatedclinical <- filter(updatedclinical, updatedclinical$Primary.Fusion %in% input$fusions) # this is the reactionary code which will subset the cde for the checked fusions
-    updatedclinical <- updatedclinical[order(updatedclinical$PatientID),] # ordering the patients alphabetically to match the matrix
-    
-    
-    # custom color palettes based on colorbrewer that make the oncoprint look cleaner and also make sense with the displayed annotations:
-    
+    updatedclinical <- updatedClinical()
+    updatedclinical <- filter(updatedclinical, updatedclinical$Disease.Group == "AML")
+
+    # Color palettes
     colorlist <- c("#4E79A7", "#E15759", "#EDc948", "#B07AA1", "#F28E2B", "#59A14F", "#9C755F", 
                    "#a5bcd5", "#f0abac", '#f6e4a3', "#d7bcd0", "#f8c695", "#aad3a4", "#cebaae")
+    cnvcolorlist <- c("#4E79A7", "#E15759", "#EDc948", "#B07AA1", "#F28E2B", "#59A14F", "#9C755F", "#a5bcd5", "#ffffff")
+    efscolorlist <- c("#4E79A7", "#E15759", "#EDc948", "#B07AA1", "#F28E2B", "#ffffff")
+    gradcolorlist <- c("#c4d0e1", "#89a1c4", "#4E79A7", "#344967", "#161f2c", "#ffffff")
+    yesnocolorlist <- c("#161f2c", "#c4d0e1")
     
-    cnvcolorlist <- c("#4E79A7", "#E15759", "#EDc948", "#B07AA1", "#F28E2B", "#59A14F", "#9C755F", "#a5bcd5", "#f2f2f2")
+    # Initialize annotation data
+    annotation_data <- list(column_bar = anno_oncoprint_barplot())
+    color_list <- list()
     
-    efscolorlist <- c("#4E79A7", "#E15759", "#EDc948", "#B07AA1", "#F28E2B", "#f2f2f2")
+    # Helper to add annotation safely if the column exists
+    add_annotation <- function(name, column, palette) {
+      if (column %in% colnames(updatedclinical)) {
+        annotation_data[[name]] <<- updatedclinical[[column]]
+        levels_ <- levels(as.factor(updatedclinical[[column]]))
+        color_list[[name]] <<- setNames(palette[seq_along(levels_)], levels_)
+      }
+    }
     
-    gradcolorlist <- c("#c4d0e1", "#89a1c4", "#4E79A7", "#344967", "#161f2c", "#f2f2f2")
+    # Always include Fusion if TARGET/PCGP
+    if (dataset() %in% c("TARGET", "PCGP AML")) {
+      add_annotation("Fusion", "Primary.Fusion", colorlist)
+    } else {
+      updatedclinical$AML <- updatedclinical$Disease.Group
+      
+      add_annotation("AML", "AML", colorlist)
+    }
     
-    yesnocolorlist <- c("#4E79A7", "#f0abac", "#f2f2f2")
-  
-  
-    # creating levels in each of the clinical data elements columns so that the information is ordered nicely
-    updatedclinical$Primary.Fusion <- factor(updatedclinical$Primary.Fusion, levels = c("CBFA2T3-GLIS2", "CBFB-MYH11", "DEK-NUP214", "ETV6-MNX1", "FUS-ERG", 
-                                                                                        "KAT6A-CREBBP", "KMT2A-X", "NUP98-KDM5A", "NUP98-NSD1", "RBM15-MKL1",
-                                                                                        "RUNX1-CBFA2T3", "RUNX1-RUNX1T1", "None", "Other AML"))
-    updatedclinical$Primary.CNV <- factor(updatedclinical$Primary.CNV, levels = c("CBL deletion", "del5q", "monosomy7", "trisomy8", "trisomy21", "trisomy8/trisomy21", "-Y", "No Relevant CNV", "Unknown"))
-    updatedclinical$Age.Category <- factor(updatedclinical$Age.Category, levels = c("Less than 3 years", "Between 3 and 5 years", "Between 5 and 10 years", "Between 10 and 18 years", "Greater than 18 years", "Unknown"))
-    updatedclinical$`EFS event type ID` <- factor(updatedclinical$`EFS event type ID`, levels = c("Censored", "Relapse", "Death", "Death without remission", "Induction failure", "Unknown"))
-    updatedclinical$FLT3.ITD <- factor(updatedclinical$FLT3.ITD, levels = c("Yes", "No", "Unknown"))
-    updatedclinical$WT1.Mutation <- factor(updatedclinical$WT1.Mutation, levels = c("Yes", "No", "Unknown"))
+    # Conditional annotations based on input$annot and existence in data
+    if (any(grepl("CNV", input$annot))) add_annotation("CNV", "Primary.CNV", cnvcolorlist)
+    if (any(grepl("Age", input$annot))) add_annotation("Age", "Age.Category", gradcolorlist)
+    if (any(grepl("Event", input$annot))) add_annotation("EFS", "EFS.event.type.ID", efscolorlist)
+    if (any(grepl("FLT3", input$annot))) add_annotation("FLT3", "FLT3.ITD", yesnocolorlist)
+    if (any(grepl("WT1", input$annot))) add_annotation("WT1", "WT1.Mutation", yesnocolorlist)
+    if (any(grepl("CEBPA", input$annot))) add_annotation("CEBPA", "CEBPA.Mutation", yesnocolorlist)
+    if (any(grepl("NPM1", input$annot))) add_annotation("NPM1", "NPM1.Mutation", yesnocolorlist)
+    if (any(grepl("TP53", input$annot))) add_annotation("TP53", "TP53.Mutation", yesnocolorlist)
     
-    # create a color palette for each annotation, ensuring all levels are covered, flexible based on the number of levels included 
-    color_palette1 <- setNames(colorlist[1:length(levels(updatedclinical$Primary.Fusion))], levels(updatedclinical$Primary.Fusion))
-    color_palette2 <- setNames(cnvcolorlist[1:length(levels(updatedclinical$Primary.CNV))], levels(updatedclinical$Primary.CNV))
-    color_palette3 <- setNames(gradcolorlist[1:length(levels(updatedclinical$Age.Category))], levels(updatedclinical$Age.Category))
-    color_palette4 <- setNames(efscolorlist[1:length(levels(updatedclinical$`EFS event type ID`))], levels(updatedclinical$`EFS event type ID`))
-    color_palette5 <- setNames(yesnocolorlist[1:length(levels(updatedclinical$FLT3.ITD))], levels(updatedclinical$FLT3.ITD))
-    color_palette6 <- setNames(yesnocolorlist[1:length(levels(updatedclinical$WT1.Mutation))], levels(updatedclinical$WT1.Mutation))
-
-    # count the number of annotations based on user input
-    num_annotations <- sum(c(input$cnv, input$age, input$efs, input$flt3, input$wt1))
+    # Annotation heights
+    if (length(annotation_data) == 1) {
+      annotation_heights <- unit(1.5, "cm")
+    } else {
+      annotation_heights <- c(unit(1.5, "cm"), rep(unit(0.8, "cm"), length(annotation_data) - 1))
+    }
     
-    # set up a vector of annotation heights with a default height
-    annotation_heights <- c(unit(1.5, "cm"), rep(unit(0.8, "cm"), num_annotations+1))
-  
-    # create annotations based on user input that is flexible with the annotations added
-    ha <- HeatmapAnnotation(
-      column_bar = anno_oncoprint_barplot(),
-      Fusion = updatedclinical$Primary.Fusion,
-      CNV = if (input$cnv) updatedclinical$Primary.CNV else NULL,
-      Age = if (input$age) updatedclinical$Age.Category else NULL,
-      EFS = if (input$efs) updatedclinical$`EFS event type ID` else NULL,
-      FLT3_ITD = if (input$flt3) updatedclinical$FLT3.ITD else NULL,
-      WT1 = if (input$wt1) updatedclinical$WT1.Mutation else NULL,
-      col = list(
-        Fusion = color_palette1,
-        CNV = if (input$cnv) color_palette2 else NULL,
-        Age = if (input$age) color_palette3 else NULL,
-        EFS = if (input$efs) color_palette4 else NULL,
-        FLT3_ITD = if (input$flt3) color_palette5 else NULL,
-        WT1 = if (input$wt1) color_palette6 else NULL
-      ),
-      annotation_height = annotation_heights,
-      annotation_name_gp = gpar(fontsize = 10),
-      gp = gpar(fontsize = 8)
-    )
+    
+    # Construct HeatmapAnnotation safely
+    ha <- do.call(HeatmapAnnotation, c(
+      annotation_data,
+      list(
+        col = color_list,
+        annotation_height = annotation_heights,
+        annotation_name_gp = gpar(fontsize = 10),
+        gp = gpar(fontsize = 8)
+      )
+    ))
     
     return(ha)
-    
   })
   
-  # this provides the choices in the drop down menu and maps them to the clinical data elements column names
-  radio_choices <- c("No Split", "Fusion", "CNV", "Age", "EFS", "FLT3-ITD", "WT1")
-  column_names <- c("", "Primary.Fusion", "Primary.CNV", "Age.Category", "EFS event type ID", "FLT3.ITD", "WT1.Mutation")
-  column_mapping <- setNames(column_names, radio_choices)
+  splitList <- reactive({
+    uc <- updatedClinical()
+    split_input <- input$split
+    
+    # Mapping from user-friendly labels to column names
+    column_mapping <- c(
+      "Fusion" = "Primary.Fusion",
+      "Primary CNV" = "Primary.CNV",
+      "Age Category" = "Age.Category",
+      "Event Type ID" = "EFS.event.type.ID",
+      "FLT3-ITD" = "FLT3.ITD",
+      "WT1" = "WT1.Mutation",
+      "CEBPA" = "CEBPA.Mutation",
+      "NPM1" = "NPM1.Mutation",
+      "TP53" = "TP53.Mutation"
+    )
+    
+    # Handle "No Split" or empty input
+    if (is.null(split_input) || split_input == "No Split" || !split_input %in% names(column_mapping)) {
+      return(NULL)
+    }
+    
+    split_col <- column_mapping[[split_input]]
+    print(split_col)
+    
+    # Validate column exists
+    if (!split_col %in% colnames(uc)) {
+      print("DOES NOT EXIST")
+      return(NULL)
+    }
+    
+    # Return column as factor for splitting
+    return(as.factor(uc[[split_col]]))
+  })
+  
+  
   
   # plotting the oncoprint (finally!)
   plotOncoprint <- reactive({
+    
+    validate(
+      need(!dataset() %in% c("PCGP", "StJude", "GMKF", "CCLE"),
+           "Oncoprint function is not currently available for this dataset")
+    )
+    
     mat <- fusionSubset() # reading in the matrix
+    updatedclinical <- updatedClinical() # reading in the subsetted clinical data
     ha <- oncoAnnotation() # reading in the heatmap annotation
     
-    updatedclinical <- clinData()[which(clinData()$PatientID %in% colnames(mat)),] # which patients in the CDE are in the matrix
-    updatedclinical <- filter(updatedclinical, updatedclinical$Primary.Fusion %in% input$fusions) # this is the reactionary code which will subset the cde for the checked fusions
-    updatedclinical <- updatedclinical[order(updatedclinical$PatientID),]
-    
-    # doing the levelling again so that on the actual oncoprint they get ordered correctly (from left to right) when split
-    updatedclinical$Primary.Fusion <- factor(updatedclinical$Primary.Fusion, levels = c("CBFA2T3-GLIS2", "CBFB-MYH11", "DEK-NUP214", "ETV6-MNX1", "FUS-ERG", 
-                                                                                        "KAT6A-CREBBP", "KMT2A-X", "NUP98-KDM5A", "NUP98-NSD1", "RBM15-MKL1",
-                                                                                        "RUNX1-CBFA2T3", "RUNX1-RUNX1T1", "None", "Other AML"))
-    updatedclinical$Primary.CNV <- factor(updatedclinical$Primary.CNV, levels = c("CBL deletion", "del5q", "monosomy7", "trisomy8", "trisomy21", "trisomy8/trisomy21", "-Y", "No Relevant CNV", "Unknown"))
-    updatedclinical$Age.Category <- factor(updatedclinical$Age.Category, levels = c("Less than 3 years", "Between 3 and 5 years", "Between 5 and 10 years", "Between 10 and 18 years", "Greater than 18 years", "Unknown"))
-    updatedclinical$`EFS event type ID` <- factor(updatedclinical$`EFS event type ID`, levels = c("Censored", "Relapse", "Death", "Death without remission", "Induction failure", "Unknown"))
-    updatedclinical$FLT3.ITD <- factor(updatedclinical$FLT3.ITD, levels = c("Yes", "No", "Unknown"))
-    updatedclinical$WT1.Mutation <- factor(updatedclinical$WT1.Mutation, levels = c("Yes", "No", "Unknown"))
+    validate(
+      need(!is.null(mat) && nrow(mat) > 0 && ncol(mat) > 0, "No genes or samples to plot."),
+      need(!all(is.na(mat) | mat == ""), "No samples meet the required TPM cutoff for the selected genes")
+    )
     
     # setting a color for the bars
     col = c(Transmembrane = "#4E79A7", Intracellular = "#E15759")
@@ -332,7 +698,7 @@ oncoprint <- function(input, output, session, clinData, expData, gene, dataset) 
             pct_gp = gpar(fontsize = 10), # % fontsize
             column_title = NULL, # don't need a title
             top_annotation = ha, # heatmap annotation from the previous function
-            column_split = if (!is.null(input$split) && input$split != "No Split") updatedclinical[[column_mapping[input$split]]] else NULL, # splits based on the dropdown menu for splitting
+            column_split = splitList(),
             remove_empty_columns = FALSE, # can turn to TRUE if you want to get rid of empty columns (harder to visualize the % though)
             heatmap_legend_param = list(title = "Domain"))
     
@@ -345,9 +711,15 @@ oncoprint <- function(input, output, session, clinData, expData, gene, dataset) 
   #################################################################
   
   output$plot <- renderPlot({
-    validate(
-      need(input$fusions, 'Please select at least one fusion')) # this validation makes sure that a box is checked
-      plotOncoprint()
+    # Only validate fusions input if dataset is PCGP AML or TARGET
+    if (dataset() %in% c("PCGP AML", "TARGET")) {
+      validate(
+        need(length(input$fusions) > 0, "Please select at least one fusion")
+      )
+    }
+    
+    # Plot regardless for other datasets
+    plotOncoprint()
   })
   
   # Adding a download button widget for the plot

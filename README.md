@@ -25,7 +25,7 @@ Please see the respective publications for each dataset for more information:
 
 ### Access
 
-The app is password protected - to be granted access please submit an issue or contact Jack Peplinski (jpeplins@fredhutch.org) or Logan Wallace (lwallac2@fredhutch.org). 
+The app is password protected - to be granted access please submit an issue or contact Jack Peplinski (jpeplins@fredhutch.org). 
 
 
 ### Creation
