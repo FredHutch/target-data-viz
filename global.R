@@ -19,6 +19,7 @@ library(survival)
 library(survminer)
 library(ggsurvfit)
 library(biomaRt)
+
 #library(RSelenium)
 #library(netstat)
 
@@ -59,9 +60,9 @@ readData <- function(x) {
   stjude_expData <<- readRDS("data/mRNA/St_Jude_Expression_Data_TPM_filt4dupGenes_FinalforShiny_1.RDS")
   gmkf_expData <<- readRDS("data/mRNA/GMKF_TALL_TPM_Expression.RDS")
   ccle_expData <<- readRDS("data/mRNA/CCLE_TPM_Expression.RDS")
-  leuce_expData <<- readRDS("data/mRNA/Leucegene_expression_data_TPM_v2.RDS")
-  pcgp_aml_expData <<- readRDS("data/mRNA/stjude_aml_pcgp_v2.rds")
-  pcgp_expData <<- readRDS("data/mRNA/pcgp_total_data.RDS")
+  leuce_expData <<- readRDS("data/mRNA/Leucegene_expression_data_TPM_v3.RDS")
+  pcgp_aml_expData <<- readRDS("data/mRNA/stjude_aml_pcgp_v3.rds")
+  pcgp_expData <<- readRDS("data/mRNA/pcgp_total_data_v2.RDS")
   
   # miRNA expression matrices (for TARGET dataset only)
   load("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019_FinalforShiny.RData", .GlobalEnv)
@@ -74,7 +75,7 @@ readData <- function(x) {
   laml_cde <<- read.csv("data/Clinical/laml_cde_v3.csv")
   leuce_mani <<- read.csv("data/Clinical/Leucegene_manifest_v4.csv")
   pcgp_mani <<- read.csv("data/Clinical/stjude_aml_pcgp_manifest_v3.csv")
-  pcgp_total_mani <<- read.csv("data/Clinical/pcgp_total_mani_v2.csv")
+  pcgp_total_mani <<- read.csv("data/Clinical/pcgp_total_mani_v3.csv")
   
   #load("data/Clinical/Beat_AML_Supplementary_ClinicalData_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/TARGET_AML_merged_CDEs_Shareable_FinalforShiny_Updated_12_17_24.RData", .GlobalEnv)
