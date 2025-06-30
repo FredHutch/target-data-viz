@@ -129,7 +129,7 @@ ui <- dashboardPage(
                 menuItem("Other Cancers", tabName = "cancertype", icon = icon("disease")),
                 
                 br(),
-                p("DataViz v2.0.0", style = "padding-left: 15px; font-style: italic;")
+                p("DataViz v2.0.1", style = "padding-left: 15px; font-style: italic;")
     )
   ),  
   
