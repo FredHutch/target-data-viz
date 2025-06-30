@@ -402,8 +402,34 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene, ali
     })
   
   observeEvent(dataset(), {
-
-    if (dataset() == "BeatAML") {
+    
+    if (dataset() == "TARGET") {
+      
+      updateSelectInput(session = session,
+                        inputId = "select_subgroup",
+                        label = "Which one?",
+                        choices = list(
+                          "KMT2A/MLL rearranged" = "MLL|KMT2A-",
+                          "inv(16)" = "inv\\(16\\)|CBFB-MYH11",
+                          "t(8;21)" = "t\\(8\\;21\\)|RUNX1-RUNX1T1",
+                          "DEK-NUP214" = "DEK-NUP214",
+                          "ETS-Family" = "ETS-Family",
+                          "MLLT10-X" = "MLLT10-X",
+                          "FLT3-ITD" = "FLT3-ITD",
+                          "KMT2A-PTD" = "KMT2A-PTD",
+                          "WT1" = "WT1",
+                          "NPM1" = "NPM1(?!\\-)",
+                          "CEBPA" = "CEBPA",
+                          "CBFA2T3-GLIS2" = "CBFA2T3\\-GLIS2",
+                          "NUP98 fusions" = "NUP98-",
+                          "NUP98-NSD1" = "NUP98-NSD1",
+                          "NUP98-KDM5A" = "NUP98-KDM5A",
+                          "Monosomy 7" = "[Mm]onosomy7|Monosomy 7",
+                          "del5q/del7q" = "del5q|del7q",
+                          "Trisomy 8" = "[Tt]risomy8",
+                          "Normal karyotype" = "Normal"))
+      
+    } else if (dataset() == "BeatAML") {
 
       updateSelectInput(session = session,
                         inputId = "select_subgroup",
@@ -433,12 +459,12 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene, ali
                           "TP53" = "TP53",
                           "Normal karyotype" = "Normal"))
 
-    } else if (dataset() %in% c("LEUCEGENE", "PCGP")) {
+    } else if (dataset() %in% c("LEUCEGENE", "PCGP AML")) {
       
       updateSelectInput(session = session,
                         inputId = "select_subgroup",
                         label = "Which one?",
-                        choices = "")
+                        choices = "Not Applicable")
     }
   })
   
