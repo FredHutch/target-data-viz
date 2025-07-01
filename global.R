@@ -69,7 +69,7 @@ readData <- function(x) {
   miRmapping <<- read.csv("data/miRNA/hsa_gff3_IDMap.csv")
 
   # Clinical data
-  target_mani <<- read.csv("data/Clinical/complete_manifest_052825_exp4.csv")
+  target_mani <<- read.csv("data/Clinical/complete_manifest_070125_exp5.csv")
   beatAML_cde <<- read.csv("data/Clinical/beatAML_cde_v3.csv")
   swog_cde <<- read.csv("data/Clinical/swog_cde_v3.csv")
   laml_cde <<- read.csv("data/Clinical/laml_cde_v3.csv")

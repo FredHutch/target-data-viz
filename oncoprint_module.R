@@ -293,6 +293,7 @@ oncoprint <- function(input, output, session, clinData, expData, dataset, aligne
       
       genes <- unique(trimws(gene_df[[1]]))
       genes <- genes[genes != ""]
+      genes <- toupper(genes)  # Capitalize gene names
       validate(need(length(genes) > 0, "Uploaded gene list is empty."))
       return(genes)
       
@@ -302,10 +303,10 @@ oncoprint <- function(input, output, session, clinData, expData, dataset, aligne
       genes <- unlist(strsplit(input$gene_text, "[,\n\r\t ]+"))
       genes <- unique(trimws(genes))
       genes <- genes[genes != ""]
+      genes <- toupper(genes)  # Capitalize gene names
       return(genes)
     }
   })
-  
   
   
   # Creating a dataframe that is subsetted by the input file genelist
