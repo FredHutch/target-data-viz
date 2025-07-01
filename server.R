@@ -184,7 +184,8 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$check, {
-    option <- grep(input$geneInput, rownames(expData()), value = T, ignore.case = T)
+    option <- grep(input$geneInput, rownames(expData()), value = TRUE, ignore.case = TRUE)
+    
     msg <- if (length(option) == 0) {
       "No alternate names found!"
     } else if (length(option) > 20) {
@@ -193,7 +194,6 @@ server <- function(input, output, session) {
       paste0(paste0(option, collapse = "  or\n"), "?")
     }
     
-    # Check if miRNA name exists in the miRbase21 miRNA-seq data
     shinyalert(
       title = "Did you mean...",
       text = msg,
@@ -202,7 +202,7 @@ server <- function(input, output, session) {
       html = FALSE,
       type = "input",
       inputType = "text",
-      inputValue = option[1],
+      inputValue = if (length(option) > 0) option[1] else "",
       inputPlaceholder = "Type choice here",
       showConfirmButton = TRUE,
       showCancelButton = FALSE,
@@ -212,9 +212,13 @@ server <- function(input, output, session) {
       imageUrl = "",
       animation = TRUE,
       callbackR = function(x){
-        if (!is.null(x)) updateTextInput(session, "geneInput", label = NULL, value = input$shinyalert)
-      })
+        if (!is.null(x) && is.character(x) && nzchar(x) && x != "false") {
+          updateTextInput(session, "geneInput", label = NULL, value = x)
+        }
+      }
+    )
   })
+  
   
   #--------------------- WF plot & KM plot tabs --------------------- #
   
