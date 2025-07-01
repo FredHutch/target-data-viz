@@ -312,12 +312,12 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
       theme(legend.position = "top", 
             legend.title = element_blank(),
             legend.text = element_text(size = 14),
-            plot.title = element_text(hjust = 0.5, face = "bold"))
+            plot.title = element_text(hjust = 0.5, face = "bold")) +
+      scale_fill_manual(values = c("#2096f6", "#FD7370"))
     
     plot
     
   })
-  
   
   #################################################################
   #-------------------- FINAL MODULE OUTPUTS ---------------------#
