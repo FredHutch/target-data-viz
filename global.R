@@ -135,7 +135,7 @@ if (identical(testing, TRUE)) {
 
 bs <- 16 # Base font size for figures
 dataset_choices <- list(
-  aml = c("TARGET", "BEAT" = "BeatAML", "SWOG", "TGCA" = "TCGA", "LEUCEGENE", "PCGP AML"),
+  aml = c("TARGET", "BEAT" = "BeatAML", "SWOG", "TCGA" = "TCGA", "LEUCEGENE", "PCGP AML"),
   all = c("St. Jude" = "StJude"),
   tall = c("GMKF" = "GMKF"),
   ccle = c("CCLE" = "CCLE"),
