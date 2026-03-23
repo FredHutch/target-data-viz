@@ -495,6 +495,9 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   
   # ── Dynamic group filter checkbox ─────────────────────────────────────────
   # ── Populate the picker with current groups, all selected by default ───────
+  # tracks the grouping var that the picker was last updated for
+  picker_synced_to <- reactiveVal(NULL)
+  
   observe({
     req(plotData())
     grps <- levels(factor(plotData()[[input$grouping_var]]))
@@ -504,19 +507,30 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       choices  = grps,
       selected = grps
     )
+    # signal that picker is now synced to this grouping var
+    picker_synced_to(input$grouping_var)
   })
   
   filteredData <- reactive({
     req(plotData())
-    # fall back to all groups if picker hasn't populated yet
+    
+    # don't render until picker is synced to the current grouping var
+    req(picker_synced_to() == input$grouping_var)
+    
     selected <- if (is.null(input$selected_groups) || length(input$selected_groups) == 0) {
       levels(factor(plotData()[[input$grouping_var]]))
     } else {
       input$selected_groups
     }
+    
+    # only proceed if selected groups actually belong to current grouping var
+    valid_grps <- levels(factor(plotData()[[input$grouping_var]]))
+    selected <- intersect(selected, valid_grps)
+    req(length(selected) > 0)
+    
     plotData() %>%
       filter(.data[[input$grouping_var]] %in% selected)
-  })
+  }) %>% debounce(200)
   
   
   #----------------- Plot generation function -------------------#
@@ -979,11 +993,8 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   
   # Saving the plot to the output list object so it can be run & saved reactively
   output$plot <- renderPlotly({
-    
-    # Create the plot
     plotFun()
-    
-  })
+  }) %>% bindEvent(filteredData(), ignoreNULL = TRUE, ignoreInit = FALSE)
   
   # Adding a download button widget for the plot
   output$plot_download <- downloadHandler(
