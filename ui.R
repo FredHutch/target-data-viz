@@ -9,15 +9,27 @@ ui <- dashboardPage(
   
   ###################### DASHBOARD SIDEBAR ######################
   dashboardSidebar(
-    tags$style(HTML("#geneInput.form-control { color: #FFFFFF; }")), # Changes color of text in the gene text input box
-    tags$style(HTML("#geneInput { font-size:13px; height:30px; }")), # Changes size of text & text entry box
-    tags$style(HTML("#geneInput.form-control { background-color: #4a4a4a; }")), # Changes background color of text box
+    tags$style(HTML("#geneInput.form-control { 
+      color: #FFFFFF; 
+      font-size: 14px;
+      font-weight: bold;
+      padding-left: 8px; 
+      background-color: #4a4a4a;
+      border: 1px solid #6a6a6a;
+      border-radius: 3px;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+    }")),
+    tags$style(HTML("#geneInput { height: 34px; }")),
     # tags$style(HTML("#gene2.form-control { background-color: white; }")), # Changes background color of text box (this doesn't work though, not sure why)
     # tags$style(HTML("#gene2 { background-color: #white; }")), # Also doesn't work
     tags$style(HTML("#gene2.form-control { color: #2096f6; }")),
     tags$style(HTML(".help-block { color: #787878 }")), # Makes help text a bit darker & easier to read
     tags$head(tags$style(".plotdwnld { vertical-align:middle; horizontal-align:middle; height:30px; width:75px; font-size:10px; padding:2px }")),
-    tags$head(tags$style(HTML(".fa{font-size: 18px;}"))), # Makes dashboard icons larger
+    tags$head(tags$style(HTML(".fa{font-size: 18px;}"))),
+    tags$style(HTML("
+  .main-sidebar .selectize-input { background-color: #4a4a4a !important; color: #FFFFFF !important; border-color: #6a6a6a !important; font-weight: bold;}
+  .main-sidebar .selectize-dropdown { background-color: #4a4a4a !important; color: #FFFFFF !important; font-weight: bold;}
+")),
     sidebarMenu(
                 
                 #---------- Gene of interest input text box -------------#
@@ -80,13 +92,13 @@ ui <- dashboardPage(
                 
                 #-------- Disease selection -----------------------------#
                 
-                radioGroupButtons("leukemiaSelection", choices = c("AML", "BALL", "TALL", "CCLE", "PCGP"), 
-                                  status = "primary", label = "Select cancer", 
-                                  selected = "AML", size = "xs"),
+                selectInput("leukemiaSelection", label = "Select cancer",
+                            choices = c("AML", "BALL", "TALL", "CCLE", "PCGP", "CLL", "MM", "MDS"),
+                            selected = "AML"),
                 
                 #--------- Cohort selection -----------------------------#
                 
-                radioButtons("expDataCohort", choices = c("TARGET", "BEAT" = "BeatAML", "SWOG", "TCGA" = "TCGA", "LEUCEGENE", "PCGP AML"), 
+                radioButtons("expDataCohort", choices = c("TARGET", "BEAT" = "BeatAML", "SWOG", "TCGA" = "TCGA", "PCGP AML", "MLL AML"), 
                              label = "Select cohort", 
                              selected = "TARGET"),
                 
@@ -129,7 +141,7 @@ ui <- dashboardPage(
                 menuItem("Other Cancers", tabName = "cancertype", icon = icon("disease")),
                 
                 br(),
-                p("DataViz v2.0.4", style = "padding-left: 15px; font-style: italic;")
+                p("DataViz v2.0.5", style = "padding-left: 15px; font-style: italic;")
     )
   ),  
   

@@ -38,6 +38,37 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
           background-color: #2096f6 !important; /* red */
           color: white !important;
         }
+        /* Remove orange focus border on pickerInput */
+        .bootstrap-select .dropdown-toggle:focus,
+        .bootstrap-select .dropdown-toggle:active,
+        .bootstrap-select.btn-group .dropdown-toggle:focus,
+        .bootstrap-select > .dropdown-toggle.bs-placeholder:focus {
+          outline: none !important;
+          box-shadow: none !important;
+          border-color: #ced4da !important;
+        }
+        /* Style pickerInput to match selectInput */
+        .bootstrap-select .dropdown-toggle {
+          border: 1px solid #ced4da !important;
+          border-radius: 4px !important;
+          box-shadow: none !important;
+          background-color: #ffffff !important;
+          color: #495057 !important;
+        }
+        
+        .bootstrap-select .dropdown-toggle:hover {
+          border-color: #adb5bd !important;
+          box-shadow: none !important;
+        }
+        
+        .bootstrap-select .dropdown-toggle:focus,
+        .bootstrap-select .dropdown-toggle:active,
+        .bootstrap-select.btn-group .dropdown-toggle:focus,
+        .bootstrap-select > .dropdown-toggle.bs-placeholder:focus {
+          outline: none !important;
+          box-shadow: none !important;
+          border-color: #ced4da !important;
+        }
       "))
     ),
     fluidPage(
@@ -47,6 +78,8 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
               selectInput(ns("grouping_var"),
                           label = "Select a grouping variable",
                           choices = choices),
+              
+
           
           radioButtons(ns("plot_type"),
                        label = "Select a type of plot to generate",
@@ -96,14 +129,41 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
           ),
           
           # Plot download button
+          # div(style = "margin-bottom: 10px;",
+          #     downloadButton(ns("plot_download"),
+          #                    label = "Download Plot",
+          #                    class = "btn-primary btn-sm w-100")),
+          # shinyBS::bsTooltip(ns("plot_download"),
+          #                    title = "Click here to download the plot",
+          #                    placement = "right",
+          #                    trigger = "hover"),
+          
+          shinyWidgets::pickerInput(
+            inputId  = ns("selected_groups"),
+            label    = "Select or De-select Groups to Plot",
+            choices  = NULL,          # populated from server
+            multiple = TRUE,
+            options  = shinyWidgets::pickerOptions(
+              actionsBox       = TRUE,
+              liveSearch       = FALSE,
+              selectedTextFormat = "count > 3",
+              countSelectedText  = "{0} groups selected"
+            )
+          ),
+          
           div(style = "margin-bottom: 10px;",
-              downloadButton(ns("plot_download"),
-                             label = "Download Plot",
-                             class = "btn-primary btn-sm w-100")),
-          shinyBS::bsTooltip(ns("plot_download"),
-                             title = "Click here to download the plot",
-                             placement = "right",
-                             trigger = "hover"),
+              fluidRow(
+                column(6, numericInput(ns("min_expressors"),
+                                       label = "Min TPM",
+                                       value = 0,
+                                       min   = 0,
+                                       step  = 0.5)),
+                column(6, numericInput(ns("max_expressors"),
+                                       label = "Max TPM",
+                                       value = NA,
+                                       min   = 0,
+                                       step  = 0.5))
+              )),
           
           # Conditional Sample key button
           conditionalPanel(
@@ -305,7 +365,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
     # Needed to add in some additional checks as it is the case that when the user has a selected filter and then switches datasets
     # it might not be available for the new dataset
     validate(
-      need(!((dataset() %in% c("TARGET", "BeatAML", "SWOG", "TCGA", "StJude", "GMKF", "CCLE", "LEUCEGENE", "PCGP AML", "PCGP")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
+      need(!((dataset() %in% c("TARGET", "BeatAML", "SWOG", "TCGA", "StJude", "GMKF", "CCLE", "PCGP AML", "PCGP", "CLL", "MM", "MLL MDS", "MLL AML")) && (input$grouping_var %in% disabled_choices())), "That grouping option is not available for this dataset.\nPlease select another option."))
     
     plotDF <- geneData() %>%
       pivot_longer(names_to = "PatientID", values_to = "Expression", -Gene) %>%
@@ -313,6 +373,14 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
       mutate(across(Expression, ~as.numeric(.))) %>%
       left_join(., clinData(), by = "PatientID") %>%
       mutate(Log2 = log2(Expression + 1))
+    
+    # filter by min/max expression cutoffs if provided
+    if (!is.na(input$min_expressors) && input$min_expressors > 0) {
+      plotDF <- plotDF %>% filter(Expression >= input$min_expressors)
+    }
+    if (!is.na(input$max_expressors)) {
+      plotDF <- plotDF %>% filter(Expression <= input$max_expressors)
+    }
     
     # Modifying the chosen grouping variable to keep the NBMs and PBs from being categorized as NA.
     # This keeps them on the plot - if they're recategorized as NA, they will be removed from the final plot.
@@ -354,7 +422,18 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
     if (dataset() == "PCGP AML") {
       plotDF$Age.Category <- forcats::fct_relevel(plotDF$Age.Category, c("Less than 3 years", "Between 3 and 5 years", "Between 5 and 10 years", "Between 10 and 18 years", "Greater than 18 years", "Unknown"))
     }
-    if (dataset() == "PCGP") {
+    if (dataset() == "MLL AML") {
+      plotDF$Age.Category <- ifelse(is.na(plotDF$Age.Category), "Unknown", plotDF$Age.Category)
+      plotDF$Age.Category <- forcats::fct_relevel(plotDF$Age.Category, c("Less than 40", "40-65", "Greater than 65", "Unknown"))
+      plotDF$Subtype <- forcats::fct_relevel(plotDF$Subtype, c("CBFB-MYH11", "RUNX1-RUNX1T1", "KMT2A", "DEK-NUP214", "MECOM", "NUP98", 
+                                                               "CEBPA", "NPM1", "MR", "Other", normals))
+    }    
+    if (dataset() == "MLL MDS") {
+      plotDF$Age.Category <- ifelse(is.na(plotDF$Age.Category), "Unknown", plotDF$Age.Category)
+      plotDF$Age.Category <- forcats::fct_relevel(plotDF$Age.Category, c("Less than 40", "40-65", "Greater than 65", "Unknown"))
+      plotDF$Subtype <- forcats::fct_relevel(plotDF$Subtype, c("5q", "IB1", "IB2", "LB", "SF3B1", "TP53", normals))
+    }
+    if (dataset() == "TALL") {
       plotDF$Age.Category <- forcats::fct_relevel(plotDF$Age.Category, c("Less than 3 years", "Between 3 and 5 years", "Between 5 and 10 years", "Between 10 and 18 years", "Greater than 18 years", "Unknown"))
     }
 
@@ -414,9 +493,46 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
     return(plotDF)
   })
   
+  # ── Dynamic group filter checkbox ─────────────────────────────────────────
+  # ── Populate the picker with current groups, all selected by default ───────
+  observe({
+    req(plotData())
+    grps <- levels(factor(plotData()[[input$grouping_var]]))
+    shinyWidgets::updatePickerInput(
+      session  = session,
+      inputId  = "selected_groups",
+      choices  = grps,
+      selected = grps
+    )
+  })
+  
+  filteredData <- reactive({
+    req(plotData())
+    # fall back to all groups if picker hasn't populated yet
+    selected <- if (is.null(input$selected_groups) || length(input$selected_groups) == 0) {
+      levels(factor(plotData()[[input$grouping_var]]))
+    } else {
+      input$selected_groups
+    }
+    plotData() %>%
+      filter(.data[[input$grouping_var]] %in% selected)
+  })
+  
   
   #----------------- Plot generation function -------------------#
   plotFun <- reactive({
+    
+    add_download_config <- function(p) {
+      p %>% plotly::config(
+        toImageButtonOptions = list(
+          format = "png",
+          filename = paste0(dataset(), "_", gene(), "_", input$grouping_var, "_", input$plot_type),
+          width    = 1600,
+          height   = 800,
+          scale    = 3.5     # 3x pixel density — crisp at any size
+        )
+      )
+    }
     
     if (any(grepl(gene(), c(miRmapping$Alias, miRmapping$hsa.ID.miRbase21)))) {
       units <- "RPM"
@@ -445,7 +561,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
     
     if (input$plot_type == "bx") { # Generating box plots
       # Check data before plotting
-      data_check <- plotData() %>%
+      data_check <- filteredData() %>%
         drop_na(input$grouping_var)  # Make sure grouping var and expCol are valid
       
       # Check if grouping and expCol have sufficient variation
@@ -481,11 +597,14 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
                                 x = 0.5, 
                                 xanchor = "center"
                   ),
-                  xaxis = list(tickfont = list(size = bs)))
+                  xaxis = list(tickfont = list(size = bs)),
+                  margin  = list(t = 20, b = 0, l = 0, r = 30))
       
       p
+      add_download_config(p)
+      
     } else if (input$plot_type == "str") {
-      plot_df <- plotData() %>%
+      plot_df <- filteredData() %>%
         drop_na(!!sym(input$grouping_var)) %>%
         mutate(
           grouping_var = as.factor(.data[[input$grouping_var]]),
@@ -545,103 +664,166 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
           y = -0.1,
           x = 0.5,
           xanchor = "center",
-          itemsizing = "constant"
+          itemsizing = "constant",
+          margin  = list(t = 20, b = 0, l = 0, r = 30)
         )
       )
       
       p
       
-    } else if (input$plot_type == "wf") { # Generating a waterfall plot
+      add_download_config(p)
+    } else if (input$plot_type == "wf") {
       
-          if (dataset() == "PCGP") {
-            p <- plotData() %>%
-              drop_na(input$grouping_var) %>%
-              ggplot(aes_string(
-                x = "SampleID",
-                y = "Expression",
-                fill = input$grouping_var
-              )) +
-              geom_bar(
-                stat = "identity",
-                width = 1,
-                position = position_dodge(width = 0.4),
-                inherit.aes = TRUE
-              ) +
-              aes(text = paste0("PatientID: ", PatientID,
-                                "<br>Expression: ", round(Expression, 3), " TPM",
-                                "<br>", gsub("\\.", "", input$grouping_var), ": ", get(input$grouping_var),
-                                "<br>Subtype: ", Subtype)
-              ) +
-              theme_classic(base_size = bs, base_family = "Helvetica") +
-              labs(
-                x = NULL,
-                y = yaxLab,
-                fill = gsub("\\.", " ", input$grouping_var)
-              ) +
-              theme(
-                axis.text.x = element_blank(),
-                axis.text.y = element_text(size = bs),
-                plot.title = element_text(size = bs + 2, hjust = 0.5),
-                axis.ticks.x = element_blank(),
-                legend.position = "bottom",
-                legend.text = element_text(size = bs - 4),
-                legend.title = element_blank()
-              )
+      make_wf_plot <- function(df, has_subtype = FALSE) {
+        df %>%
+          drop_na(input$grouping_var) %>%
+          ggplot(aes_string(
+            x     = "SampleID",
+            y     = "Expression",
+            fill  = input$grouping_var
+          )) +
+          geom_bar(
+            stat     = "identity",
+            width    = 1,
+            position = position_dodge(width = 0.4),
+            inherit.aes = TRUE
+          ) +
+          aes(text = if (has_subtype) {
+            paste0("PatientID: ", PatientID,
+                   "<br>Expression: ", round(Expression, 3), " TPM",
+                   "<br>", gsub("\\.", "", input$grouping_var), ": ", get(input$grouping_var),
+                   "<br>Subtype: ", Subtype)
           } else {
+            paste0("PatientID: ", PatientID,
+                   "<br>Expression: ", round(Expression, 3), " TPM",
+                   "<br>", gsub("\\.", "", input$grouping_var), ": ", get(input$grouping_var))
+          }) +
+          theme_classic(base_size = bs, base_family = "Helvetica") +
+          labs(
+            x    = NULL,
+            y    = yaxLab,
+            fill = gsub("\\.", " ", input$grouping_var)
+          ) +
+          theme(
+            axis.text.x     = element_blank(),
+            axis.text.y     = element_text(size = bs),
+            plot.title      = element_text(size = bs + 2, hjust = 0.5),
+            axis.ticks.x    = element_blank(),
+            axis.line.x     = element_line(colour = "black"), # ADDED
+            legend.position = "bottom",
+            legend.text     = element_text(size = bs - 4),
+            legend.title    = element_blank()
+          )
+      }
       
-                p <- plotData() %>%
-                  drop_na(input$grouping_var) %>%
-                  ggplot(aes_string(
-                    x = "SampleID",
-                    y = "Expression",
-                    fill = input$grouping_var
-                  )) +
-                  geom_bar(
-                    stat = "identity",
-                    width = 1,
-                    position = position_dodge(width = 0.4),
-                    inherit.aes = TRUE
-                  ) +
-                  aes(text = paste0("PatientID: ", PatientID,
-                                    "<br>Expression: ", round(Expression, 3), " TPM",
-                                    "<br>", gsub("\\.", "", input$grouping_var), ": ", get(input$grouping_var)
-                  )) +
-                  theme_classic(base_size = bs, base_family = "Helvetica") +
-                  labs(
-                    x = NULL,
-                    y = yaxLab,
-                    fill = gsub("\\.", " ", input$grouping_var)
-                  ) +
-                  theme(
-                    axis.text.x = element_blank(),
-                    axis.text.y = element_text(size = bs),
-                    plot.title = element_text(size = bs + 2, hjust = 0.5),
-                    axis.ticks.x = element_blank(),
-                    legend.position = "bottom",
-                    legend.text = element_text(size = bs - 4),
-                    legend.title = element_blank()
-                  )
-          }
+      # ── Main bar plot ──────────────────────────────────────────────────────────
+      plot_df <- filteredData() %>% drop_na(input$grouping_var)
       
-      # Convert to plotly with custom tooltip
-      p <- ggplotly(p, tooltip = "text", dynamicTicks = TRUE)
-      # Update layout and styling using R-style plotly syntax
-      p <- layout(p,
-                  legend = list(
-                    orientation = "h",
-                    y = -0.1,
-                    x = 0.5,
-                    xanchor = "center"
-                  ),
-                  bargap = 0
+      p <- make_wf_plot(plot_df, has_subtype = (dataset() == "PCGP")) %>%
+        ggplotly(tooltip = "text", dynamicTicks = TRUE)
+      
+      # ── Color bar strip ────────────────────────────────────────────────────────
+      plot_df <- plot_df %>%
+        mutate(SampleID = factor(SampleID, levels = unique(SampleID)))
+      
+      grp_levels <- levels(factor(plot_df[[input$grouping_var]]))
+      req(length(grp_levels) > 0)
+      gg_colors  <- scales::hue_pal()(length(grp_levels))
+      color_map  <- setNames(gg_colors, grp_levels)
+      
+      # Find the last SampleID in each group to place dividers
+      divider_ids <- plot_df %>%
+        group_by(across(all_of(input$grouping_var))) %>%
+        slice_tail(n = 1) %>%
+        ungroup() %>%
+        slice_head(n = -1) %>%   # drop the last group — no divider needed after it
+        pull(SampleID)
+      
+      color_bar <- plot_ly(
+        data       = plot_df,
+        x          = ~SampleID,
+        y          = rep(1, nrow(plot_df)),
+        type       = "bar",
+        color      = ~get(input$grouping_var),
+        colors     = color_map,
+        showlegend = FALSE,
+        hoverinfo  = "none",
+        marker     = list(line = list(width = 0))
+      ) %>%
+        # CHANGED: add white divider bars as a separate trace on top
+        add_trace(
+          x          = divider_ids,
+          y          = rep(1, length(divider_ids)),
+          type       = "bar",
+          marker     = list(color = "white", line = list(width = 0)),
+          width      = 0.1,
+          offset     = 0.45,   # pushes the bar to the right edge of that position
+          showlegend = FALSE,
+          hoverinfo  = "none",
+          inherit    = FALSE
+        ) %>%
+        layout(
+          barmode = "overlay",   # CHANGED: overlay so white bars sit on top
+          bargap  = 0,
+          xaxis   = list(
+            visible    = FALSE,
+            fixedrange = FALSE
+          ),
+          yaxis   = list(
+            visible    = FALSE,
+            fixedrange = TRUE,
+            range      = c(0, 1)
+          ),
+          margin = list(t = 20, b = 0, l = 0, r = 30)
+        )
+      # ── Stack main plot + color bar via subplot ────────────────────────────────
+      p <- subplot(
+        p,
+        color_bar,
+        nrows   = 2,
+        heights = c(0.95, 0.04),
+        shareX  = TRUE,
+        titleY  = TRUE
+      ) %>%
+        layout(
+          legend = list(
+            orientation     = "h",
+            y               = -0.05,
+            x               = 0.5,
+            xanchor         = "center",
+            itemclick       = "toggle",
+            itemdoubleclick = "toggleothers"
+          ),
+          bargap = 0
+        )
+      
+      # ── Build and inject x-axis line at bottom of main plot domain ────────────
+      p <- plotly_build(p)
+      
+      # The main plot occupies the top 95% — its bottom edge in paper coords is
+      # the top of the color bar's domain (0.04) plus a small gap plotly adds
+      main_bottom <- p$x$layout$yaxis$domain[1]
+      
+      p$x$layout$shapes <- c(
+        p$x$layout$shapes,
+        list(list(
+          type  = "line",
+          xref  = "paper",
+          yref  = "paper",
+          x0    = 0,
+          x1    = 1,
+          y0    = main_bottom,
+          y1    = main_bottom,
+          line  = list(color = "black", width = 1)
+        ))
       )
+
+      p <- add_download_config(p)
       
       p
-      
-      
     } else if (input$plot_type == "sctr") { # Generating a scatter plot
       
-      p <- plotData() %>%
+      p <- filteredData() %>%
         drop_na(input$grouping_var) %>%
         filter(Disease.Group == c("AML")) %>%
         ungroup() %>%
@@ -704,9 +886,11 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
                   legend = list(orientation = "h", 
                                 y = -0.2, 
                                 x = 0.5, 
-                                xanchor = "center"
+                                xanchor = "center",
+                                margin  = list(t = 20, b = 0, l = 0, r = 30)
                   ))
       p
+      add_download_config(p)
       
     }
     
@@ -719,7 +903,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   #     ### Manually generate the comparison and add to plot ###
   #     
   #     # Sort plot data for the comparitors of interest
-  #     df <- plotData() %>% 
+  #     df <- filteredData() %>% 
   #       drop_na(input$grouping_var) %>%
   #       filter(!!as.name(input$grouping_var) %in% input$comparisons) %>%
   #       ungroup()
@@ -732,7 +916,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   #     p_value <- test$p
   #     
   #     # Add the result from the statistical test as an annotation to the plot
-  #     y = ifelse(input$log == TRUE, max(plotData()$Log2) + 1, max(plotData()$Expression) + 1)
+  #     y = ifelse(input$log == TRUE, max(filteredData()$Log2) + 1, max(filteredData()$Expression) + 1)
   #     
   #     p <- p %>% add_annotations(
   #       text = paste("p-value:", format(p_value, digits = 3)),
@@ -753,7 +937,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   
   # Function to generate an expression summary table from the plot data
   tableFun <- reactive({
-    data <- plotData() %>%
+    data <- filteredData() %>%
       drop_na(input$grouping_var)
     
     grouped_data <- if (dataset() == "CCLE" && input$grouping_var == "Disease.Group") {

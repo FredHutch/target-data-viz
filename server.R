@@ -31,14 +31,20 @@ server <- function(input, output, session) {
                       "BALL" = dataset_choices$all, 
                       "TALL" = dataset_choices$tall,
                       "CCLE" = dataset_choices$ccle,
-                      "PCGP" = dataset_choices$pcgp) 
+                      "PCGP" = dataset_choices$pcgp,
+                      "CLL" = dataset_choices$cll,
+                      "MM" = dataset_choices$mm,
+                      "MDS" = dataset_choices$mds) 
     
     selected <- switch(input$leukemiaSelection,
                        "AML" = "TARGET",
                        "BALL" = "StJude",
                        "TALL" = "GMKF",
                        "CCLE" = "CCLE",
-                       "PCGP" = "PCGP")
+                       "PCGP" = "PCGP",
+                       "CLL" = "CLL",
+                       "MM" = "MM",
+                       "MDS" = "MLL MDS")
     
     updateRadioButtons(
       session = session,
@@ -63,9 +69,13 @@ server <- function(input, output, session) {
                      "StJude" = stjude_expData,
                      "GMKF" = gmkf_expData,
                      "CCLE" = ccle_expData,
-                     "LEUCEGENE" = leuce_expData,
+                     #"LEUCEGENE" = leuce_expData,
                      "PCGP AML" = pcgp_aml_expData,
-                     "PCGP" = pcgp_expData)
+                     "PCGP" = pcgp_expData,
+                     "CLL" = cll_expData,
+                     "MM" = mm_expData,
+                     "MLL AML" = mll_aml_expData,
+                     "MLL MDS" = mll_mds_expData)
     
     # Handle TARGET cohort separately
     if (input$expDataCohort == "TARGET") {
@@ -102,9 +112,14 @@ server <- function(input, output, session) {
              "StJude" = stjude_cde,
              "GMKF" = gmkf_cde,
              "CCLE" = ccle_cde,
-             "LEUCEGENE" = leuce_mani,
+             #"LEUCEGENE" = leuce_mani,
              "PCGP AML" = pcgp_mani,
-             "PCGP" = pcgp_total_mani)
+             "PCGP" = pcgp_total_mani,
+             "CLL" = cll_mani,
+             "MM" = mm_mani,
+             "MLL AML" = mll_aml_mani,
+             "MLL MDS" = mll_mds_mani
+             )
     }
   })
   

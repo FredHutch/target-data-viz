@@ -19,6 +19,7 @@ library(survival)
 library(survminer)
 library(ggsurvfit)
 library(biomaRt)
+#library(webshot2)
 
 #library(RSelenium)
 #library(netstat)
@@ -58,11 +59,15 @@ readData <- function(x) {
   swog_expData <<- readRDS("data/mRNA/SWOG_AML_ExpressionData_TPM_GRCh38_FinalforShiny_v2.RDS")
   laml_expData <<- readRDS("data/mRNA/TCGA_LAML_ExpressionData_TPM_FinalforShiny_v2.RDS")
   stjude_expData <<- readRDS("data/mRNA/St_Jude_Expression_Data_TPM_filt4dupGenes_FinalforShiny_1.RDS")
-  gmkf_expData <<- readRDS("data/mRNA/GMKF_TALL_TPM_Expression.RDS")
+  gmkf_expData <<- readRDS("data/mRNA/GMKF_TALL_TPM_Expression_v2.RDS")
   ccle_expData <<- readRDS("data/mRNA/CCLE_TPM_Expression.RDS")
-  leuce_expData <<- readRDS("data/mRNA/Leucegene_expression_data_TPM_v3.RDS")
+  #leuce_expData <<- readRDS("data/mRNA/Leucegene_expression_data_TPM_v3.RDS")
   pcgp_aml_expData <<- readRDS("data/mRNA/stjude_aml_pcgp_v3.rds")
   pcgp_expData <<- readRDS("data/mRNA/pcgp_total_data_v2.RDS")
+  cll_expData <<- readRDS("data/mRNA/cll_TPM.RDS")
+  mm_expData <<- readRDS("data/mRNA/mm_TPM.RDS")
+  mll_mds_expData <<- readRDS("data/mRNA/mll_mds_TPM.RDS")
+  mll_aml_expData <<- readRDS("data/mRNA/mll_aml_TPM.RDS")
   
   # miRNA expression matrices (for TARGET dataset only)
   load("data/miRNA/TARGET_AML_AAML1031_expn_matrix_mimat_norm_miRNA_RPM_01.07.2019_FinalforShiny.RData", .GlobalEnv)
@@ -73,16 +78,21 @@ readData <- function(x) {
   beatAML_cde <<- read.csv("data/Clinical/beatAML_cde_v3.csv")
   swog_cde <<- read.csv("data/Clinical/swog_cde_v3.csv")
   laml_cde <<- read.csv("data/Clinical/laml_cde_v3.csv")
-  leuce_mani <<- read.csv("data/Clinical/Leucegene_manifest_v4.csv")
+  #leuce_mani <<- read.csv("data/Clinical/Leucegene_manifest_v4.csv")
   pcgp_mani <<- read.csv("data/Clinical/stjude_aml_pcgp_manifest_v3.csv")
   pcgp_total_mani <<- read.csv("data/Clinical/pcgp_total_mani_v3.csv")
+  cll_mani <<- read.csv("data/Clinical/cll_mani.csv")
+  mm_mani <<- read.csv("data/Clinical/mm_mani.csv")
+  mll_mds_mani <<- read.csv("data/Clinical/mll_mds_mani.csv")
+  mll_aml_mani <<- read.csv("data/Clinical/mll_aml_mani.csv")
   
   #load("data/Clinical/Beat_AML_Supplementary_ClinicalData_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/TARGET_AML_merged_CDEs_Shareable_FinalforShiny_Updated_12_17_24.RData", .GlobalEnv)
   #load("data/Clinical/SWOG_AML_Merged_CDEs_FinalforShiny.RData", .GlobalEnv)
   #load("data/Clinical/TCGA_LAML_ClinicalData_FinalforShiny.RData", .GlobalEnv)
   load("data/Clinical/StJude_ALL_ClinicalData_FinalforShiny.RData", .GlobalEnv)
-  load("data/Clinical/GMKF_TALL_Clinical.RData", .GlobalEnv)
+  #gmkf_cde <<- read.csv("data/Clinical/GMKF_TALL_Clinical_v2.csv")
+  load("data/Clinical/GMKF_TALL_Clinical_v2.RData", .GlobalEnv)
   load("data/Clinical/CCLE_Clinical_Data.RData", .GlobalEnv)
   
 
@@ -108,11 +118,11 @@ readData <- function(x) {
   # tcga_csv <<- read.csv("data/listforcancers_bothlocat_10in90_final.csv")
   # gtex_tcga_combined <<- readRDS("data/concatenated_for_comparison_tcga_gtex.RDS")
   #tcga_newcsv <<- readRDS("data/tcga_expression_matrix.rds")
-  tcga_newcsv <<- readRDS("data/tcga_concatenated_full.rds")
-  tcga_manifest <<- read.csv("data/tcga_manifest.csv")
+  tcga_newcsv <<- readRDS("data/gtex_tcga/tcga_concatenated_full.rds")
+  tcga_manifest <<- read.csv("data/gtex_tcga/tcga_manifest.csv")
   
-  gtex_csv <<- readRDS("data/gtex_concatenated_full.rds")
-  gtex_manifest <<- read.csv("data/gtex_manifest.csv")
+  gtex_csv <<- readRDS("data/gtex_tcga/gtex_concatenated_full.rds")
+  gtex_manifest <<- read.csv("data/gtex_tcga/gtex_manifest.csv")
   gtex_manifest$Tissue <- gsub("(^|[[:space:]])([[:alpha:]])", "\\1\\U\\2", gtex_manifest$Tissue, perl=TRUE)
   
   
@@ -135,9 +145,12 @@ if (identical(testing, TRUE)) {
 
 bs <- 16 # Base font size for figures
 dataset_choices <- list(
-  aml = c("TARGET", "BEAT" = "BeatAML", "SWOG", "TCGA" = "TCGA", "LEUCEGENE", "PCGP AML"),
+  aml = c("TARGET", "BEAT" = "BeatAML", "SWOG", "TCGA" = "TCGA", "PCGP AML", "MLL AML"),
   all = c("St. Jude" = "StJude"),
   tall = c("GMKF" = "GMKF"),
   ccle = c("CCLE" = "CCLE"),
-  pcgp = c("PCGP" = "PCGP")
+  pcgp = c("PCGP" = "PCGP"),
+  cll = c("CLL" = "CLL"),
+  mm = c("MM" = "MM"),
+  mds = c("MLL MDS" = "MLL MDS")
 )
