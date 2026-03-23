@@ -164,6 +164,13 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene, ali
   # These could even be separated into 2 functions each, one for the KM function and the other for cumul. inc analysis
   KMplot <- function(testType) {
     
+    # Define color palette depending on the strata variable
+    palette_colors <- if (input$strata_var == "quartile") {
+      c("#FD7370", "#FFC348", "#81E76B", "#2096f6")
+    } else {
+      c("#2096f6", "#FD7370")
+    }
+    
     # Identifying which event column is needed, 
     # depending on which test type is selected
     validate(
@@ -253,7 +260,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene, ali
                                data = plotData(),
                                xlim = c(0,x_max),
                                multiple_panels = FALSE,
-                               palette = c("#fa766d", "#06bfc1", "#7faf1a", "#c47eff"),
+                               palette = palette_colors,
                                ggtheme = theme_classic(base_size = bs) +
                                  theme(plot.title = element_text(hjust = 0.5, size = bs + 2),
                                        axis.text = element_text(size = bs),
@@ -275,6 +282,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene, ali
       plot <- ggsurvplot(fit, data = plotData(),
                          pval = TRUE,
                          xlim = c(0,x_max),
+                         palette = palette_colors,
                          ggtheme = theme_classic(base_size = bs) +
                            theme(plot.title = element_text(hjust = 0.5, size = bs + 2),
                                  axis.text = element_text(size = bs),
@@ -402,8 +410,34 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene, ali
     })
   
   observeEvent(dataset(), {
-
-    if (dataset() == "BeatAML") {
+    
+    if (dataset() == "TARGET") {
+      
+      updateSelectInput(session = session,
+                        inputId = "select_subgroup",
+                        label = "Which one?",
+                        choices = list(
+                          "KMT2A/MLL rearranged" = "MLL|KMT2A-",
+                          "inv(16)" = "inv\\(16\\)|CBFB-MYH11",
+                          "t(8;21)" = "t\\(8\\;21\\)|RUNX1-RUNX1T1",
+                          "DEK-NUP214" = "DEK-NUP214",
+                          "ETS-Family" = "ETS-Family",
+                          "MLLT10-X" = "MLLT10-X",
+                          "FLT3-ITD" = "FLT3-ITD",
+                          "KMT2A-PTD" = "KMT2A-PTD",
+                          "WT1" = "WT1",
+                          "NPM1" = "NPM1(?!\\-)",
+                          "CEBPA" = "CEBPA",
+                          "CBFA2T3-GLIS2" = "CBFA2T3\\-GLIS2",
+                          "NUP98 fusions" = "NUP98-",
+                          "NUP98-NSD1" = "NUP98-NSD1",
+                          "NUP98-KDM5A" = "NUP98-KDM5A",
+                          "Monosomy 7" = "[Mm]onosomy7|Monosomy 7",
+                          "del5q/del7q" = "del5q|del7q",
+                          "Trisomy 8" = "[Tt]risomy8",
+                          "Normal karyotype" = "Normal"))
+      
+    } else if (dataset() == "BeatAML") {
 
       updateSelectInput(session = session,
                         inputId = "select_subgroup",
@@ -433,12 +467,12 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene, ali
                           "TP53" = "TP53",
                           "Normal karyotype" = "Normal"))
 
-    } else if (dataset() %in% c("LEUCEGENE", "PCGP")) {
+    } else if (dataset() %in% c("LEUCEGENE", "PCGP AML")) {
       
       updateSelectInput(session = session,
                         inputId = "select_subgroup",
                         label = "Which one?",
-                        choices = "")
+                        choices = "Not Applicable")
     }
   })
   
@@ -523,9 +557,15 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene, ali
       validate(
         need(input$mutCol, "Please select a mutation of interest.")
       )
+      
+      # Relevel the mutation column so that "Yes" appears before "No"
+      if (all(c("Yes", "No") %in% unique(mergedDF[[input$mutCol]]))) {
+        mergedDF[[input$mutCol]] <- factor(mergedDF[[input$mutCol]], levels = c("Yes", "No"))
+      } else {
+        mergedDF[[input$mutCol]] <- factor(mergedDF[[input$mutCol]])
+      }
     }
     
-    print(mergedDF)
     return(mergedDF)
   })
 

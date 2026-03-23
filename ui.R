@@ -86,7 +86,7 @@ ui <- dashboardPage(
                 
                 #--------- Cohort selection -----------------------------#
                 
-                radioButtons("expDataCohort", choices = c("TARGET", "BEAT" = "BeatAML", "SWOG", "TGCA" = "TCGA", "LEUCEGENE", "PCGP AML"), 
+                radioButtons("expDataCohort", choices = c("TARGET", "BEAT" = "BeatAML", "SWOG", "TCGA" = "TCGA", "LEUCEGENE", "PCGP AML"), 
                              label = "Select cohort", 
                              selected = "TARGET"),
                 
@@ -129,7 +129,7 @@ ui <- dashboardPage(
                 menuItem("Other Cancers", tabName = "cancertype", icon = icon("disease")),
                 
                 br(),
-                p("DataViz v2.0.0", style = "padding-left: 15px; font-style: italic;")
+                p("DataViz v2.0.4", style = "padding-left: 15px; font-style: italic;")
     )
   ),  
   

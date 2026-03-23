@@ -30,7 +30,7 @@ The app is password protected - to be granted access please submit an issue or c
 
 ### Creation
 
-This app was created by Amanda Leonti and is maintained by Jack Peplinski and Logan Wallace. 
+This app was created by Amanda Leonti and is maintained by Jack Peplinski. 
 
 
 ### Issues
