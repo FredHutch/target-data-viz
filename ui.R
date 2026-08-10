@@ -129,6 +129,7 @@ ui <- dashboardPage(
                 menuItem("Expression plots", tabName = "wfPlot", icon = icon("chart-column")),
                 menuItem("Timepoints", tabName = "timePlot", icon = icon("stopwatch")),
                 menuItem("Gene expressors", tabName = "geneExp", icon = icon("chart-pie")),
+                menuItem("Methylation", tabName = "methylPlot", icon = icon("toggle-on")),
                 menuItem("Kaplan-Meier curves", tabName = "kmPlot", icon = icon("notes-medical")),
                 # menuItem("Cox models", tabName = "coxPH"),
                 menuItem("Oncoprints", tabName = "oncoprint", icon = icon("stream")),
@@ -141,7 +142,7 @@ ui <- dashboardPage(
                 menuItem("Other Cancers", tabName = "cancertype", icon = icon("disease")),
                 
                 br(),
-                p("DataViz v2.0.6", style = "padding-left: 15px; font-style: italic;")
+                p("DataViz v2.0.7", style = "padding-left: 15px; font-style: italic;")
     )
   ),  
   
@@ -268,6 +269,10 @@ ui <- dashboardPage(
       tabItem(tabName = "oncoprint",
               oncoprintUI(id = "oncoprint", label = "Oncoprint generation")
       ), 
+      
+      tabItem(tabName = "methylPlot",
+              methylPlotUI(id = "methyl", label = "Methylation plot generation")
+      ),
       
       # This module is not ready for prime time yet
       # tabItem(tabName = "heatmap",

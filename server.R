@@ -98,6 +98,8 @@ server <- function(input, output, session) {
     return(matrix)
   })
   
+
+  
   # Reactive variable that stores the clinical data elements for the selected cohort
   studyData <- reactive({
     if (input$expDataCohort == "TARGET") {
@@ -167,6 +169,9 @@ server <- function(input, output, session) {
     }
   })
   
+  timepointSelected <- reactive({
+    input$timepoint
+  })
   
   observeEvent(input$ensid, {
     req(input$expDataCohort, input$aligner, input$geneInput)
@@ -264,6 +269,14 @@ server <- function(input, output, session) {
              expData = expData, 
              aligner = alignment,
              dataset = cohort,
+             gene = target)
+  
+  callModule(methylPlot, id = "methyl", 
+             clinData = studyData, 
+             expData = expData, 
+             aligner = alignment,
+             dataset = cohort,
+             timepoint = timepointSelected,   # ADDED
              gene = target)
   
   # This module is not ready for prime time yet

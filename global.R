@@ -31,6 +31,7 @@ source("waterfallPlot_module.R")
 source("time_module.R")
 source("kaplanMeierPlot_module.R")
 #source("degTable_module.R")
+source("methylation_module.R")
 source("geneExpressors_module.R")
 #source("heatmap_module.R")
 source("HPA_module.R")
@@ -125,7 +126,9 @@ readData <- function(x) {
   gtex_manifest <<- read.csv("data/gtex_tcga/gtex_manifest.csv")
   gtex_manifest$Tissue <- gsub("(^|[[:space:]])([[:alpha:]])", "\\1\\U\\2", gtex_manifest$Tissue, perl=TRUE)
   
-  
+  ## For the methylation module
+  bvals <<- readRDS("~/Desktop/Projects/DataViz/target-data-viz/data/bvals.RDS")
+  epic_anno <<- readRDS("~/Desktop/Projects/DataViz/target-data-viz/data/epic_anno.RDS")
 }
 
 testing <- FALSE
