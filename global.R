@@ -127,8 +127,8 @@ readData <- function(x) {
   gtex_manifest$Tissue <- gsub("(^|[[:space:]])([[:alpha:]])", "\\1\\U\\2", gtex_manifest$Tissue, perl=TRUE)
   
   ## For the methylation module
-  bvals <<- readRDS("~/Desktop/Projects/DataViz/target-data-viz/data/bvals.RDS")
-  epic_anno <<- readRDS("~/Desktop/Projects/DataViz/target-data-viz/data/epic_anno.RDS")
+  bvals <<- readRDS("data/bvals.RDS")
+  epic_anno <<- readRDS("data/epic_anno.RDS")
 }
 
 testing <- FALSE
