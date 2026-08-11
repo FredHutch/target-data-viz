@@ -19,6 +19,7 @@ library(survival)
 library(survminer)
 library(ggsurvfit)
 library(biomaRt)
+library(GenomicRanges)
 #library(webshot2)
 
 #library(RSelenium)
