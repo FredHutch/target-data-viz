@@ -314,7 +314,7 @@ methylPlot <- function(input, output, session, clinData, expData, gene, aligner,
         `Mean TPM`  = round(mean(Expression, na.rm = TRUE), 2),
         .groups = "drop"
       ) %>%
-      rename(Group = !!input$grouping_var)
+      dplyr::rename(Group = !!input$grouping_var)
     
     wide <- df %>%
       pivot_wider(
