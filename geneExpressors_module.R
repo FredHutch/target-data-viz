@@ -145,41 +145,40 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
     if (input$tpm_cutoff == "" & input$other_cutoff == FALSE) {
       validate("No cutoff criteria has been selected. Please choose a cutoff value OR choose a diff selection type.")
     }
-    ########################################################################################
-    # Transforming expression matrix into long-form table
-    if (dataset() %in% c("SWOG", "BeatAML", "TARGET", "TCGA", "StJude", "GMKF", "PCGP AML", "PCGP", "LEUCEGENE")) {
-      expTable <- expData() %>%
-        rownames_to_column("Gene") %>%
-        filter(Gene == gene()) %>%
-        pivot_longer(names_to = "Sample.ID", values_to = "Expression", -Gene) %>%
-        filter(!is.na(as.numeric(Expression))) %>%
-        mutate(Alterations = clinData()$Filter.Code[match(Sample.ID, clinData()$PatientID)],
-               AML.Sample = clinData()$AML.Sample[match(Sample.ID, clinData()$PatientID)]) %>%
-        filter(AML.Sample %in% c("AML", "BALL", "TALL"))
-      
-    } else if (dataset() == "CCLE") {
+    
+    clin <- clinData()
+    
+    if (dataset() == "CCLE") {
       expTable <- expData() %>%
         rownames_to_column("Gene") %>%
         filter(Gene == gene()) %>%
         pivot_longer(names_to = "Sample.ID", values_to = "Expression", -Gene) %>%
         filter(!is.na(Expression)) %>%
-        mutate(Tissue = clinData()$Tissue[match(Sample.ID, clinData()$PatientID)],
-               Malignancy = clinData()$Malignancy[match(Sample.ID, clinData()$PatientID)],
-               AML.Sample = clinData()$AML.Sample[match(Sample.ID, clinData()$PatientID)],
-               Alterations = clinData()$Filter.Code[match(Sample.ID, clinData()$PatientID)])
+        mutate(Tissue     = clin$Tissue[match(Sample.ID, clin$PatientID)],
+               Malignancy = clin$Malignancy[match(Sample.ID, clin$PatientID)],
+               AML.Sample = clin$AML.Sample[match(Sample.ID, clin$PatientID)],
+               Alterations = clin$Filter.Code[match(Sample.ID, clin$PatientID)])
+      
+    } else {
+      # Default for every other cohort, including MLL AML / MLL MDS / CLL / MM / TALL
+      expTable <- expData() %>%
+        rownames_to_column("Gene") %>%
+        filter(Gene == gene()) %>%
+        pivot_longer(names_to = "Sample.ID", values_to = "Expression", -Gene) %>%
+        mutate(Expression = suppressWarnings(as.numeric(Expression))) %>%
+        filter(!is.na(Expression)) %>%
+        mutate(Alterations = clin$Filter.Code[match(Sample.ID, clin$PatientID)],
+               AML.Sample  = clin$AML.Sample[match(Sample.ID, clin$PatientID)])
+      
+      # Only keep tumor samples if the cohort has an AML.Sample column with those labels.
+      # Adjust this vector if MLL AML uses different labels.
+      if ("AML.Sample" %in% colnames(clin)) {
+        expTable <- expTable %>% filter(AML.Sample %in% c("AML", "BALL", "TALL", "MDS", "CLL", "MM"))
       }
-    
-    # Filtering table if the user wants to restrict the analysis to a single AML subset
-    if (input$filter_cohort == "yes") {
-      
-      # Throws an error message if the selected dataset + filter combo doesn't have any entries
-      test <- filter(expTable, grepl(input$select_subgroup, Alterations, perl = T)) %>% nrow()
-      validate(
-        need(test > 0, "There are either no records in the dataset that contain the selected alteration,\nor there is currently insufficient data to identify them.")
-        )
-      
-      expTable <- filter(expTable, grepl(input$select_subgroup, Alterations, perl = T))
     }
+    
+    validate(need(nrow(expTable) > 0,
+                  "No expression data found for this gene in the selected cohort."))
     
     if (chooseMethod() == "quartile") {
       
@@ -220,14 +219,16 @@ geneExp <- function(input, output, session, clinData, expData, gene, dataset) {
                                                                Expression < as.numeric(input$tpm_cutoff) ~ paste0(gene(), "-"),  # so they need to be cast to numeric for this to work
                                                                TRUE ~ NA_character_))
     }
-    if (dataset() %in% c("SWOG", "BeatAML", "TARGET", "TCGA", "StJude", "GMKF", "PCGP", "PCGP AML", "LEUCEGENE")) {
-      expTable <- expTable %>%
-        arrange(desc(Expression)) %>% 
-        dplyr::select(Sample.ID, AML.Sample, matches("Protocol"), Gene, Expression, Filter.Category, Alterations)
-    } else if (dataset() == "CCLE") {
+    
+    if (dataset() == "CCLE") {
       expTable <- expTable %>%
         arrange(desc(Expression)) %>%
         dplyr::select(Sample.ID, AML.Sample, Tissue, Malignancy, Gene, Expression, Filter.Category)
+    } else {
+      expTable <- expTable %>%
+        arrange(desc(Expression)) %>%
+        dplyr::select(Sample.ID, any_of("AML.Sample"), matches("Protocol"), Gene,
+                      Expression, Filter.Category, any_of("Alterations"))
     }
     
     return(expTable)

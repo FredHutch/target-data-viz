@@ -154,6 +154,16 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene, ali
   library(gtools)
   library(openxlsx)
   
+  gene_ok <- reactive({
+    validate(
+      need(isTruthy(gene()),
+           "Please enter a gene symbol or miRNA in the text box to the left.") %then%
+        need(!is.null(expData()) && gene() %in% rownames(expData()),
+             paste0(gene(), " does not exist in the data! \nDouble-check the symbol, or try an alias."))
+    )
+    TRUE
+  })
+  
   #################################################################
   #------------------------- FUNCTIONS ---------------------------#
   #################################################################
@@ -164,166 +174,203 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene, ali
   # These could even be separated into 2 functions each, one for the KM function and the other for cumul. inc analysis
   KMplot <- function(testType) {
     
-    # Define color palette depending on the strata variable
+    # Evaluate the data once, on its own line, so any validation message
+    # (missing gene, missing percentile, etc.) shows up cleanly
+    pd <- plotData()
+    
+    validate(
+      need(any(grepl("EFS\\.ID|OS\\.ID|DFS\\.ID|RR\\.ID", colnames(pd))),
+           "This type of survival data is not available in this dataset.")
+    )
+    
+    # Color palette depending on the strata variable
     palette_colors <- if (input$strata_var == "quartile") {
       c("#FD7370", "#FFC348", "#81E76B", "#2096f6")
     } else {
       c("#2096f6", "#FD7370")
     }
     
-    # Identifying which event column is needed, 
-    # depending on which test type is selected
-    validate(
-      need(grepl("EFS\\.ID|OS\\.ID|DFS\\.ID|RR\\.ID", colnames(plotData())), "This type of survival data is not available in this dataset.")
-    )
-    time <- grep(paste0(testType, "\\.Time"), colnames(plotData()), value = T)
-    event <- grep(paste0(testType, "\\.ID"), colnames(plotData()), value = T)
-    time <- plotData()[,time]
-    event <- plotData()[,event]
+    # Pull the time and event columns for the selected survival type
+    time_col  <- grep(paste0(testType, "\\.Time"), colnames(pd), value = TRUE)
+    event_col <- grep(paste0(testType, "\\.ID"),   colnames(pd), value = TRUE)
+    time  <- pd[[time_col[1]]]
+    event <- pd[[event_col[1]]]
     
-    # Converting the time from days -> years, if requested by the user.
+    # Convert time to years if requested, and set axis limits
     if (input$time_type == "years") {
-      time <- as.numeric(time)/365
-      x_max <- 5
+      time     <- as.numeric(time) / 365
+      x_max    <- 5
       x_breaks <- seq(0, x_max, by = 1)
-    } else{
-      time <- as.numeric(time)
-      x_max <- 365 * 5  # 5 years in days
-      x_breaks <- seq(0, x_max, by = 365)  # yearly intervals
-      }
+      t5       <- 5                 # 5-year time point, in the plot's units
+    } else {
+      time     <- as.numeric(time)
+      x_max    <- 365 * 5
+      x_breaks <- seq(0, x_max, by = 365)
+      t5       <- 365 * 5
+    }
     
-    # Creating the survival objects for EFS, DFS, and OS.
-    if (testType != "RR" ) { 
+    # Survival object for EFS, DFS, and OS
+    if (testType != "RR") {
       surv.obj <- Surv(time = as.numeric(time),
                        event = as.numeric(event))
     }
     
-    # Fitting the Kaplan-Meier curves using the recoded survival data.
-    # If test type is RR, the cumulative incidence function will be used instead.
+    ###########################################################
+    # Fit the curves
+    ###########################################################
     if (testType == "RR") {
-
       
       event <- ifelse(grepl("Unknown", event), NA, event)
       
-      group <- ifelse(input$strata_var == "mutation", input$mutCol, input$strata_var)
-      group <- as.vector(plotData()[,group])
-      group <- gsub(" ", ".", group)
-      fit <- cmprsk::cuminc(ftime = time, 
-                            fstatus = event, 
-                            cencode = "Censored", # This is the censor code for the TARGET data
-                            group = group)
+      group_col <- if (input$strata_var == "mutation") input$mutCol else input$strata_var
+      g_fac     <- factor(pd[[group_col]])
+      lvls_raw  <- levels(g_fac)
+      group     <- gsub(" ", ".", as.character(g_fac))   # dots only for the fit
       
-      # relapse_names <- grep("Primary event$", names(fit), value = TRUE)
-      # 
-      # # Check if we found any matching names
-      # if (length(relapse_names) == 0) {
-      #   stop("No 'Primary event' curves found in the cuminc object.")
-      # }
-      # 
-      # # Subset to only Primary event (relapse) curves
-      # fit <- fit[relapse_names]
-      # 
-      # # Preserve attributes and class
-      # #attributes(fit) <- attributes(fit)
-      # class(fit) <- "cuminc"
+      fit <- cmprsk::cuminc(ftime   = time,
+                            fstatus = event,
+                            cencode = "Censored",   # censor code for the TARGET data
+                            group   = group)
+      
+      # 5-year cumulative incidence per group
+      tp <- cmprsk::timepoints(fit, times = t5)
+      rr_pattern <- "Primary event$"   # which event counts as relapse; adjust if needed
+      
+      rr_labels <- vapply(lvls_raw, function(g) {
+        rn <- rownames(tp$est)
+        i  <- which(startsWith(rn, paste0(gsub(" ", ".", g), " ")) & grepl(rr_pattern, rn))[1]
+        if (is.na(i) || is.na(tp$est[i, 1])) {
+          return(paste0(g, "\n5-yr RR: NR"))
+        }
+        est <- tp$est[i, 1]
+        se  <- sqrt(tp$var[i, 1])
+        sprintf("%s\n5-yr RR: %.0f%% (95%% CI %.0f-%.0f%%)", g, 100 * est,
+                100 * max(0, est - 1.96 * se), 100 * min(1, est + 1.96 * se))
+      }, character(1))
+      names(rr_labels) <- gsub(" ", ".", lvls_raw)
       
     } else {
-      formula <- if (input$strata_var == "mutation") { 
+      
+      formula <- if (input$strata_var == "mutation") {
         as.formula(paste0("surv.obj ~ ", input$mutCol))
       } else {
         as.formula(paste0("surv.obj ~ ", input$strata_var))
       }
       
-      fit <- survminer::surv_fit(formula = formula, data = plotData())
-      names(fit$strata) <- gsub(".+=", "", names(fit$strata)) # Fixing the names of the strata to make them more concise & descriptive
+      fit <- survminer::surv_fit(formula = formula, data = pd)
       
-      # Adding patient count (n) to the strata name (not sure how to do this for RR quite yet)
-      for (x in seq(length(names(fit$strata)))) {
-        names(fit$strata)[x] <- paste0(names(fit$strata[x]), " (n = ", fit$n[[x]], ")")
+      # 5-year survival per stratum (computed before the strata are renamed)
+      s5 <- summary(fit, times = t5, extend = TRUE)
+      km_lab <- ifelse(s5$n.risk == 0, "NR",
+                       sprintf("%.0f%% (95%% CI %.0f-%.0f%%)",
+                               100 * s5$surv, 100 * s5$lower, 100 * s5$upper))
+      
+      # Make strata names concise and add n and the 5-year estimate
+      names(fit$strata) <- gsub(".+=", "", names(fit$strata))
+      for (x in seq_along(fit$strata)) {
+        names(fit$strata)[x] <- paste0(names(fit$strata)[x], " (n = ", fit$n[[x]], ")",
+                                       "\n5-yr ", testType, ": ", km_lab[x])
       }
     }
     
-    # Creating the plot title using the group & test type information
-    title <- paste0("KM curves for ", testType, " by ", gene())
-    
+    # Number of strata (used to lay out the legend)
     nstrata <- if (input$strata_var == "mutation") {
-      length(levels(as.factor(plotData()[[input$mutCol]])))
+      length(levels(as.factor(pd[[input$mutCol]])))
     } else {
-      length(levels(as.factor(plotData()[[input$strata_var]])))
+      length(levels(as.factor(pd[[input$strata_var]])))
     }
     
-    # Changing colors of ggsurvplot & ggcomprisk objects:
-    # https://stackoverflow.com/questions/51387396/different-color-type-and-line-type-for-multiple-groups-in-survival-curve
-    # https://stackoverflow.com/questions/64186565/customizing-a-competing-risks-plot-in-r-with-package-cmprsk
+    title <- paste0("KM curves for ", testType, " by ", gene())
+    
+    ###########################################################
+    # Build the plot
+    ###########################################################
     if (testType == "RR") {
-      plot <- ggcompetingrisks(fit, 
-                               data = plotData(),
-                               xlim = c(0,x_max),
+      
+      plot <- ggcompetingrisks(fit,
+                               data = pd,
+                               xlim = c(0, x_max),
                                multiple_panels = FALSE,
                                palette = palette_colors,
                                ggtheme = theme_classic(base_size = bs) +
                                  theme(plot.title = element_text(hjust = 0.5, size = bs + 2),
                                        axis.text = element_text(size = bs),
                                        axis.title = element_text(size = bs),
-                                       legend.position = "bottom")) +
-        guides(fill = guide_legend(nrow = 2), color = guide_legend(nrow = 2), linetype = guide_legend(nrow = 2))
+                                       legend.position = "bottom",
+                                       legend.direction = "horizontal",
+                                       legend.text = element_text(size = bs - 4)))
+      
+      # Restore readable names (with the 5-yr estimate) in the legend
+      plot$data$group <- factor(rr_labels[as.character(plot$data$group)],
+                                levels = unname(rr_labels))
       
       plot$mapping <- aes(x = time, y = est, colour = group, linetype = event)
       plot <- plot +
-        geom_line(size = 1) +
+        geom_line(linewidth = 1) +
         labs(x = paste0("Time (", input$time_type, ")"),
              title = paste0("RR curves by ", gene()),
-             linetype = "Event",
-             colour = "Group") +
+             colour = NULL) +
         scale_x_continuous(limits = c(0, x_max), breaks = x_breaks) +
-        scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.2))
+        scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.2)) +
+        guides(colour   = guide_legend(title = NULL, nrow = ceiling(nstrata / 2)),
+               linetype = "none")   # removes the "Event" legend
+      
+      return(plot)
       
     } else {
-      plot <- ggsurvplot(fit, data = plotData(),
+      
+      plot <- ggsurvplot(fit, data = pd,
                          pval = TRUE,
-                         xlim = c(0,x_max),
+                         xlim = c(0, x_max),
                          palette = palette_colors,
                          ggtheme = theme_classic(base_size = bs) +
                            theme(plot.title = element_text(hjust = 0.5, size = bs + 2),
                                  axis.text = element_text(size = bs),
                                  axis.title = element_text(size = bs),
-                                 legend.position = "bottom"),
+                                 legend.position = "bottom",
+                                 legend.direction = "horizontal",
+                                 legend.text = element_text(size = bs - 4)),
                          legend = "bottom",
                          title = title)
       
       plot$plot <- plot$plot +
-        guides(fill = guide_legend(title = NULL, nrow = nstrata),
-               color = guide_legend(title = NULL, nrow = nstrata)) +
+        guides(fill  = guide_legend(title = NULL, nrow = ceiling(nstrata / 2)),
+               color = guide_legend(title = NULL, nrow = ceiling(nstrata / 2))) +
         labs(x = paste0("Time (", input$time_type, ")")) +
         scale_x_continuous(limits = c(0, x_max), breaks = x_breaks) +
         scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.2))
       
+      return(plot$plot)
     }
   }
   
   # Function to generate a table with outcome data used for the figures
   tableFun <- reactive({
     
+    gene_ok()   # <- first line
+    
     validate(
       need(input$test_type, "Please select at least one survival metric to analyze.")
     )
     
+    pd <- plotData()
+    
     type <- ifelse(input$strata_var == "mutation", input$mutCol, 
-                   grep(input$strata_var, colnames(plotData()), value = T))
+                   grep(input$strata_var, colnames(pd), value = T))
     
     if (length(input$test_type) == 1) {
-      time <- grep(paste0(input$test_type, "\\.time\\.\\.days"), colnames(plotData()), value = T)
-      event <- grep(paste0(input$test_type, "\\.ID"), colnames(plotData()), value = T)
+      time <- grep(paste0(input$test_type, "\\.time\\.\\.days"), colnames(pd), value = T)
+      event <- grep(paste0(input$test_type, "\\.ID"), colnames(pd), value = T)
     } else if (length(input$test_type) > 1) {
       time <- unlist(lapply(input$test_type, function(x) {
-        grep(paste0("^", x, "\\.time\\.\\.days"), colnames(plotData()), value = T)
+        grep(paste0("^", x, "\\.time\\.\\.days"), colnames(pd), value = T)
       }))
       event <- unlist(lapply(input$test_type, function(x) {
-        grep(paste0(x, "\\.ID"), colnames(plotData()), value = T)
+        grep(paste0(x, "\\.ID"), colnames(pd), value = T)
       }))
     }
   
-    plotData() %>%
+    pd %>%
       dplyr::select(any_of(c("PatientID", !!time, !!event, !!type, "Age.Category", "Primary.Fusion", "SNVs", "Risk", "Filter.Code"))) %>%
       dplyr::rename(Expression.category = !!type)
   })
@@ -331,34 +378,21 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene, ali
   # Used the info here to figure out how to display multiple plots:
   # https://stackoverflow.com/questions/51302112/create-plots-based-on-check-box-selection-in-r-shiny
   finalPlot <- reactive({
+    gene_ok()   # <- first line
     
     validate(
-      need(dataset() != "StJude", "Survival data is not currently available for this cohort.")
-    )
-    
-    validate(
-      need(dataset() != "GMKF", "Survival data is not currently available for this cohort.")
-    )
-    
-    validate(
-      need(dataset() != "CCLE", "Survival data is not available for cell line data.")
-    )    
-    
-    validate(
-      need(dataset() != "LEUCEGENE", "Survival data is not currently available for this cohort.")
-    )   
-    
-    validate(
-      need(dataset() != "PCGP", "Survival data is not currently available for this cohort.")
-    )   
-    
-    validate(
+      need(!dataset() %in% c("StJude", "GMKF", "LEUCEGENE", "PCGP"),
+           "Survival data is not currently available for this cohort."),
+      need(dataset() != "CCLE", "Survival data is not available for cell line data."),
       need(input$test_type, "Please select at least one survival metric to analyze.")
     )
+    
+    plotData()
+    
     if (length(input$test_type) == 1) {
-      list(KMplot(input$test_type))                   # This creates a gg & ggplot object.
-    } else if (length(input$test_type) > 1) {         # Generating multiple plots if the user selects more than 1 type
-      lapply(input$test_type, function(x) KMplot(x)) 
+      list(KMplot(input$test_type))
+    } else {
+      lapply(input$test_type, KMplot)
     }
   })
   
@@ -530,15 +564,25 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene, ali
         mutate(quartile = gtools::quantcut(Expression, q = 4, labels = c("Q1 - lowest quartile","Q2", "Q3","Q4 - highest quartile")))
       
     } else if (input$strata_var == "percentile") {
+      
+      # Convert once, safely. Empty / non-numeric input becomes NA instead of erroring
+      cutoff <- suppressWarnings(as.numeric(input$perc_cutoff))
+      
       validate(
-        need(input$perc_cutoff, "Please enter a percentile to use as a cutoff.") %then%
-          need(input$perc_cutoff %in% as.character(seq(1,100)), "The percentile must be between 0 and 100."))
+        need(length(cutoff) == 1 && !is.na(cutoff),
+             "Please enter a percentile to use as a cutoff.") %then%
+          need(cutoff > 0 && cutoff <= 100,
+               "The percentile must be between 1 and 100.")
+      )
       
       mergedDF <- mergedDF %>%
-        mutate(ranks = percent_rank(Expression)) %>%
-        mutate(percentile = case_when(ranks*100 < as.numeric(input$perc_cutoff) ~ paste0("Below ", input$perc_cutoff, "%"), 
-                                      ranks*100 >= as.numeric(input$perc_cutoff) ~ paste0("Above ", input$perc_cutoff, "%")))
-      
+        dplyr::mutate(
+          ranks = percent_rank(Expression),
+          percentile = dplyr::case_when(
+            ranks * 100 <  cutoff ~ paste0("Below ", cutoff, "%"),
+            ranks * 100 >= cutoff ~ paste0("Above ", cutoff, "%")
+          )
+        )
     } else if (input$strata_var == "tpm_value") {
       
       # Checking to see if the minimum TPM value is 0 - will add 1 if it's 0, otherwise it will be left as-is
