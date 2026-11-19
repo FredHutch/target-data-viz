@@ -325,7 +325,7 @@ kmPlot <- function(input, output, session, dataset, clinData, expData, gene, ali
   
     plotData() %>%
       dplyr::select(any_of(c("PatientID", !!time, !!event, !!type, "Age.Category", "Primary.Fusion", "SNVs", "Risk", "Filter.Code"))) %>%
-      rename(Expression.category = !!type)
+      dplyr::rename(Expression.category = !!type)
   })
   
   # Used the info here to figure out how to display multiple plots:

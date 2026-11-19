@@ -99,10 +99,7 @@ wfPlotUI <- function(id, label = "Gene expression plot parameters"){
             checkboxInput(ns("labels"), "Add x-axis labels", FALSE)
           ),
           
-          conditionalPanel(
-            condition = paste0("input['", ns("plot_type"), "'] == 'bx' || input['", ns("plot_type"), "'] == 'str' || input['", ns("plot_type"), "'] == 'sctr'"),
-            checkboxInput(ns("log"), "Log2 transform the data", FALSE)
-          ),
+          checkboxInput(ns("log"), "Log2 transform the data", FALSE),
           
           conditionalPanel(
             condition = paste0("input['", ns("test"), "'] == 1"),
@@ -556,11 +553,13 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
     
     # Selecting units to display on the y-axis
     if (input$log == TRUE) {
-      expCol <- "Log2"
-      yaxLab <- paste0("\n", gene(), " Expression (log2 ", units, " + 1)\n") # The extra newline is to keep x-axis labels
-    } else {                                                                 # from running off the side of the plot
-      expCol <- "Expression"
-      yaxLab <- paste0("\n", gene(), " Expression (", units, ")\n")
+      expCol   <- "Log2"
+      expLabel <- paste0("log2(", units, " + 1)")
+      yaxLab   <- paste0("\n", gene(), " Expression (log2 ", units, " + 1)\n")
+    } else {
+      expCol   <- "Expression"
+      expLabel <- units
+      yaxLab   <- paste0("\n", gene(), " Expression (", units, ")\n")
     }
     
     # Customizing the x-axis labels based on user input
@@ -624,7 +623,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
           grouping_var = as.factor(.data[[input$grouping_var]]),
           tooltip = paste0(
             "PatientID: ", PatientID, "\n",
-            "Expression: ", .data[[expCol]], " TPM\n",
+            "Expression: ", round(.data[[expCol]], 3), " ", expLabel, "\n",
             "Group: ", .data[[input$grouping_var]]
           )
         )
@@ -693,23 +692,23 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
           drop_na(input$grouping_var) %>%
           ggplot(aes_string(
             x     = "SampleID",
-            y     = "Expression",
+            y     = expCol,                      # was "Expression"
             fill  = input$grouping_var
           )) +
           geom_bar(
-            stat     = "identity",
-            width    = 1,
-            position = position_dodge(width = 0.4),
+            stat        = "identity",
+            width       = 1,
+            position    = position_dodge(width = 0.4),
             inherit.aes = TRUE
           ) +
           aes(text = if (has_subtype) {
             paste0("PatientID: ", PatientID,
-                   "<br>Expression: ", round(Expression, 3), " TPM",
+                   "<br>", expLabel, ": ", round(.data[[expCol]], 3),
                    "<br>", gsub("\\.", "", input$grouping_var), ": ", get(input$grouping_var),
                    "<br>Subtype: ", Subtype)
           } else {
             paste0("PatientID: ", PatientID,
-                   "<br>Expression: ", round(Expression, 3), " TPM",
+                   "<br>", expLabel, ": ", round(.data[[expCol]], 3),
                    "<br>", gsub("\\.", "", input$grouping_var), ": ", get(input$grouping_var))
           }) +
           theme_classic(base_size = bs, base_family = "Helvetica") +
@@ -854,7 +853,7 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
         xaxLab <- paste0("\n", gene(), " (", units, ")")
         yaxLab <- paste0(input$gene2, " (", units, ")\n")
         p <- p %>%
-          rename(expCol_1 = !!sym(gene()),
+          dplyr::rename(expCol_1 = !!sym(gene()),
                  expCol_2 = !!sym(input$gene2))
       }
       
@@ -994,7 +993,8 @@ wfPlot <- function(input, output, session, clinData, expData, adc_cart_targetDat
   # Saving the plot to the output list object so it can be run & saved reactively
   output$plot <- renderPlotly({
     plotFun()
-  }) %>% bindEvent(filteredData(), ignoreNULL = TRUE, ignoreInit = FALSE)
+  }) %>% bindEvent(filteredData(), input$log, input$labels,
+                   ignoreNULL = FALSE, ignoreInit = FALSE)
   
   # Adding a download button widget for the plot
   output$plot_download <- downloadHandler(
